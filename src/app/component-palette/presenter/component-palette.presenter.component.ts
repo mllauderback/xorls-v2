@@ -7,6 +7,7 @@ import { ButtonModule } from 'primeng/button';
 import { CommonModule } from '@angular/common';
 import { GridSelectionPanelComponent } from '../../grid-selection-panel/container/grid-selection-panel.container.component';
 import { PaletteComponent } from '../../models/components/PaletteComponent';
+import { PaletteComponentCategories } from '../../store/components/components.state';
 
 @Component({
   selector: 'app-component-palette-presenter',
@@ -23,5 +24,5 @@ import { PaletteComponent } from '../../models/components/PaletteComponent';
   styleUrl: './component-palette.presenter.component.scss'
 })
 export class ComponentPalettePresenterComponent {
-  @Input() categoryPaletteComponentMap?: Map<string, PaletteComponent[]>;
+  @Input() categoryPaletteComponentMap?: Map<PaletteComponentCategories, PaletteComponent[]>;
 }

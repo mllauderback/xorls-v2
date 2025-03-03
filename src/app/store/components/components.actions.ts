@@ -1,5 +1,6 @@
 import { createAction, props } from "@ngrx/store";
-import { PaletteComponentList } from "./components.state";
+import { PaletteComponentCategories, PaletteComponentList } from "./components.state";
+import { PaletteComponent } from "../../models/components/PaletteComponent";
 
 
-export const setPaletteComponentList     = createAction('Update selected palette component list', props<{ paletteComponentList: PaletteComponentList } >());
+export const setPaletteComponentMap     = createAction('Update selected palette component list', props<{ paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]> }>());

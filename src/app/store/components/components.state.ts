@@ -1,6 +1,6 @@
 import { PaletteComponent } from "../../models/components/PaletteComponent";
 
-export enum ComponentInfoListCategoryStrings {
+export enum PaletteComponentCategories {
     gates = "Gates",
     io = "I/O",
     decorations = "Decorations"
@@ -14,5 +14,5 @@ export type PaletteComponentList = { // make this a map
 }
 
 export interface PaletteComponentsState {
-    paletteComponentList: PaletteComponentList;
+    paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]>;
 }
