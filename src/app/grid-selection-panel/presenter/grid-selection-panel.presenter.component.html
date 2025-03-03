@@ -1,0 +1,6 @@
+<div class="grid-selection-panel">
+    @for (paletteComponent of categoryPaletteComponentMap?.get(category); track $index) {
+        <input class="grid-selection-checkbox" [id]="paletteComponent.className" type="checkbox" [checked]="paletteComponent.selected" (click)="select($event, paletteComponent)" />
+        <label class="grid-selection-label" for="{{ paletteComponent.className }}">{{ paletteComponent.className }}</label>
+    }
+</div>

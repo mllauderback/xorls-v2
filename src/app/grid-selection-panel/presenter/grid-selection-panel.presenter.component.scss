@@ -1,0 +1,37 @@
+.grid-selection-panel {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow: hidden;
+    padding: 1px;
+    border: 1px solid var(--p-content-border-color);
+    border-radius: var(--p-content-border-radius);
+    background: var(--p-content-background);
+    color: var(--p-content-color);
+}
+
+.grid-selection-checkbox {
+    position: absolute;
+    clip: rect(0,0,0,0);
+    pointer-events: none;
+}
+
+.grid-selection-label {
+    border-radius: var(--p-content-border-radius);
+    background: var(--p-content-background);
+    color: var(--p-content-color);
+    border:none;
+    transition: background var(--p-transition-duration),color var(--p-transition-duration),border-color var(--p-transition-duration),outline-color var(--p-transition-duration),box-shadow var(--p-transition-duration);
+    padding: 8px
+}
+
+.grid-selection-label:hover {
+    background: var(--p-primary-hover-color);
+    color: var(--p-primary-contrast-color);
+    cursor: pointer;
+}
+
+.grid-selection-checkbox:checked + .grid-selection-label {
+    color: var(--p-primary-contrast-color);
+    background: var(--p-primary-active-color);
+}

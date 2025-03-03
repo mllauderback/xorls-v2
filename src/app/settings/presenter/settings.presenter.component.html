@@ -1,0 +1,18 @@
+<div class="flex flex-row justify-between py-2">
+    <h3 class="pl-2 m-0 flex self-center">Application Settings</h3>
+    <p-button class="pr-2" label="Apply" icon="pi pi-check" iconPos="right" [disabled]="false" (onClick)="applySettingsChanges()"/>
+</div>
+<p-divider/>
+<div class="flex flex-col p-2">
+    <p-fieldset legend="Left Panel" [toggleable]="true" [collapsed]="true">
+        <div class="pt-2 pb-2 flex-auto">
+            <p-check-box [(ngModel)]="settings.leftPanelResizeByPct" [binary]="true" inputId="resizeByPct"/>
+            <label for="resizeByPct" class="ml-2" pTooltip="If checked, the left panel will dynamically resize based on window size changes to maintain a % of the window width." showDelay="1000">Resize left panel by %</label>
+        </div>
+        <div class="pt-2 pb-2 flex-auto">
+            <label class="block mb-1" for="leftPanelWidth">Left panel width</label>
+            @if (settings.leftPanelResizeByPct) { <p-inputNumber [(ngModel)]="settings.leftPanelWidth" inputId="leftPanelWidth" suffix="%" /> }
+            @else { <p-inputNumber [(ngModel)]="settings.leftPanelWidth" inputId="leftPanelWidth" suffix="px" /> }<!-- TODO -->
+        </div>
+    </p-fieldset>
+</div>

@@ -1,9 +1,18 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { CommonModule } from '@angular/common';
+
+import { StatusbarComponent } from "./statusbar/statusbar.component";
+import { LeftPanelContainerComponent } from './left-panel/container/left-panel.container.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [
+    RouterOutlet,
+    CommonModule,
+    StatusbarComponent,
+    LeftPanelContainerComponent
+],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
