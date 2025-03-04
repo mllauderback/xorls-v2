@@ -1,0 +1,14 @@
+@if (!selectable?.selectable) {
+    <div class="flex items-center justify-center h-full"><p>Nothing is selected.</p></div>
+}
+@else {
+    <p-scrollpanel class="w-full">
+        <div class="flex flex-row justify-between py-2">
+            <h3 class="pl-2 m-0 flex self-center">{{ selectable?.concreteClassName }} Properties</h3>
+        </div>
+        <p-divider/>
+        <div class="flex flex-col p-2">
+            <!-- string together @ifs for applicable properties -->
+        </div>
+    </p-scrollpanel>
+}

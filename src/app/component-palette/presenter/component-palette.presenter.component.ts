@@ -8,6 +8,7 @@ import { CommonModule } from '@angular/common';
 import { GridSelectionPanelComponent } from '../../grid-selection-panel/container/grid-selection-panel.container.component';
 import { PaletteComponent } from '../../models/components/PaletteComponent';
 import { PaletteComponentCategories } from '../../store/components/components.state';
+import { SelectablePropertiesContainerComponent } from "../../selectable-properties/container/selectable-properties.container.component";
 
 @Component({
   selector: 'app-component-palette-presenter',
@@ -18,7 +19,8 @@ import { PaletteComponentCategories } from '../../store/components/components.st
     PanelModule,
     ButtonModule,
     CommonModule,
-    GridSelectionPanelComponent
+    GridSelectionPanelComponent,
+    SelectablePropertiesContainerComponent
 ],
   templateUrl: './component-palette.presenter.component.html',
   styleUrl: './component-palette.presenter.component.scss'

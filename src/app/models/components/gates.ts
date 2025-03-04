@@ -15,7 +15,7 @@ export class AndGate implements Component {
     }
 
     draw(): void {
-        throw new Error("Method not implemented.");
+        // throw new Error("Method not implemented.");
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -24,7 +24,8 @@ export class AndGate implements Component {
 
     /* set the number of inodes and automatically calculate their positions */
     private getInputNodeListFromSize(size: number): Node[] {
-        throw new Error("Method not implemented.");
+        // throw new Error("Method not implemented.");
+        return [];
     }
 }
 

@@ -1,10 +1,10 @@
-import { createFeature, createReducer, createSelector, on } from "@ngrx/store";
-import { PaletteComponentCategories, PaletteComponentList, PaletteComponentsState } from "./components.state";
+import { createFeature, createReducer, on } from "@ngrx/store";
+import { PaletteComponentCategories, PaletteComponentsState } from "./components.state";
+import { PaletteComponent } from "../../models/components/PaletteComponent";
 import * as actions from './components.actions';
 import * as gates from "../../models/components/gates";
 import * as io from '../../models/components/io';
 import * as decorations from '../../models/components/decorations';
-import { PaletteComponent } from "../../models/components/PaletteComponent";
 
 export const initialComponentsState: PaletteComponentsState = {
     paletteComponentMap: new Map<PaletteComponentCategories, PaletteComponent[]>([
@@ -30,7 +30,11 @@ export const initialComponentsState: PaletteComponentsState = {
                 { iconUrl: "", className: decorations.Text.name, selected: false }
             ]
         ]
-    ])
+    ]),
+    selectedSelectable: {
+        selectable: null,
+        concreteClassName: ""
+    }
 };
 
 export const componentsReducer = createReducer(
@@ -49,7 +53,7 @@ export const componentsFeature = createFeature({
 });
 
 function setSelectedPaletteComponentList(state: PaletteComponentsState, paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]>): PaletteComponentsState {
-    // console.log("componentsFeature: ", selectedPaletteComponentInfo);
+    // console.log("componentsFeature: ", paletteComponentMap);
     return {
         ...state,
         paletteComponentMap

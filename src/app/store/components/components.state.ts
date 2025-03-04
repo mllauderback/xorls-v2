@@ -1,4 +1,5 @@
 import { PaletteComponent } from "../../models/components/PaletteComponent";
+import { Selectable } from "../../models/Selectable";
 
 export enum PaletteComponentCategories {
     gates = "Gates",
@@ -13,6 +14,12 @@ export type PaletteComponentList = { // make this a map
     // more categories ...
 }
 
+export type SelectedSelectable = {
+    selectable: Selectable | null;
+    concreteClassName: string;
+}
+
 export interface PaletteComponentsState {
     paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]>;
+    selectedSelectable: SelectedSelectable;
 }
