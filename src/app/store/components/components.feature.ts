@@ -11,23 +11,28 @@ export const initialComponentsState: PaletteComponentsState = {
         [
             PaletteComponentCategories.gates,
             [
-                { iconUrl: "", className: gates.AndGate.name, selected: false },
-                { iconUrl: "", className: gates.OrGate.name, selected: false },
-                { iconUrl: "", className: gates.NotGate.name, selected: false }
+                { className: gates.AndGate.name, selected: false },
+                { className: gates.OrGate.name, selected: false },
+                { className: gates.XorGate.name, selected: false },
+                { className: gates.NotGate.name, selected: false },
+                { className: gates.Buffer.name, selected: false },
+                { className: gates.NandGate.name, selected: false },
+                { className: gates.NorGate.name, selected: false },
+                { className: gates.XnorGate.name, selected: false }
             ]
         ],
         [
             PaletteComponentCategories.io,
             [
-                { iconUrl: "", className: io.Input.name, selected: false },
-                { iconUrl: "", className: io.Led.name, selected: false },
-                { iconUrl: "", className: io.SevenSegmentDisplay.name, selected: false }
+                { className: io.Input.name, selected: false },
+                { className: io.Output.name, selected: false },
+                { className: io.SevenSegmentDisplay.name, selected: false }
             ]
         ],
         [
             PaletteComponentCategories.decorations,
             [
-                { iconUrl: "", className: decorations.Text.name, selected: false }
+                { className: decorations.Text.name, selected: false }
             ]
         ]
     ]),

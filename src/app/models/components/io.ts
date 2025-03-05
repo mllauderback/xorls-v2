@@ -22,7 +22,7 @@ export class Input implements Component {
     }
 }
 
-export class Led implements Component {
+export class Output implements Component {
     position: Point;
     inodes: Node[];
     onodes: Node[];

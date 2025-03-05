@@ -1,0 +1,359 @@
+@if (className && className != '') {
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        [attr.width]="width"
+        [attr.height]="height"
+        display=block
+        viewBox="0 0 48 48">
+        <!-- Gates -->
+        <g
+            id="gates"
+            style="fill:none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray:none;">
+            <!-- AndGate -->
+            @if(className === gates.AndGate.name) {
+                <path
+                    id="ag_ihandle1"
+                    d="M 1.25,32 H 9 v 0" />
+        
+                <path
+                    id="ag_ihandle2"
+                    d="M 1.25,16 H 9" />
+        
+                <path
+                    id="ag_ohandle"
+                    d="M 46.75,24 H 39" />
+        
+                <path
+                    id="ag_frontbody"
+                    d="M 24,10 a 14,14 0 0 1 12.124356,7 14,14 0 0 1 0,14 A 14,14 0 0 1 24,38" />
+                
+                <path
+                    id="ag_backbody"
+                    d="M 24,10 H 10 v 28 h 14 v 0"/>
+            }
+            <!-- OrGate -->
+            @if(className === gates.OrGate.name) {
+                <path
+                    id="og_ihandle1"
+                    d="M 1.25,16 H 12"/>
+
+                <path
+                    id="og_ihandle2"
+                    d="M 1.25,32 H 12"/>
+
+                <path
+                    id="og_ohandle"
+                    d="M 46.75,24 H 37"/>
+
+                <path
+                    id="og_frontbody_top"
+                    d="M 37,24 C 31,10 22,10 22,10 H 10 v 0 0"/>
+                <path
+                    id="og_frontbody_bottom"
+                    d="M 37,24 C 32,38 22,38 22,38 H 10"/>
+                <path
+                    id="og_backbody"
+                    d="M 10,10 a 18.5,24 0 0 1 0,28"/>
+            }
+            <!-- XorGate -->
+            @if(className === gates.XorGate.name) {
+                <path
+                    id="xg_ihandle1"
+                    d="M 1.25,16 H 14"/>
+
+                <path
+                    id="xg_ihandle2"
+                    d="M 1.25,32 H 14"/>
+
+                <path
+                    id="xg_ohandle"
+                    d="M 46.75,24 H 39"/>
+
+                <path
+                    id="xg_frontbody_top"
+                    d="M 39,24 C 33,10 24,10 24,10 H 12 v 0 0"/>
+
+                <path
+                    id="xg_frontbody_bottom"
+                    d="M 39,24 C 34,38 24,38 24,38 H 12"/>
+
+                <path
+                    id="xg_backbody_1"
+                    d="M 12,10 A 18,24 0 0 1 12,38"/>
+
+                <path
+                    id="xg_backbody_2"
+                    d="m 7,10.25 a 19.5,24 0 0 1 0,27.5"/>
+            }
+            <!-- NotGate -->
+            @if(className === gates.NotGate.name) {
+                <path
+                    id="ng_ihandle"
+                    d="M 1.25,24 H 9"/>
+
+                <path
+                    id="ng_ohandle"
+                    d="M 46.25,24 H 41"/>
+
+                <path
+                    id="ng_body"
+                    d="M 35,24 10,11 v 26 z"/>
+                
+                <circle
+                    id="ng_inv"
+                    cy="24"
+                    cx="38"
+                    r="3"/>
+            }
+            <!-- Buffer -->
+            @if(className === gates.Buffer.name) {
+                <path
+                    id="bf_ihandle"
+                    d="M 1.25,24 H 11 v 0 0"/>
+
+                <path
+                    id="bf_ohandle"
+                    d="M 46.75,24 H 36"/>
+
+                <path
+                    id="bf_body"
+                    d="M 12,11 V 37 L 37,24 Z"/>
+            }
+            <!-- NandGate -->
+            @if(className === gates.NandGate.name) {
+                <path
+                    id="nag_ihandle1"
+                    d="M 1.25,32 H 8 v 0" />
+        
+                <path
+                    id="nag_ihandle2"
+                    d="M 1.25,16 H 8" />
+        
+                <path
+                    id="nag_ohandle"
+                    d="M 46.75,24 H 42" />
+        
+                <path
+                    id="nag_frontbody"
+                    d="m 22,10 a 14,14 0 0 1 12,7 14,14 0 0 1 0,14 A 14,14 0 0 1 22,38" />
+                
+                <circle
+                    id="nag_inv"
+                    cy="24"
+                    cx="39"
+                    r="3"/>
+
+                <path
+                    id="nag_backbody"
+                    d="M 22,10 H 8 v 28 h 14 v 0"/>
+            }
+            <!-- NorGate -->
+            @if(className === gates.NorGate.name) {
+                <path
+                    id="nog_ihandle1"
+                    d="M 1.25,16 H 10"/>
+
+                <path
+                    id="nog_ihandle2"
+                    d="M 1.25,32 H 10"/>
+
+                <path
+                    id="nog_ohandle"
+                    d="M 46.75,24 H 41"/>
+
+                <path
+                    id="nog_frontbody_top"
+                    d="M 35,24 C 29,10 20,10 20,10 H 8 v 0 0"/>
+
+                <path
+                    id="nog_frontbody_bottom"
+                    d="M 35,24 C 30,38 20,38 20,38 H 8"/>
+
+                <circle
+                    id="nog_inv"
+                    cy="24"
+                    cx="38"
+                    r="3"/>
+
+                <path
+                    id="nog_backbody"
+                    d="m 8,10 a 18.5,24 0 0 1 0,28"/>
+            }
+            <!-- XnorGate -->
+            @if(className === gates.XnorGate.name) {
+                <path
+                    id="xng_ihandle1"
+                    d="M 1.25,16 H 12"/>
+
+                <path
+                    id="xng_ihandle2"
+                    d="M 1.25,32 H 12"/>
+
+                <path
+                    id="xng_ohandle"
+                    d="M 46.75,24 H 43"/>
+
+                <path
+                    id="xng_frontbody_top"
+                    d="M 37,24 C 32,10 22,10 22,10 H 10 v 0 0"/>
+
+                <path
+                    id="xng_frontbody_bottom"
+                    d="M 37,24 C 32,38 22,38 22,38 H 10"/>
+
+                <circle
+                    id="xng_inv"
+                    cy="24"
+                    cx="40"
+                    r="3"/>
+
+                <path
+                    id="xng_backbody_1"
+                    d="M 10,10 A 18,24 0 0 1 10,38"/>
+
+                <path
+                    id="xng_backbody_2"
+                    d="m 5,10.25 a 19.5,24 0 0 1 0,27.5"/>
+            }
+        
+            <!-- I/O -->
+            <!-- Input -->
+            @else if(className === io.Input.name) {
+                <path
+                    id="inio_body"
+                    d="m 6.25,12.75 v 22.5 h 22.5 l 11,-11.25 -11,-11.25 z"/>
+
+                <text
+                    id="inio_text"
+                    style="font-style: normal; font-variant: normal; font-weight: normal; font-stretch: normal; font-size: 16px; font-family: monospace; text-align: start; writing-mode: lr-tb; direction:ltr; text-anchor: start; fill: currentColor; fill-opacity: 1; stroke-width: 1"
+                    x="9.66"
+                    y="29.7"
+                >
+                    <tspan
+                        x="9.66"
+                        y="29.7"
+                    >01</tspan>
+                </text>
+
+                <path
+                    id="inio_ohandle"
+                    d="m 39.75,24 h 5"/>
+            }
+            <!-- Output -->
+            @else if(className === io.Output.name) {
+                <path
+                    id="oio_body"
+                    d="m 9.25,12.75 v 22.5 h 22.5 l 11,-11.25 -11,-11.25 z"/>
+
+                <text
+                    id="oio_text"
+                    style="font-style: normal; font-variant: normal; font-weight: normal; font-stretch: normal; font-size: 16px; font-family: monospace; text-align: start; writing-mode: lr-tb; direction:ltr; text-anchor: start; fill: currentColor; fill-opacity: 1; stroke-width: 1"
+                    x="12.66"
+                    y="29.7"
+                >
+                    <tspan
+                        x="12.66"
+                        y="29.7"
+                    >01</tspan>
+                </text>
+
+                <path
+                    id="oio_ihandle"
+                    d="m 3.75,24 h 5"/>
+            }
+            <!-- 7 Segment Display -->
+            @else if(className === io.SevenSegmentDisplay.name) {
+                <path
+                    id="oio_border"
+                    d="m 12.25,1.25 27.5,0.058519 V 46.75 h -27.5 z"/>
+                
+                <g
+                    id="display"
+                    style="fill: currentColor; fill-opacity: 1; stroke: currentColor; stroke-width: 3; stroke-linejoin: bevel;">
+                    
+                    <rect
+                        id="display_a"
+                        width="10"
+                        height="0.5"
+                        x="21"
+                        y="6.5"/>
+
+                    <rect
+                        id="display_b"
+                        width="0.5"
+                        height="11.75"
+                        x="33.5"
+                        y="9.5"/>
+
+                    <rect
+                        id="display_c"
+                        width="0.5"
+                        height="11.75"
+                        x="33.5"
+                        y="26.75"/>
+
+                    <rect
+                        id="display_d"
+                        width="10"
+                        height="0.5"
+                        x="21"
+                        y="41"/>
+
+                    <rect
+                        id="display_e"
+                        width="0.5"
+                        height="11.75"
+                        x="18"
+                        y="26.75"/>
+
+                    <rect
+                        id="display_f"
+                        width="0.5"
+                        height="11.75"
+                        x="18"
+                        y="9.5"/>
+
+                    <rect
+                        id="display_g"
+                        width="10"
+                        height="0.5"
+                        x="21"
+                        y="23.75"/>
+                </g>
+
+                <path
+                    id="io7s_ihandle1"
+                    d="M 12,11.1 H 7.25"/>
+
+                <path
+                    id="io7s_ihandle2"
+                    d="M 12,19.7 H 7.25"/>
+
+                <path
+                    id="io7s_ihandle3"
+                    d="M 12,28.3 H 7.25"/>
+
+                <path
+                    id="io7s_ihandle4"
+                    d="M 12,36.9 H 7.25"/>
+            }
+
+            <!-- Decorations -->
+            <!-- Text -->
+            @else if(className === decorations.Text.name) {
+                <text
+                    style="font-size: 15.32pt; font-family: monospace; text-align: start; writing-mode: lr-tb; direction: ltr; text-anchor: start; fill: currentColor; fill-opacity: 1; stroke-width: 1.25; stroke-opacity: 1;"
+                    x="0"
+                    y="30.66">
+                    <tspan
+                        x="0"
+                        y="30.66">Text</tspan>
+                </text>
+            }
+        </g>
+        <desc>{{ className }}</desc>
+    </svg>
+}
+@else {
+    <label>Bad Component</label>
+}
