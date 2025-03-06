@@ -10,19 +10,19 @@ import { PaletteComponentCategories } from '../../../store/components/components
 import { SelectablePropertiesContainerComponent } from "../../selectable-properties/container/selectable-properties.container.component";
 
 @Component({
-  selector: 'app-component-palette-presenter',
-  imports: [
-    AccordionModule,
-    SplitterModule,
-    PanelModule,
-    ButtonModule,
-    CommonModule,
-    GridSelectionPanelComponent,
-    SelectablePropertiesContainerComponent
-],
-  templateUrl: './component-palette.presenter.component.html',
-  styleUrl: './component-palette.presenter.component.scss'
+    selector: 'app-component-palette-presenter',
+    imports: [
+        AccordionModule,
+        SplitterModule,
+        PanelModule,
+        ButtonModule,
+        CommonModule,
+        GridSelectionPanelComponent,
+        SelectablePropertiesContainerComponent
+    ],
+    templateUrl: './component-palette.presenter.component.html',
+    styleUrl: './component-palette.presenter.component.scss'
 })
 export class ComponentPalettePresenterComponent {
-  @Input() categoryPaletteComponentMap?: Map<PaletteComponentCategories, PaletteComponent[]>;
+    @Input() categoryPaletteComponentMap?: Map<PaletteComponentCategories, PaletteComponent[]>;
 }
