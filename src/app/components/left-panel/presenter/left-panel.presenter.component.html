@@ -1,5 +1,7 @@
-<p-splitter class="h-full" styleClass="h-full" [gutterSize]="2" [panelSizes]="[30, 70]">
-  <ng-template #panel>
+<!-- <p-splitter class="h-full" styleClass="h-full" [gutterSize]="2" [panelSizes]="[30, 70]"> -->
+<div class="flex flex-row h-full w-full">
+  <!-- <ng-template #panel> -->
+  <div style="width: 400px; box-sizing: content-box; border-right-style: solid; border-right-width: 1px; border-right-color: var(--p-content-border-color);">
     <p-tabs class="orientation-left left-panel" value="0">
       <p-tablist>
         <p-tab value="0" pTooltip="Explorer" showDelay="1000"><i class="pi pi-copy"
@@ -29,8 +31,6 @@
         </p-tabpanel>
       </p-tabpanels>
     </p-tabs>
-  </ng-template>
-  <ng-template #panel>
-    <app-workspace-container class="w-full"></app-workspace-container>
-  </ng-template>
-</p-splitter>
+  </div>
+  <app-workspace-container class="grow overflow-hidden"></app-workspace-container>
+</div>
