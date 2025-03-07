@@ -1,3 +1,4 @@
+import { BufferedCanvas } from "../BufferedCanvas";
 import { Point } from "../Point";
 import { Decoration } from "./Decoration";
 
@@ -14,7 +15,7 @@ export class Text implements Decoration {
         this.isGhost = false;
     }
 
-    draw(): void {
+    draw(origin: Point, bufferedCanvas: BufferedCanvas): void {
         throw new Error("Method not implemented.");
     }
     isSelected(mousePosition: Point): boolean {

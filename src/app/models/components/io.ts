@@ -1,3 +1,4 @@
+import { BufferedCanvas } from "../BufferedCanvas";
 import { Point } from "../Point";
 import { Component, Node } from "./Component";
 
@@ -14,7 +15,7 @@ export class Input implements Component {
         this.isGhost = false;
     }
 
-    draw(): void {
+    draw(origin: Point, bufferedCanvas: BufferedCanvas): void {
         throw new Error("Method not implemented.");
     }
     isSelected(mousePosition: Point): boolean {
@@ -35,7 +36,7 @@ export class Output implements Component {
         this.isGhost = false;
     }
 
-    draw(): void {
+    draw(origin: Point, bufferedCanvas: BufferedCanvas): void {
         throw new Error("Method not implemented.");
     }
     isSelected(mousePosition: Point): boolean {
@@ -61,7 +62,7 @@ export class SevenSegmentDisplay implements Component {
         this.busWidth = busWidth;
     }
 
-    draw(): void {
+    draw(origin: Point, bufferedCanvas: BufferedCanvas): void {
         throw new Error("Method not implemented.");
     }
     isSelected(mousePosition: Point): boolean {
