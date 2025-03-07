@@ -99,23 +99,29 @@ export class WorkspacePresenterComponent implements AfterViewInit {
 
   @HostListener('window:resize', ['$event'])
   onResize(event: UIEvent) {
-    if (!this.gridCanvas) {
+    if (!this.gridCanvas || !this.componentCanvas || !this.simulationCanvas) {
       console.error("Null canvas");
       return;
     }
     const window = event.target as Window;
     let redraw = false;
-    if (this.gridCanvas.getWidth() < window.innerWidth) {
+    if (this.gridCanvas.getWidth() < window.innerWidth || this.componentCanvas.getWidth() || this.componentCanvas.getWidth()) {
       this.gridCanvas.setWidth(window.innerWidth);
+      this.componentCanvas.setWidth(window.innerWidth);
+      this.simulationCanvas.setWidth(window.innerWidth);
       redraw = true;
     }
     if (this.gridCanvas.getHeight() < window.innerHeight) {
       this.gridCanvas.setHeight(window.innerHeight);
+      this.componentCanvas.setHeight(window.innerHeight);
+      this.simulationCanvas.setHeight(window.innerHeight);
       redraw = true;
     }
 
     if (redraw) {
       this.drawService.redrawBuffer(this.origin, this.gridCanvas, false);
+      this.drawService.redrawBuffer(this.origin, this.componentCanvas, false);
+      this.drawService.redrawBuffer(this.origin, this.simulationCanvas, false);
     }
   }
 
