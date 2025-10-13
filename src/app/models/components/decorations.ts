@@ -1,4 +1,3 @@
-import { BufferedCanvas } from "../BufferedCanvas";
 import { Point } from "../Point";
 import { Decoration } from "./Decoration";
 
@@ -15,9 +14,10 @@ export class Text implements Decoration {
         this.isGhost = false;
     }
 
-    draw(origin: Point, bufferedCanvas: BufferedCanvas): void {
+    getPath2D(): Path2D {
         throw new Error("Method not implemented.");
     }
+
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }
