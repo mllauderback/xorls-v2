@@ -16,7 +16,10 @@ export class DrawService {
      * @param drawable A single drawable instance
      * @param canvas Destination canvas to draw on
      */
-    public drawSingle(drawable: Drawable, canvas: CanvasWrapper, draw: boolean = false) {
+    public drawSingle(drawable: Drawable | null, canvas: CanvasWrapper, draw: boolean = false) {
+        if (!drawable) {
+            throw new Error("Null drawable");
+        }
         if (!canvas.hasValidContext()) {
             throw new Error(this.NULL_CANVAS_CONTEXT);
         }
@@ -33,7 +36,10 @@ export class DrawService {
      * @param drawables A list of drawable instances
      * @param canvas Destination canvas to draw on
      */
-    public drawList(drawables: Drawable[], canvas: CanvasWrapper, draw: boolean = false) {
+    public drawList(drawables: Drawable[] | null, canvas: CanvasWrapper, draw: boolean = false) {
+        if (!drawables) {
+            throw new Error("Null drawable list");
+        }
         for (let drawable of drawables) {
             this.drawSingle(drawable, canvas);
         }

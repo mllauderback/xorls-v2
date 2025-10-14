@@ -1,7 +1,6 @@
 import { DrawService } from "../services/draw/draw.service";
 import { Observable, Subscription } from "rxjs";
 import { Drawable } from "./Drawable";
-import { inject } from "@angular/core";
 
 export enum GridMode {
     lines,
@@ -32,20 +31,24 @@ export class Grid implements Drawable {
 
         context.imageSmoothingEnabled = false;
         context.beginPath();
-        context.strokeStyle = "gray";
+        context.strokeStyle = "lightgray";
         if (this.gridMode === GridMode.lines) {
-            context.lineWidth = 1;
-            for (let i = 0; i < this._width; i += this.gridSpacing) {
+            const lineWidth = 1;
+            context.lineWidth = lineWidth;
+            // starting offset of 0 or 0.5 depending on if pixel center doesn't fall in the middle of a line
+            let startingOffset = 0.5 * (lineWidth % 2);
+            for (let i = startingOffset; i < this._width; i += this.gridSpacing) {
                 this._drawService.addLine(context, { x: i, y: 0 }, { x: i, y: this._height });
             }
-            for (let i = 0; i < this._height; i += this.gridSpacing) {
+            for (let i = startingOffset; i < this._height; i += this.gridSpacing) {
                 this._drawService.addLine(context, { x: 0, y: i }, { x: this._width, y: i });
             }
         }
         else if (this.gridMode === GridMode.dots) {
-            let dotStrokeWidth = 2;
+            const dotStrokeWidth = 2;
             context.lineWidth = dotStrokeWidth;
-            for (let i = 0; i < this._width; i += this.gridSpacing) {
+            let startingOffset = 0.5 * (dotStrokeWidth % 2);
+            for (let i = startingOffset; i < this._width; i += this.gridSpacing) {
                 this._drawService.addLine(context, { x: i, y: 0 }, { x: i, y: this._height }, [dotStrokeWidth, this.gridSpacing]);
             }
         }

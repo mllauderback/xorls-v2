@@ -78,19 +78,15 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
             throw new Error("One or more canvas contexts are null!");
         }
 
-        this.gridCanvas.width = this.viewport!.el.nativeElement.offsetWidth;
-        this.gridCanvas.height = this.viewport!.el.nativeElement.offsetHeight;
+        // expands all canvases to fill the viewport and adjusts for display pixel ratio
+        this.updateCanvasWidths(this.viewport!.el.nativeElement.offsetWidth);
+        this.updateCanvasHeights(this.viewport!.el.nativeElement.offsetHeight);
 
         // pass in width/height observables from grid canvas wrapper so grid is automatically notified of changes
         this.grid = new Grid(this.drawService, this.gridCanvas.getWidthAsObservable(), this.gridCanvas.getHeightAsObservable());
 
-        this.componentCanvas.width = this.viewport!.el.nativeElement.offsetWidth;
-        this.componentCanvas.height = this.viewport!.el.nativeElement.offsetHeight;
-        this.simulationCanvas.width = this.viewport!.el.nativeElement.offsetWidth;
-        this.simulationCanvas.height = this.viewport!.el.nativeElement.offsetHeight;
-
         // configure grid (should be defaults)
-        // this.grid.gridMode = GridMode.dots;
+        this.grid.gridMode = GridMode.dots;
         this.drawService.drawSingle(this.grid, this.gridCanvas, true);
 
         // this.drawLoop();
@@ -103,14 +99,22 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
     //     requestAnimationFrame(this.drawLoop.bind(this));
     // }
 
+    private _getDPR() {
+        return window.devicePixelRatio || 1;
+    }
+
     private updateCanvasWidths(width: number) {
         if (!this.gridCanvas || !this.componentCanvas || !this.simulationCanvas) {
             console.error("Null canvas");
             return;
         }
-        this.gridCanvas.width = width;
-        this.componentCanvas.width = width;
-        this.simulationCanvas.width = width;
+        const dpr = this._getDPR();
+        this.gridCanvas.width = width * dpr;
+        this.componentCanvas.width = width * dpr;
+        this.simulationCanvas.width = width * dpr;
+        this.gridCanvas.context.scale(dpr, dpr);
+        this.componentCanvas.context.scale(dpr, dpr);
+        this.simulationCanvas.context.scale(dpr, dpr);
     }
 
     private updateCanvasHeights(height: number) {
@@ -118,11 +122,16 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
             console.error("Null canvas");
             return;
         }
-        this.gridCanvas.width = height;
-        this.componentCanvas.width = height;
-        this.simulationCanvas.width = height;
+        const dpr = this._getDPR();
+        this.gridCanvas.height = height * dpr;
+        this.componentCanvas.height = height * dpr;
+        this.simulationCanvas.height = height * dpr;
+        this.gridCanvas.context.scale(dpr, dpr);
+        this.componentCanvas.context.scale(dpr, dpr);
+        this.simulationCanvas.context.scale(dpr, dpr);
     }
 
+    // TODO: refactor canvas resizes to oversize the canvas to use fewer draw calls.  possibly debounce.
     @HostListener('window:resize', ['$event'])
     onResize(event: UIEvent) {
         if (!this.gridCanvas || !this.componentCanvas || !this.simulationCanvas) {
@@ -134,8 +143,6 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         let viewportWidth = this.viewport!.el.nativeElement.offsetWidth;
         let viewportHeight = this.viewport!.el.nativeElement.offsetHeight;
         if (this.gridCanvas.width < viewportWidth || this.componentCanvas.width < viewportWidth || this.simulationCanvas.width < viewportWidth) {
-            console.log(this.gridCanvas.width);
-            console.log(viewportWidth);
             this.updateCanvasWidths(viewportWidth);
             redraw = true;
         }
@@ -145,6 +152,7 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         }
         if (redraw) {
             console.log("redraw");
+            this.drawService.drawSingle(this.grid, this.gridCanvas, true);
         }
     }
 
