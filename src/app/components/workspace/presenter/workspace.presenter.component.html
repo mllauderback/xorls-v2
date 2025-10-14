@@ -4,6 +4,7 @@
         <p-tab style="padding: 0 0 0 1.25rem" value="0">Header I<button pButton icon="pi pi-times" severity="secondary" [rounded]="true" [text]="true" size="small" (click)="closeTab()"></button></p-tab>
     </p-tablist>
     <p-tabpanels #contentViewport class="!p-0 h-full overflow-auto">
+        <!-- will probably add selection canvases for each canvas layer -->
         <canvas #grid style="z-index: 0; background: white;"></canvas>
         <canvas #component style="z-index: 1; background: transparent"></canvas>
         <canvas #simulation style="z-index: 2; background: transparent;"></canvas>

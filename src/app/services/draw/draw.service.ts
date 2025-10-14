@@ -10,38 +10,49 @@ export class DrawService {
     private readonly NULL_CANVAS_CONTEXT: string = "Null canvas context.";
 
     /**
-     * Calls the passed-in drawable's getPath2D() function to draw on the destination canvas
-     * element.
+     * Calls the passed-in drawable's addToContext() function to add paths and drawing instructions
+     * to the destination canvas.
      * 
      * @param drawable A single drawable instance
      * @param canvas Destination canvas to draw on
      */
-    public drawSingle(drawable: Drawable, canvas: CanvasWrapper) {
+    public drawSingle(drawable: Drawable, canvas: CanvasWrapper, draw: boolean = false) {
         if (!canvas.hasValidContext()) {
             throw new Error(this.NULL_CANVAS_CONTEXT);
         }
-        let path: Path2D = drawable.getPath2D();
-
-        canvas.context.stroke(path);
+        drawable.addToContext(canvas.context);
+        if (draw) {
+            canvas.context.stroke();
+        }
     }
 
     /**
-     * Iterates through a list of drawables and calls each drawable's getPath2D() function
-     * to draw on the destination canvas element.
+     * Iterates through a list of drawables and calls each drawable's addToContext() function
+     * to add paths and drawing instructions to the destination canvas
      * 
      * @param drawables A list of drawable instances
      * @param canvas Destination canvas to draw on
      */
-    public drawList(drawables: Drawable[], canvas: CanvasWrapper) {
+    public drawList(drawables: Drawable[], canvas: CanvasWrapper, draw: boolean = false) {
         for (let drawable of drawables) {
             this.drawSingle(drawable, canvas);
         }
+        if (draw) {
+            canvas.context.stroke();
+        }
     }
 
-    public setLineDash(canvas: HTMLCanvasElement, dashSegments: Iterable<number>) {
-        let ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error(this.NULL_CANVAS_CONTEXT);
-
-        ctx.setLineDash(dashSegments);
+    /**
+     * Adds a line to the provided context.  This method does not stroke the context, it just adds a line to it.
+     * 
+     * @param context Canvas context onto which the line will be drawn
+     * @param start Start point of the line
+     * @param end End point of the line
+     * @param dashList Array for drawing dashed lines, default is empty (solid)
+     */
+    public addLine(context: CanvasRenderingContext2D, start: Point, end: Point, dashList: number[] = []) {
+        context.setLineDash(dashList);
+        context.moveTo(start.x, start.y);
+        context.lineTo(end.x, end.y);
     }
 }

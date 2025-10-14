@@ -15,9 +15,7 @@ export class AndGate implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -44,9 +42,7 @@ export class OrGate implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -72,9 +68,7 @@ export class XorGate implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -99,9 +93,7 @@ export class NotGate implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -122,9 +114,7 @@ export class Buffer implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -146,9 +136,7 @@ export class NandGate implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -173,9 +161,7 @@ export class NorGate implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -200,9 +186,7 @@ export class XnorGate implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {

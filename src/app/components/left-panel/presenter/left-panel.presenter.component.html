@@ -1,36 +1,41 @@
 <!-- <p-splitter class="h-full" styleClass="h-full" [gutterSize]="2" [panelSizes]="[30, 70]"> -->
 <div class="flex flex-row h-full w-full">
-  <!-- <ng-template #panel> -->
-  <div style="width: 400px; box-sizing: content-box; border-right-style: solid; border-right-width: 1px; border-right-color: var(--p-content-border-color);">
-    <p-tabs class="orientation-left left-panel" value="0">
-      <p-tablist>
-        <p-tab value="0" pTooltip="Explorer" showDelay="1000"><i class="pi pi-copy"
-            style="font-size: 1.4rem;"></i></p-tab>
-        <p-tab value="1" pTooltip="Components" showDelay="1000"><i class="pi pi-box"
-            style="font-size: 1.4rem;"></i></p-tab>
-        <div class="grow flex items-end">
-          <p-tab value="2" pTooltip="Settings" showDelay="1000"><i class="pi pi-cog"
-              style="font-size: 1.4rem;"></i></p-tab>
-        </div>
-      </p-tablist>
-      <p-tabpanels>
-        <p-tabpanel value="0">
-          <p class="m-0">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
-            dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex
-            ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat
-            nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit
-            anim id est laborum.
-          </p>
-        </p-tabpanel>
-        <p-tabpanel value="1">
-          <app-component-palette-container></app-component-palette-container>
-        </p-tabpanel>
-        <p-tabpanel value="2">
-          <app-settings-container class="w-full"></app-settings-container>
-        </p-tabpanel>
-      </p-tabpanels>
-    </p-tabs>
-  </div>
-  <app-workspace-container class="grow overflow-hidden"></app-workspace-container>
+    <!-- <ng-template #panel> -->
+    <div
+        style="width: 400px; box-sizing: content-box; border-right-style: solid; border-right-width: 1px; border-right-color: var(--p-content-border-color);">
+        <p-tabs class="orientation-left left-panel" value="0">
+            <p-tablist>
+                <p-tab value="0" pTooltip="Explorer" showDelay="1000"><i class="pi pi-copy"
+                        style="font-size: 1.4rem;"></i></p-tab>
+                <p-tab value="1" pTooltip="Components" showDelay="1000"><i class="pi pi-box"
+                        style="font-size: 1.4rem;"></i></p-tab>
+                <div class="grow flex items-end">
+                    <p-tab value="2" pTooltip="Settings" showDelay="1000"><i class="pi pi-cog"
+                            style="font-size: 1.4rem;"></i></p-tab>
+                </div>
+            </p-tablist>
+            <p-tabpanels>
+                <p-tabpanel value="0">
+                    <p class="m-0">
+                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+                        labore et
+                        dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+                        aliquip ex
+                        ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+                        dolore eu fugiat
+                        nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia
+                        deserunt mollit
+                        anim id est laborum.
+                    </p>
+                </p-tabpanel>
+                <p-tabpanel value="1">
+                    <app-component-palette-container></app-component-palette-container>
+                </p-tabpanel>
+                <p-tabpanel value="2">
+                    <app-settings-container class="w-full"></app-settings-container>
+                </p-tabpanel>
+            </p-tabpanels>
+        </p-tabs>
+    </div>
+    <app-workspace-container class="grow overflow-hidden"></app-workspace-container>
 </div>

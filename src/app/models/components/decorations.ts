@@ -13,9 +13,7 @@ export class Text implements Decoration {
         this.size = 12;
         this.isGhost = false;
     }
-
-    getPath2D(): Path2D {
-        throw new Error("Method not implemented.");
+    addToContext(context: CanvasRenderingContext2D): void {
     }
 
     isSelected(mousePosition: Point): boolean {

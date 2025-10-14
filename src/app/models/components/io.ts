@@ -14,9 +14,7 @@ export class Input implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -37,9 +35,7 @@ export class Output implements Component {
         this.isGhost = false;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -65,9 +61,7 @@ export class SevenSegmentDisplay implements Component {
         this.busWidth = busWidth;
     }
 
-    getPath2D(): Path2D {
-        let path = new Path2D();
-        return path;
+    addToContext(context: CanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {

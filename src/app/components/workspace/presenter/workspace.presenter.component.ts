@@ -82,7 +82,7 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         this.gridCanvas.height = this.viewport!.el.nativeElement.offsetHeight;
 
         // pass in width/height observables from grid canvas wrapper so grid is automatically notified of changes
-        this.grid = new Grid(this.gridCanvas.getWidthAsObservable(), this.gridCanvas.getHeightAsObservable());
+        this.grid = new Grid(this.drawService, this.gridCanvas.getWidthAsObservable(), this.gridCanvas.getHeightAsObservable());
 
         this.componentCanvas.width = this.viewport!.el.nativeElement.offsetWidth;
         this.componentCanvas.height = this.viewport!.el.nativeElement.offsetHeight;
@@ -90,8 +90,8 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         this.simulationCanvas.height = this.viewport!.el.nativeElement.offsetHeight;
 
         // configure grid (should be defaults)
-        this.grid.gridMode = GridMode.dots;
-        this.drawService.drawSingle(this.grid, this.gridCanvas);
+        // this.grid.gridMode = GridMode.dots;
+        this.drawService.drawSingle(this.grid, this.gridCanvas, true);
 
         // this.drawLoop();
     }
@@ -143,11 +143,7 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
             this.updateCanvasHeights(window.innerHeight);
             redraw = true;
         }
-
         if (redraw) {
-            // this.drawService.redrawBuffer(this.origin, this.gridCanvas, false);
-            // this.drawService.redrawBuffer(this.origin, this.componentCanvas, false);
-            // this.drawService.redrawBuffer(this.origin, this.simulationCanvas, false);
             console.log("redraw");
         }
     }
