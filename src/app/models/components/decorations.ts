@@ -1,4 +1,5 @@
 import { Point } from "../Point";
+import { AbstractCanvasWrapper } from "../CanvasWrappers/AbstractCanvasWrapper";
 import { Decoration } from "./Decoration";
 
 export class Text implements Decoration {
@@ -13,7 +14,7 @@ export class Text implements Decoration {
         this.size = 12;
         this.isGhost = false;
     }
-    addToContext(context: CanvasRenderingContext2D): void {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {

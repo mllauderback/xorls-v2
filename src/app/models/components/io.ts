@@ -1,3 +1,4 @@
+import { AbstractCanvasWrapper } from "../CanvasWrappers/AbstractCanvasWrapper";
 import { Point } from "../Point";
 import { Component, Node } from "./Component";
 
@@ -14,7 +15,7 @@ export class Input implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -35,7 +36,7 @@ export class Output implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -61,7 +62,7 @@ export class SevenSegmentDisplay implements Component {
         this.busWidth = busWidth;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {

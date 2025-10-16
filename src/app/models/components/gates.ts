@@ -1,5 +1,6 @@
 import { DrawService } from "../../services/draw/draw.service";
 import { Point } from "../Point";
+import { AbstractCanvasWrapper } from "../CanvasWrappers/AbstractCanvasWrapper";
 import { Component, Node } from "./Component";
 
 export class AndGate implements Component {
@@ -15,7 +16,7 @@ export class AndGate implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -42,7 +43,7 @@ export class OrGate implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -68,7 +69,7 @@ export class XorGate implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -93,7 +94,7 @@ export class NotGate implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -114,7 +115,7 @@ export class Buffer implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -136,7 +137,7 @@ export class NandGate implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -161,7 +162,7 @@ export class NorGate implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -186,7 +187,7 @@ export class XnorGate implements Component {
         this.isGhost = false;
     }
 
-    addToContext(context: CanvasRenderingContext2D) {
+    draw(canvas: AbstractCanvasWrapper, forceUpdate: boolean = false) {
     }
 
     isSelected(mousePosition: Point): boolean {
