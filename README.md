@@ -36,7 +36,7 @@ npm run build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
-## Testin (Coming soon)
+## Testing (Coming soon)
 All components should have their own `.spec.ts` file for unit tests.
 All services should have their own `.spec.ts` file for unit tests.
 Each store should have its own separate files for unit testing mock selectors and reducers, and a file for integration tests.
