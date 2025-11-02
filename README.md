@@ -1,5 +1,7 @@
 # Xorls-v2
 
+<img width="1490" height="799" alt="image" src="https://github.com/user-attachments/assets/2dd47af0-ffb5-41d7-9676-01174d1a7024" />
+
 ## Introduction
 This is the first product in a small suite of products designed to make designing and testing digital logic schematics easier and more accessible.  Most current web-based digital logic schematic design tools are woefully underfeatured and awkward to use, making them impractical for complex designs.  There are number of good digital logic simulators available as native applications, but these either cost significant money like Quartus, or, while well-featured, look outdated and can be awkward to use like Logisim and Logisim-evolution.  While Logisim is a good application, one thing it lacks is cloud support and a web-based application for managing projects on the go.  That is where Xorls-v2 comes in.  This Angular-based application is a robust web app allowing users to design and simulate schematis in a browser and save designs to the cloud, giving them the ability to access and edit projects from anywhere over the internet.
 
@@ -37,8 +39,7 @@ npm run build
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
 ## Testing (Coming soon)
-All components should have their own `.spec.ts` file for unit tests.
-All services should have their own `.spec.ts` file for unit tests.
+All components and services should have their own separate files for unit tests.
 Each store should have its own separate files for unit testing mock selectors and reducers, and a file for integration tests.
 
 ### Running unit tests
