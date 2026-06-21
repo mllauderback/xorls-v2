@@ -1,5 +1,5 @@
 import { createFeature, createReducer, on } from "@ngrx/store";
-import { SettingsState } from "./state";
+import type { SettingsState } from "./state";
 import * as actions from './actions';
 import * as functions from "./reducer-functions";
 
@@ -31,8 +31,8 @@ export const settingsReducer = createReducer(
 
 export const settingsFeature = createFeature({
     name: 'settingsFeature',
-    reducer: settingsReducer,
-    extraSelectors: ({}) => ({})
+    reducer: settingsReducer
+    // extraSelectors: ({}) => ({})
 
     /* example extraSelectors
     extraSelectors({ selector1, selector2 }) => ({

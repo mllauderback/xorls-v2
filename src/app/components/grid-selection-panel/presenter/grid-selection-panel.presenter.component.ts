@@ -1,8 +1,8 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { TooltipModule } from 'primeng/tooltip';
-import { PaletteComponent } from '../../../models/components/PaletteComponent';
+import type { PaletteComponent } from '../../../models/components/PaletteComponent';
 import { cloneDeep } from 'lodash';
-import { PaletteComponentCategories } from '../../../store/components/components.state';
+import type { PaletteComponentCategories } from '../../../store/components/components.state';
 import { PaletteComponentSvgsComponent } from '../../responsive-svgs/palette-component-svgs/palette-component-svgs.component';
 
 @Component({
@@ -23,8 +23,8 @@ export class GridSelectionPanelPresenterComponent {
 
     $event.preventDefault();
     if (!this.categoryPaletteComponentMap || !this.category) return;
-    let targetButton = $event.target as HTMLInputElement;
-    let mapCopy = cloneDeep(this.categoryPaletteComponentMap);
+    const targetButton = $event.target as HTMLInputElement;
+    const mapCopy = cloneDeep(this.categoryPaletteComponentMap);
 
     if (paletteComponent.selected) {
       targetButton.checked = false;
@@ -32,8 +32,8 @@ export class GridSelectionPanelPresenterComponent {
     }
     else {
       this.clearPaletteSelection(mapCopy);
-      mapCopy.get(this.category)?.forEach((mapPaletteComponent: PaletteComponent, index: number) => {
-        if (mapPaletteComponent.className == paletteComponent.className) {
+      mapCopy.get(this.category)?.forEach((mapPaletteComponent: PaletteComponent, _index: number) => {
+        if (mapPaletteComponent.className === paletteComponent.className) {
           mapPaletteComponent.selected = true;
         }
       });
@@ -42,8 +42,8 @@ export class GridSelectionPanelPresenterComponent {
   }
 
   private clearPaletteSelection(mapCopy: Map<PaletteComponentCategories, PaletteComponent[]>): void {
-    for (let [_category, paletteComponents] of mapCopy) {
-      for (let paletteComponent of paletteComponents) {
+    for (const [_category, paletteComponents] of mapCopy) {
+      for (const paletteComponent of paletteComponents) {
         paletteComponent.selected = false;
       }
     }

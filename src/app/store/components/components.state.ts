@@ -1,5 +1,5 @@
-import { PaletteComponent } from "../../models/components/PaletteComponent";
-import { Selectable } from "../../models/Selectable";
+import type { PaletteComponent } from "../../models/components/PaletteComponent";
+import type { Selectable } from "../../models/Selectable";
 
 export enum PaletteComponentCategories {
     gates = "Gates",
@@ -7,14 +7,14 @@ export enum PaletteComponentCategories {
     decorations = "Decorations"
 }
 
-export type PaletteComponentList = { // make this a map
+export interface PaletteComponentList { // make this a map
     "Gates": PaletteComponent[];
     "I/O": PaletteComponent[];
     "Decorations": PaletteComponent[];
     // more categories ...
 }
 
-export type SelectedSelectable = {
+export interface SelectedSelectable {
     selectable: Selectable | null;
     concreteClassName: string;
 }

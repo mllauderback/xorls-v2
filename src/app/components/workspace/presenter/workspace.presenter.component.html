@@ -1,7 +1,7 @@
 <p-tabs value="0" class="h-full w-full">
     <!-- these will be iterated over -->
     <p-tablist>
-        <p-tab style="padding: 0 0 0 1.25rem" value="0">Header I<button pButton icon="pi pi-times" severity="secondary" [rounded]="true" [text]="true" size="small" (click)="closeTab()"></button></p-tab>
+        <p-tab style="padding: 0 0 0 1.25rem" value="0">Header I<p-button icon="pi pi-times" severity="secondary" [rounded]="true" [text]="true" size="small" (click)="closeTab()"></p-button></p-tab>
     </p-tablist>
     <p-tabpanels #contentViewport class="!p-0 h-full overflow-auto">
         <app-grid-canvas-layer #grid class="absolute" [zIndex]="0" [bground]="'white'"></app-grid-canvas-layer>

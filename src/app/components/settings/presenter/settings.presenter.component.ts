@@ -7,8 +7,8 @@ import { FormsModule } from '@angular/forms';
 import { Tooltip } from 'primeng/tooltip';
 import { FieldsetModule } from 'primeng/fieldset';
 import { ButtonModule } from 'primeng/button';
-import { SettingsState } from '../../../store/settings/state';
-import { GridMode } from '../../../models/Grid';
+import type { SettingsState } from '../../../store/settings/state';
+import type { GridMode } from '../../../models/Grid';
 
 // TODO: come up with a decent visual layout for this page.  It is messy.
 // TOOD: bind the enter key to an apply changes emitter so changing number values like the grid spacing doesn't happen while editing the field
@@ -33,7 +33,7 @@ export class SettingsPresenterComponent {
     @Output() gridSpacing = new EventEmitter<number>();
 
     // will be an initialization error if the gridmode type changes and this isn't updated.
-    protected readonly tmpObj: { [K in GridMode]: undefined } = {
+    protected readonly tmpObj: Record<GridMode, undefined> = {
         lines: undefined,
         dots: undefined
     };

@@ -1,14 +1,17 @@
-import { Injectable } from '@angular/core';
-import { filter, fromEvent, Observable, Subject, Subscription, switchMap, takeUntil } from 'rxjs';
-import { MouseEventHandler } from '../../models/MouseEventHandler';
+import { Injectable, inject } from '@angular/core';
+import type { Observable, Subscription} from 'rxjs';
+import { filter, fromEvent, Subject, switchMap, takeUntil } from 'rxjs';
+import type { MouseEventHandler } from '../../models/MouseEventHandler';
 import { Store } from '@ngrx/store';
-import { WorkspaceState } from '../../store/workspace/state';
+import type { WorkspaceState } from '../../store/workspace/state';
 import * as actions from '../../store/workspace/actions';
 
 @Injectable({
     providedIn: 'root'
 })
 export class WorkspaceMouseEventService {
+    private store = inject<Store<WorkspaceState>>(Store);
+
     private destroy$ = new Subject<void>();
 
     // we want the application to crash if mouse events down work
@@ -25,9 +28,7 @@ export class WorkspaceMouseEventService {
     
     private workspaceViewport?: HTMLElement;
 
-    private handlers: Map<string, MouseEventHandler> = new Map();
-
-    constructor(private store: Store<WorkspaceState>) {}
+    private handlers = new Map<string, MouseEventHandler>();
 
     /**
      * Sets the viewport to listen to and initializes observables.

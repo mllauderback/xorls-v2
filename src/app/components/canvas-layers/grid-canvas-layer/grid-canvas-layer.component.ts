@@ -1,13 +1,16 @@
-import { Component, DestroyRef, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
+import type { ElementRef, OnInit} from '@angular/core';
+import { Component, DestroyRef, inject, ViewChild } from '@angular/core';
 import { AbstractCanvasLayerComponent } from '../abstract-canvas-layer.component';
-import { Drawable, DrawState } from '../../../models/Drawable';
+import type { Drawable, DrawState } from '../../../models/Drawable';
 import { CommonModule } from '@angular/common';
 import { RenderService } from '../../../services/render/render.service';
-import { firstValueFrom, Observable, skip, Subscription } from 'rxjs';
+import type { Observable} from 'rxjs';
+import { firstValueFrom, skip } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Grid, GridMode } from '../../../models/Grid';
+import type { GridMode } from '../../../models/Grid';
+import { Grid } from '../../../models/Grid';
 import { Store } from '@ngrx/store';
-import { WorkspaceState } from '../../../store/workspace/state';
+import type { WorkspaceState } from '../../../store/workspace/state';
 import { selectGridMode, selectGridSpacing } from '../../../store/settings/feature';
 
 @Component({
@@ -18,6 +21,9 @@ import { selectGridMode, selectGridSpacing } from '../../../store/settings/featu
     `
 })
 export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent implements OnInit {
+    private store = inject<Store<WorkspaceState>>(Store);
+    private renderService = inject(RenderService);
+
     @ViewChild('canvas') canvasRef?: ElementRef<HTMLCanvasElement>;
 
     private grid?: Grid;
@@ -26,7 +32,7 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent imple
     private gridSpacing$: Observable<number>;
     private destroyRef = inject(DestroyRef);
 
-    constructor(private store: Store<WorkspaceState>, private renderService: RenderService) {
+    constructor() {
         super();
         this.gridMode$ = this.store.select(selectGridMode);
         this.gridSpacing$ = this.store.select(selectGridSpacing);
@@ -46,8 +52,6 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent imple
         this.initCanvas(this.canvasRef!);
     }
 
-    override ngOnDestroy(): void {}
-
     override refresh(drawState: DrawState) {
         // console.log(this.canvasRef?.nativeElement.clientWidth);
         if (this.context === null) {
@@ -64,10 +68,6 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent imple
         updateDrawables.forEach(d => d.draw(this.context!, drawState));
         this.context.stroke();
         this.resetAllDrawablesForUpdates();
-    }
-
-    private async initGrid() {
-
     }
 
     private updateGridSpacing(gridSpacing?: number) {

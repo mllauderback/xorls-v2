@@ -1,5 +1,5 @@
-import { Point } from '../../models/Point';
-import { MouseMode, WorkspaceState } from './state';
+import type { Point } from '../../models/Point';
+import type { MouseMode, WorkspaceState } from './state';
 
 export function setMouseMode(state: WorkspaceState, mouseMode: MouseMode) {
     return {

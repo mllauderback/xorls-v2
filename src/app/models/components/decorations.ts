@@ -1,6 +1,6 @@
-import { Point } from "../Point";
-import { Decoration } from "./Decoration";
-import { DrawState } from "../Drawable";
+import type { Point } from "../Point";
+import type { Decoration } from "./Decoration";
+import type { DrawState } from "../Drawable";
 
 export class Text implements Decoration {
     position: Point;

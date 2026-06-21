@@ -9,9 +9,9 @@ import *  as decorations from '../../../models/components/decorations';
   templateUrl: './palette-component-svgs.component.html'
 })
 export class PaletteComponentSvgsComponent {
-  @Input() className: string = '';
-  @Input() height: string = '2.4rem';
-  @Input() width: string = '2.4rem';
+  @Input() className = '';
+  @Input() height = '2.4rem';
+  @Input() width = '2.4rem';
 
   gates = gates;
   io = io;

@@ -1,9 +1,9 @@
-import { Component, Input, Type } from '@angular/core';
-import { Selectable } from '../../../models/Selectable';
+import { Component, Input } from '@angular/core';
 import { DividerModule } from 'primeng/divider';
 import { ScrollPanelModule } from 'primeng/scrollpanel';
-import { SelectedSelectable } from '../../../store/components/components.state';
+import type { SelectedSelectable } from '../../../store/components/components.state';
 import { AndGate } from '../../../models/components/gates';
+import type { Selectable } from '../../../models/Selectable';
 
 @Component({
   selector: 'app-selectable-properties-presenter',
@@ -18,7 +18,7 @@ export class SelectablePropertiesPresenterComponent {
   @Input() selectable!: SelectedSelectable | null; // possibly null bc of async
 
 
-  getConcreteSelectable(): any {
+  getConcreteSelectable(): Selectable | null {
     if (!this.selectable?.selectable) return null;
     switch(this.selectable?.concreteClassName) {
       case AndGate.name:

@@ -1,7 +1,7 @@
-import { Drawable } from "../Drawable";
-import { Ghostable } from "../Ghostable";
-import { Point } from "../Point";
-import { Selectable } from "../Selectable";
+import type { Drawable } from "../Drawable";
+import type { Ghostable } from "../Ghostable";
+import type { Point } from "../Point";
+import type { Selectable } from "../Selectable";
 import { AndGate, OrGate } from "./gates";
 
 export class Node implements Selectable {

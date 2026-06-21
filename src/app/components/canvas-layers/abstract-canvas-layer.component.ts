@@ -1,8 +1,9 @@
-import { AfterViewInit, Directive, ElementRef, Input, OnDestroy } from "@angular/core";
-import { Drawable, DrawState } from "../../models/Drawable";
+import type { AfterViewInit, ElementRef} from "@angular/core";
+import { Directive, Input } from "@angular/core";
+import type { Drawable, DrawState } from "../../models/Drawable";
 
 @Directive()
-export abstract class AbstractCanvasLayerComponent implements AfterViewInit, OnDestroy {
+export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
 
     @Input() zIndex?: number;
     @Input() bground?: string;
@@ -143,5 +144,4 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit, OnD
     public abstract refresh(drawState: DrawState): void;
 
     abstract ngAfterViewInit(): void;
-    abstract ngOnDestroy(): void;
 }
