@@ -16,7 +16,6 @@ import { WorkspaceContainerComponent } from '../../workspace/container/workspace
         ComponentPaletteContainerComponent,
         WorkspaceContainerComponent,
     ],
-    templateUrl: './left-panel.presenter.component.html',
-    styleUrl: './left-panel.presenter.component.scss',
+    templateUrl: './left-panel.presenter.component.html'
 })
 export class LeftPanelPresenterComponent {}
