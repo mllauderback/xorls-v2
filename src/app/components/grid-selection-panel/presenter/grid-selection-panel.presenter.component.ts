@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { TooltipModule } from 'primeng/tooltip';
 import type { PaletteComponent } from '../../../models/components/PaletteComponent';
 import { cloneDeep } from 'lodash';
-import type { PaletteComponentCategories } from '../../../store/components/components.state';
+import type { PaletteComponentCategories } from '../../../store/components/state';
 import { PaletteComponentSvgsComponent } from '../../responsive-svgs/palette-component-svgs/palette-component-svgs.component';
 
 @Component({

@@ -1,8 +1,9 @@
 import { createFeature, createReducer, on } from "@ngrx/store";
-import type { PaletteComponentsState } from "./components.state";
-import { PaletteComponentCategories } from "./components.state";
+import type { PaletteComponentsState } from "./state";
+import { PaletteComponentCategories } from "./state";
 import type { PaletteComponent } from "../../models/components/PaletteComponent";
-import * as actions from './components.actions';
+import * as actions from './actions';
+import * as functions from './reducer-functions';
 import * as gates from "../../models/components/gates";
 import * as io from '../../models/components/io';
 import * as decorations from '../../models/components/decorations';
@@ -49,7 +50,7 @@ export const componentsReducer = createReducer(
     on(
         actions.setPaletteComponentMap,
         (state, { paletteComponentMap }): PaletteComponentsState =>
-            setSelectedPaletteComponentList(state, paletteComponentMap)
+            functions.setSelectedPaletteComponentList(state, paletteComponentMap)
     )
 );
 
@@ -58,10 +59,9 @@ export const componentsFeature = createFeature({
     reducer: componentsReducer
 });
 
-function setSelectedPaletteComponentList(state: PaletteComponentsState, paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]>): PaletteComponentsState {
-    // console.log("componentsFeature: ", paletteComponentMap);
-    return {
-        ...state,
-        paletteComponentMap
-    };
-}
+export const {
+    name,
+    reducer,
+    selectPaletteComponentMap,
+    selectSelectedSelectable
+} = componentsFeature

@@ -1,24 +1,25 @@
-import type { ComponentFixture} from '@angular/core/testing';
+import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
+import { describe, beforeEach, it, expect } from 'vitest';
 
 import { PaletteComponentSvgsComponent } from './palette-component-svgs.component';
 
 describe('PaletteComponentSvgsComponent', () => {
-  let component: PaletteComponentSvgsComponent;
-  let fixture: ComponentFixture<PaletteComponentSvgsComponent>;
+    let component: PaletteComponentSvgsComponent;
+    let fixture: ComponentFixture<PaletteComponentSvgsComponent>;
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [PaletteComponentSvgsComponent]
-    })
-    .compileComponents();
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [PaletteComponentSvgsComponent]
+        })
+            .compileComponents();
 
-    fixture = TestBed.createComponent(PaletteComponentSvgsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
+        fixture = TestBed.createComponent(PaletteComponentSvgsComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
+    it('should create', () => {
+        expect(component).toBeTruthy();
+    });
 });

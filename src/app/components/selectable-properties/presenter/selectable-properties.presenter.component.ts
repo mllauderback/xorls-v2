@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { DividerModule } from 'primeng/divider';
 import { ScrollPanelModule } from 'primeng/scrollpanel';
-import type { SelectedSelectable } from '../../../store/components/components.state';
+import type { SelectedSelectable } from '../../../store/components/state';
 import { AndGate } from '../../../models/components/gates';
 import type { Selectable } from '../../../models/Selectable';
 

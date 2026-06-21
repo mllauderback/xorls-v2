@@ -1,9 +1,9 @@
 import { Component, inject } from '@angular/core';
 import { SelectablePropertiesPresenterComponent } from "../presenter/selectable-properties.presenter.component";
 import { Store } from '@ngrx/store';
-import type { PaletteComponentsState, SelectedSelectable } from '../../../store/components/components.state';
+import type { PaletteComponentsState, SelectedSelectable } from '../../../store/components/state';
 import type { Observable } from 'rxjs';
-import { componentsFeature } from '../../../store/components/components.feature';
+import { componentsFeature } from '../../../store/components/feature';
 import { CommonModule } from '@angular/common';
 
 @Component({

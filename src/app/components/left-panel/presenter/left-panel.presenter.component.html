@@ -3,8 +3,8 @@
     <!-- <ng-template #panel> -->
     <div
         style="width: 400px; box-sizing: content-box; border-right-style: solid; border-right-width: 1px; border-right-color: var(--p-content-border-color);">
-        <p-tabs class="orientation-left left-panel" value="0">
-            <p-tablist>
+        <p-tabs [scrollable]="false" class="orientation-left left-panel" value="0">
+            <p-tablist style="width: 52px;">
                 <p-tab value="0" pTooltip="Explorer" showDelay="750"><i class="pi pi-copy"
                         style="font-size: 1.4rem;"></i></p-tab>
                 <p-tab value="1" pTooltip="Components" showDelay="750"><i class="pi pi-box"

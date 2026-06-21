@@ -1,5 +1,5 @@
 import { createAction, props } from "@ngrx/store";
-import type { PaletteComponentCategories } from "./components.state";
+import type { PaletteComponentCategories } from "./state";
 import type { PaletteComponent } from "../../models/components/PaletteComponent";
 
 
