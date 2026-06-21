@@ -26,8 +26,6 @@ New NgRX store additions should be added to an appropriate categorized directory
 
 Xorls-v2 uses tailwindcss to organize element styling.  Custom styles can be added in a separate SCSS file scoped as locally as possible.  Tailwind classes are highly preferred to custom SCSS, but use of custom SCSS is largely up to discression.
 
-End-to-end tests should be added to an appropriate categorized directory in `app/tests/e2e`.  For component e2e tests, that directory should be the name of the component.
-
 ## Building
 
 To build the project run:
@@ -41,6 +39,7 @@ This will compile your project and store the build artifacts in the `dist/` dire
 ## Testing (Coming soon)
 All components and services should have their own separate files for unit tests.
 Each store should have its own separate files for unit testing mock selectors and reducers, and a file for integration tests.
+End-to-end tests should be added to an appropriate categorized directory in `app/e2e`.  For component e2e tests, that directory should be the name of the component.
 
 ### Running unit tests
 
@@ -52,7 +51,7 @@ npm run test
 
 ### Running end-to-end tests
 
-End-to-end tests are written using (playwright or cypress).  To run e2e tests, use the following command:
+End-to-end tests are written using playwright.  To install configured browsers, run `npx playwright install`.  To run e2e tests, use the following command:
 
 ```bash
 npm run e2e
