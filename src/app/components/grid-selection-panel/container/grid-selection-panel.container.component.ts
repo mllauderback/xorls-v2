@@ -1,17 +1,16 @@
 import { Component, Input, inject } from '@angular/core';
 import { GridSelectionPanelPresenterComponent } from "../presenter/grid-selection-panel.presenter.component";
 import type { PaletteComponent } from '../../../models/components/PaletteComponent';
-import type { PaletteComponentCategories, PaletteComponentsState } from '../../../store/components/components.state';
+import type { PaletteComponentCategories, PaletteComponentsState } from '../../../store/components/state';
 import { Store } from '@ngrx/store';
-import { CommonModule } from '@angular/common';
-import * as actions from '../../../store/components/components.actions';
+
+import * as actions from '../../../store/components/actions';
 
 @Component({
   selector: 'app-grid-selection-container-panel',
   imports: [
-    GridSelectionPanelPresenterComponent,
-    CommonModule
-  ],
+    GridSelectionPanelPresenterComponent
+],
   template: `
     <app-grid-selection-presenter-panel
       [categoryPaletteComponentMap]="paletteComponentMap"

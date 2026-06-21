@@ -5,13 +5,13 @@ import { providePrimeNG } from 'primeng/config';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
 
-import Aura from '@primeng/themes/aura';
+import Aura from '@primeuix/themes/aura';
 
 import { routes } from './app.routes';
 import { provideState, provideStore } from '@ngrx/store';
 import { settingsFeature } from './store/settings/feature';
 import { workspaceFeature } from './store/workspace/feature';
-import { componentsFeature } from './store/components/components.feature';
+import { componentsFeature } from './store/components/feature';
 
 export const appConfig: ApplicationConfig = {
     providers: [

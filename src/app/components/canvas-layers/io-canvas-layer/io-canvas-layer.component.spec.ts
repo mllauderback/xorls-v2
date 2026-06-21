@@ -1,24 +1,25 @@
-import type { ComponentFixture} from '@angular/core/testing';
+import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
+import { describe, beforeEach, it, expect } from 'vitest';
 
 import { IOCanvasLayerComponent } from './io-canvas-layer.component';
 
 describe('IOCanvasLayerComponent', () => {
-  let component: IOCanvasLayerComponent;
-  let fixture: ComponentFixture<IOCanvasLayerComponent>;
+    let component: IOCanvasLayerComponent;
+    let fixture: ComponentFixture<IOCanvasLayerComponent>;
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [IOCanvasLayerComponent]
-    })
-    .compileComponents();
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [IOCanvasLayerComponent]
+        })
+            .compileComponents();
 
-    fixture = TestBed.createComponent(IOCanvasLayerComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
+        fixture = TestBed.createComponent(IOCanvasLayerComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
+    it('should create', () => {
+        expect(component).toBeTruthy();
+    });
 });

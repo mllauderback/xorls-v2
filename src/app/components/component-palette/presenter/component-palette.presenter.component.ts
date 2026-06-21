@@ -6,7 +6,7 @@ import { ButtonModule } from 'primeng/button';
 import { CommonModule } from '@angular/common';
 import { GridSelectionPanelComponent } from '../../grid-selection-panel/container/grid-selection-panel.container.component';
 import type { PaletteComponent } from '../../../models/components/PaletteComponent';
-import type { PaletteComponentCategories } from '../../../store/components/components.state';
+import type { PaletteComponentCategories } from '../../../store/components/state';
 import { SelectablePropertiesContainerComponent } from "../../selectable-properties/container/selectable-properties.container.component";
 
 @Component({
