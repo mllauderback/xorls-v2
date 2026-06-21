@@ -1,5 +1,5 @@
 import { createFeature, createReducer, on } from "@ngrx/store";
-import { WorkspaceState } from "./state";
+import type { WorkspaceState } from "./state";
 import * as actions from './actions';
 import * as functions from './reducer-functions';
 

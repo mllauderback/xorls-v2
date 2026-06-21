@@ -1,6 +1,7 @@
-import { Component, ElementRef, Input, ViewChild } from '@angular/core';
+import type { ElementRef} from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { AbstractCanvasLayerComponent } from '../abstract-canvas-layer.component';
-import { Drawable, DrawState } from '../../../models/Drawable';
+import type { Drawable, DrawState } from '../../../models/Drawable';
 import { CommonModule } from '@angular/common';
 import { RenderService } from '../../../services/render/render.service';
 
@@ -12,17 +13,12 @@ import { RenderService } from '../../../services/render/render.service';
     `
 })
 export class WireCanvasLayerComponent extends AbstractCanvasLayerComponent {
-    @ViewChild('canvas') canvasRef?: ElementRef<HTMLCanvasElement>;
+    private renderService = inject(RenderService);
 
-    constructor(private renderService: RenderService) {
-        super();
-    }
+    @ViewChild('canvas') canvasRef?: ElementRef<HTMLCanvasElement>;
 
     override ngAfterViewInit(): void {
         this.initCanvas(this.canvasRef!);
-    }
-
-    override ngOnDestroy(): void {
     }
 
     override refresh(drawState: DrawState) {

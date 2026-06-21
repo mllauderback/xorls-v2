@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { DrawState } from '../../models/Drawable';
-import { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
+import type { DrawState } from '../../models/Drawable';
+import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
 
 /**
  * The RenderService tracks shared variables across all layers like the origin and scale.
@@ -18,14 +18,12 @@ export class RenderService {
         origin: { x: 0, y: 0 },
         scale: 1.0
     };
-    private lastTimestamp: number = 0;
+    private lastTimestamp = 0;
     private readonly targetFPS: number = 30;
     private animationId: number | null = null;
     private layers: AbstractCanvasLayerComponent[] = [];
-    private _width: number = 0;
-    private _height: number = 0;
-
-    constructor() {}
+    private _width = 0;
+    private _height = 0;
 
     private set width(width: number) {
         this._width = width;

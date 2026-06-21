@@ -1,9 +1,9 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SettingsPresenterComponent } from "../presenter/settings.presenter.component";
 import { Store } from '@ngrx/store';
-import { SettingsState } from '../../../store/settings/state';
+import type { SettingsState } from '../../../store/settings/state';
 import { selectSettingsFeatureState } from '../../../store/settings/feature';
 import * as actions from '../../../store/settings/actions';
 import { type Observable } from 'rxjs';
@@ -28,10 +28,12 @@ import { type GridMode } from '../../../models/Grid';
     }
 `
 })
-export class SettingsContainerComponent implements OnDestroy {
+export class SettingsContainerComponent {
+    private store = inject<Store<SettingsState>>(Store);
+
     protected settingsState$: Observable<SettingsState>;
 
-    constructor(private store: Store<SettingsState>) {
+    constructor() {
         this.settingsState$ = this.store.select(selectSettingsFeatureState);
     }
 
@@ -41,8 +43,5 @@ export class SettingsContainerComponent implements OnDestroy {
 
     protected updateGridSpacing(spacing: number) {
         this.store.dispatch(actions.updateGridSpacing({ spacing }));
-    }
-
-    ngOnDestroy(): void {
     }
 }

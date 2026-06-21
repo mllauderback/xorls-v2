@@ -1,7 +1,8 @@
 
-import { DrawState } from "../Drawable";
-import { Point } from "../Point";
-import { Component, Node } from "./Component";
+import type { DrawState } from "../Drawable";
+import type { Point } from "../Point";
+import type { Component} from "./Component";
+import { Node } from "./Component";
 
 export class AndGate implements Component {
     position: Point;
@@ -43,7 +44,7 @@ export class AndGate implements Component {
 
     /* set the number of inodes and automatically calculate their positions */
     private getInputNodeListFromSize(size: number): Node[] {
-        let iNodeList = [];
+        const iNodeList = [];
         for (let i = 0; i < size; i++) {
             iNodeList.push(new Node({ x: 0, y: 0 }));
         }

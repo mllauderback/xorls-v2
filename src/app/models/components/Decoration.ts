@@ -1,7 +1,7 @@
-import { Drawable } from "../Drawable";
-import { Ghostable } from "../Ghostable";
-import { Point } from "../Point";
-import { Selectable } from "../Selectable";
+import type { Drawable } from "../Drawable";
+import type { Ghostable } from "../Ghostable";
+import type { Point } from "../Point";
+import type { Selectable } from "../Selectable";
 
 export interface Decoration extends Drawable, Selectable, Ghostable {
     position: Point;

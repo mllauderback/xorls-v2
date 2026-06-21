@@ -1,4 +1,4 @@
-export type PaletteComponent = {
+export interface PaletteComponent {
     className: string;
     selected: boolean;
 }

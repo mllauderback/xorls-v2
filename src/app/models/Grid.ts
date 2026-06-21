@@ -1,4 +1,4 @@
-import { Drawable, DrawState } from "./Drawable";
+import type { Drawable, DrawState } from "./Drawable";
 
 export type GridMode = 'lines' | 'dots';
 export class Grid implements Drawable {
@@ -26,7 +26,7 @@ export class Grid implements Drawable {
      * @param ctx The 2D context on which to draw
      * @param forceUpdate Global draw state information
      */
-    public draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    public draw(ctx: CanvasRenderingContext2D, _drawState: DrawState) {
         this._updateDimensions(ctx);
 
         // console.log('Grid drawn, ', this._width + ", " + this._height);

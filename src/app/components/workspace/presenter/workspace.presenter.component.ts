@@ -1,11 +1,12 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, ViewChild } from "@angular/core";
+import type { AfterViewInit, OnDestroy} from "@angular/core";
+import { ChangeDetectionStrategy, Component, ViewChild, inject } from "@angular/core";
 import { ButtonModule } from "primeng/button";
-import { TabPanels, TabsModule } from "primeng/tabs";
+import type { TabPanels} from "primeng/tabs";
+import { TabsModule } from "primeng/tabs";
 import { WorkspaceMouseEventService } from "../../../services/mouse/workspace-mouse-event.service";
 import { RenderService } from "../../../services/render/render.service";
 import { GridCanvasLayerComponent } from "../../canvas-layers/grid-canvas-layer/grid-canvas-layer.component";
 import { ComponentCanvasLayerComponent } from "../../canvas-layers/component-canvas-layer/component-canvas-layer.component";
-import { AndGate } from "../../../models/components/gates";
 import { ActiveComponentCanvasLayerComponent } from "../../canvas-layers/active-component-canvas-layer/active-component-canvas-layer.component";
 import { IOCanvasLayerComponent } from "../../canvas-layers/io-canvas-layer/io-canvas-layer.component";
 import { WireCanvasLayerComponent } from "../../canvas-layers/wire-canvas-layer/wire-canvas-layer.component";
@@ -27,6 +28,9 @@ import { ActiveWireCanvasLayerComponent } from "../../canvas-layers/active-wire-
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
+    private renderService = inject(RenderService);
+    private mouseEventService = inject(WorkspaceMouseEventService);
+
     
     @ViewChild('contentViewport') viewport?: TabPanels;
     @ViewChild('grid') gridCanvasLayerComponent?: GridCanvasLayerComponent;
@@ -37,11 +41,6 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
     @ViewChild('activeWire') activeWireCanvasLayerComponent?: ActiveWireCanvasLayerComponent;
 
     private resizeObserver?: ResizeObserver;
-
-    constructor(
-        private renderService: RenderService,
-        private mouseEventService: WorkspaceMouseEventService
-    ) {}
 
     ngAfterViewInit(): void {
         this.resizeObserver = new ResizeObserver((entries) =>
@@ -82,8 +81,8 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         const newWidth = oldWidth < viewportWidth ? viewportWidth + 100 : oldWidth;
         const newHeight = oldHeight < viewportHeight ? viewportHeight + 100 : oldHeight;
         this.renderService.resize(newWidth, newHeight);
+
     }
 
     protected closeTab() {}
-
 }

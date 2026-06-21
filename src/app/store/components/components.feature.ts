@@ -1,6 +1,7 @@
 import { createFeature, createReducer, on } from "@ngrx/store";
-import { PaletteComponentCategories, PaletteComponentsState } from "./components.state";
-import { PaletteComponent } from "../../models/components/PaletteComponent";
+import type { PaletteComponentsState } from "./components.state";
+import { PaletteComponentCategories } from "./components.state";
+import type { PaletteComponent } from "../../models/components/PaletteComponent";
 import * as actions from './components.actions';
 import * as gates from "../../models/components/gates";
 import * as io from '../../models/components/io';

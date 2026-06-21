@@ -1,6 +1,6 @@
-import { DrawState } from "../Drawable";
-import { Point } from "../Point";
-import { Component, Node } from "./Component";
+import type { DrawState } from "../Drawable";
+import type { Point } from "../Point";
+import type { Component, Node } from "./Component";
 
 export class Input implements Component {
     position: Point;

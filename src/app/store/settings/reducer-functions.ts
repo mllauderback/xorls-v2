@@ -1,5 +1,5 @@
 import { type GridMode } from "../../models/Grid";
-import { SettingsState } from "./state";
+import type { SettingsState } from "./state";
 
 export function setUpdatedSettings(settings: SettingsState): SettingsState {
     return settings;

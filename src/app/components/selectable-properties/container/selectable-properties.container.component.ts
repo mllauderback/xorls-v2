@@ -1,9 +1,8 @@
-import { Component, Input } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { SelectablePropertiesPresenterComponent } from "../presenter/selectable-properties.presenter.component";
-import { Selectable } from '../../../models/Selectable';
 import { Store } from '@ngrx/store';
-import { PaletteComponentsState, SelectedSelectable } from '../../../store/components/components.state';
-import { Observable } from 'rxjs';
+import type { PaletteComponentsState, SelectedSelectable } from '../../../store/components/components.state';
+import type { Observable } from 'rxjs';
 import { componentsFeature } from '../../../store/components/components.feature';
 import { CommonModule } from '@angular/common';
 
@@ -20,9 +19,11 @@ import { CommonModule } from '@angular/common';
   `,
 })
 export class SelectablePropertiesContainerComponent {
+  private store = inject<Store<PaletteComponentsState>>(Store);
+
   protected selectable$!: Observable<SelectedSelectable>;
 
-  constructor(private store: Store<PaletteComponentsState>) {
+  constructor() {
     this.selectable$ = this.store.select(componentsFeature.selectSelectedSelectable);
   }
 }
