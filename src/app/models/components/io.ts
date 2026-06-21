@@ -1,3 +1,4 @@
+import { DrawState } from "../Drawable";
 import { Point } from "../Point";
 import { Component, Node } from "./Component";
 
@@ -14,9 +15,9 @@ export class Input implements Component {
         this.isGhost = false;
     }
 
-    draw(): void {
-        throw new Error("Method not implemented.");
+    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
     }
+
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }
@@ -35,9 +36,9 @@ export class Output implements Component {
         this.isGhost = false;
     }
 
-    draw(): void {
-        throw new Error("Method not implemented.");
+    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
     }
+
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }
@@ -61,9 +62,9 @@ export class SevenSegmentDisplay implements Component {
         this.busWidth = busWidth;
     }
 
-    draw(): void {
-        throw new Error("Method not implemented.");
+    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
     }
+
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }

@@ -1,5 +1,6 @@
 import { Point } from "../Point";
 import { Decoration } from "./Decoration";
+import { DrawState } from "../Drawable";
 
 export class Text implements Decoration {
     position: Point;
@@ -13,10 +14,10 @@ export class Text implements Decoration {
         this.size = 12;
         this.isGhost = false;
     }
-
-    draw(): void {
-        throw new Error("Method not implemented.");
+    
+    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
     }
+
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }

@@ -4,44 +4,45 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { SettingsPresenterComponent } from "../presenter/settings.presenter.component";
 import { Store } from '@ngrx/store';
 import { SettingsState } from '../../../store/settings/state';
-import { initialSettingsState, settingsFeature } from '../../../store/settings/feature';
+import { selectSettingsFeatureState } from '../../../store/settings/feature';
 import * as actions from '../../../store/settings/actions';
-import { Subscription } from 'rxjs';
+import { type Observable } from 'rxjs';
+import { type GridMode } from '../../../models/Grid';
 
 @Component({
-  selector: 'app-settings-container',
-  imports: [
-    CommonModule,
-    InputNumberModule,
-    SettingsPresenterComponent
-],
-  template: `
+    selector: 'app-settings-container',
+    imports: [
+        CommonModule,
+        InputNumberModule,
+        SettingsPresenterComponent
+    ],
+    template: `
+    @if (settingsState$ | async; as settings) {
     <app-settings-presenter
-      [(settings)]="settingsStateCopy"
-      (applyChanges)="applyChanges()"
+        [settings]="settings"
+        (gridMode)="updateGridMode($event)"
+        (gridSpacing)="updateGridSpacing($event)"
     ></app-settings-presenter>
+    } @else {
+        <p>Loading Settings...</p>
+    }
 `
 })
 export class SettingsContainerComponent implements OnDestroy {
-  protected settingsStateCopy!: SettingsState;
-  protected settingsSubscription: Subscription;
+    protected settingsState$: Observable<SettingsState>;
 
-  constructor(private store: Store<SettingsState>) {
-    this.settingsSubscription = this.store.select(settingsFeature.selectSettingsFeatureState).subscribe({
-      next: (state: SettingsState) => {
-        this.settingsStateCopy = Object.assign({}, state); // clone state to copy
-      },
-      error: () => {
-        this.settingsStateCopy = Object.assign({}, initialSettingsState); // clone initialstate to copy
-      }
-    });
-  }
+    constructor(private store: Store<SettingsState>) {
+        this.settingsState$ = this.store.select(selectSettingsFeatureState);
+    }
 
-  applyChanges(): void {
-    this.store.dispatch(actions.updateSettings({ settings: this.settingsStateCopy }));
-  }
+    protected updateGridMode(mode: GridMode) {
+        this.store.dispatch(actions.updateGridMode({ mode }));
+    }
 
-  ngOnDestroy(): void {
-    this.settingsSubscription.unsubscribe();
-  }
+    protected updateGridSpacing(spacing: number) {
+        this.store.dispatch(actions.updateGridSpacing({ spacing }));
+    }
+
+    ngOnDestroy(): void {
+    }
 }

@@ -8,8 +8,8 @@ export class Node implements Selectable {
     public position: Point;
     public state: boolean;
 
-    constructor() {
-        this.position = { x: 0, y: 0 };
+    constructor(position: Point) {
+        this.position = { x: position.x, y: position.y };
         this.state = false;
     }
 
