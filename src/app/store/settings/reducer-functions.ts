@@ -8,13 +8,25 @@ export function setUpdatedSettings(settings: SettingsState): SettingsState {
 export function setGridSpacing(state: SettingsState, gridSpacing: number) {
     return {
         ...state,
-        gridSpacing
+        workspaceSettings: {
+            ...state.workspaceSettings,
+            gridSettings: {
+                ...state.workspaceSettings.gridSettings,
+                gridSpacing
+            }
+        }
     };
 }
 
 export function setGridMode(state: SettingsState, gridMode: GridMode) {
     return {
         ...state,
-        gridMode
+        workspaceSettings: {
+            ...state.workspaceSettings,
+            gridSettings: {
+                ...state.workspaceSettings.gridSettings,
+                gridMode
+            }
+        }
     };
 }

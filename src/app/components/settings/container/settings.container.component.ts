@@ -17,15 +17,11 @@ import { type GridMode } from '../../../models/Grid';
         SettingsPresenterComponent
     ],
     template: `
-    @if (settingsState$ | async; as settings) {
     <app-settings-presenter
-        [settings]="settings"
+        [settings]="settingsState$ | async"
         (gridMode)="updateGridMode($event)"
         (gridSpacing)="updateGridSpacing($event)"
     ></app-settings-presenter>
-    } @else {
-        <p>Loading Settings...</p>
-    }
 `
 })
 export class SettingsContainerComponent {

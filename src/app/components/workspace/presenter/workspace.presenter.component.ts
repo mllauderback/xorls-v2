@@ -1,9 +1,9 @@
-import type { AfterViewInit, OnDestroy} from "@angular/core";
-import { ChangeDetectionStrategy, Component, ViewChild, inject } from "@angular/core";
+import type { AfterViewInit, OnDestroy } from "@angular/core";
+import { ChangeDetectionStrategy, Component, Input, ViewChild, inject } from "@angular/core";
 import { ButtonModule } from "primeng/button";
-import type { TabPanels} from "primeng/tabs";
+import type { TabPanels } from "primeng/tabs";
 import { TabsModule } from "primeng/tabs";
-import { WorkspaceMouseEventService } from "../../../services/mouse/workspace-mouse-event.service";
+// import { WorkspaceMouseEventService } from "../../../services/mouse/workspace-mouse-event.service";
 import { RenderService } from "../../../services/render/render.service";
 import { GridCanvasLayerComponent } from "../../canvas-layers/grid-canvas-layer/grid-canvas-layer.component";
 import { ComponentCanvasLayerComponent } from "../../canvas-layers/component-canvas-layer/component-canvas-layer.component";
@@ -11,27 +11,31 @@ import { ActiveComponentCanvasLayerComponent } from "../../canvas-layers/active-
 import { IOCanvasLayerComponent } from "../../canvas-layers/io-canvas-layer/io-canvas-layer.component";
 import { WireCanvasLayerComponent } from "../../canvas-layers/wire-canvas-layer/wire-canvas-layer.component";
 import { ActiveWireCanvasLayerComponent } from "../../canvas-layers/active-wire-canvas-layer/active-wire-canvas-layer.component";
+import { CommonModule } from "@angular/common";
+import type { WorkspaceSettingsState } from "../../../store/settings/state";
 
 @Component({
     selector: 'app-workspace-presenter',
     imports: [
-    TabsModule,
-    ButtonModule,
-    GridCanvasLayerComponent,
-    ComponentCanvasLayerComponent,
-    ActiveComponentCanvasLayerComponent,
-    IOCanvasLayerComponent,
-    WireCanvasLayerComponent,
-    ActiveWireCanvasLayerComponent
-],
+        CommonModule,
+        TabsModule,
+        ButtonModule,
+        GridCanvasLayerComponent,
+        ComponentCanvasLayerComponent,
+        ActiveComponentCanvasLayerComponent,
+        IOCanvasLayerComponent,
+        WireCanvasLayerComponent,
+        ActiveWireCanvasLayerComponent
+    ],
     templateUrl: './workspace.presenter.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
     private renderService = inject(RenderService);
-    private mouseEventService = inject(WorkspaceMouseEventService);
+    // private mouseEventService = inject(WorkspaceMouseEventService);
 
-    
+    @Input({ required: true }) workspaceSettings?: WorkspaceSettingsState | null;
+
     @ViewChild('contentViewport') viewport?: TabPanels;
     @ViewChild('grid') gridCanvasLayerComponent?: GridCanvasLayerComponent;
     @ViewChild('component') componentCanvasLayerComponent?: ComponentCanvasLayerComponent;
@@ -48,16 +52,12 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         );
         this.resizeObserver?.observe(this.viewport?.el.nativeElement);
 
-        // this.gridCanvasLayerComponent?.add(new Grid());
         this.renderService.add(this.gridCanvasLayerComponent!)
             .add(this.componentCanvasLayerComponent!)
             .add(this.activeComponentCanvasLayerComponent!)
             .add(this.ioCanvasLayerComponent!)
             .add(this.wireCanvasLayerComponent!)
             .add(this.activeWireCanvasLayerComponent!);
-
-        // test component;
-        // this.activeWireCanvasLayerComponent?.add(new AndGate({ x: 40, y: 40 }, 2));
 
         this.renderService.start();
     }
@@ -77,12 +77,11 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         const viewportWidth = entry.contentRect.width;
         const viewportHeight = entry.contentRect.height;
         const oldWidth = this.renderService.width;
-        const oldHeight = this.renderService.width;
-        const newWidth = oldWidth < viewportWidth ? viewportWidth + 100 : oldWidth;
-        const newHeight = oldHeight < viewportHeight ? viewportHeight + 100 : oldHeight;
-        this.renderService.resize(newWidth, newHeight);
-
+        const oldHeight = this.renderService.height;
+        const newWidth = viewportWidth > oldWidth ? viewportWidth + 100 : oldWidth;
+        const newHeight = viewportHeight > oldHeight ? viewportHeight + 100 : oldHeight;
+        if (newWidth !== oldWidth || newHeight !== oldHeight) this.renderService.resize(newWidth, newHeight);
     }
 
-    protected closeTab() {}
+    protected closeTab() { }
 }

@@ -1,14 +1,15 @@
 <div class="flex flex-col h-full">
-    <p-splitter styleClass="h-full" layout="vertical" [gutterSize]="2" [panelSizes]="[50, 50]">
+    <p-splitter class="h-full" layout="vertical" [gutterSize]="2" [panelSizes]="[50, 50]">
         <ng-template #panel id="palette">
             <div class="overflow-auto w-full">
                 <p-accordion [multiple]="true" [transitionOptions]="'200ms cubic-bezier(0.86, 0, 0.07, 1)'">
                     @for (entry of categoryPaletteComponentMap; track $index) {
                         <p-accordion-panel [value]="$index">
-                            <p-accordion-header>{{ entry[0] }}</p-accordion-header>
+                            <p-accordion-header style="padding: 1ex;">{{ entry[0] }}</p-accordion-header>
                             <p-accordion-content>
-                                <app-grid-selection-container-panel
-                                    [paletteComponentMap]="categoryPaletteComponentMap"
+                                <app-grid-selection-panel
+                                    [categoryPaletteComponentMap]="categoryPaletteComponentMap"
+                                    (categoryPaletteComponentMapChange)="onMapChange($event)"
                                     [category]="entry[0]"
                                 />
                             </p-accordion-content>
@@ -18,7 +19,7 @@
             </div>
         </ng-template>
         <ng-template #panel id="properties">
-            <app-selectable-properties-container></app-selectable-properties-container>
+            <ng-content select="[propertiesPanel]" />
         </ng-template>
     </p-splitter>
 </div>
