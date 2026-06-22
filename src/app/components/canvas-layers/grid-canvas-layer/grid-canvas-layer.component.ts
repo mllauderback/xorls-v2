@@ -1,17 +1,12 @@
-import type { ElementRef, OnInit} from '@angular/core';
-import { Component, DestroyRef, inject, ViewChild } from '@angular/core';
+import type { ElementRef } from '@angular/core';
+import { Component, inject, Input, ViewChild } from '@angular/core';
 import { AbstractCanvasLayerComponent } from '../abstract-canvas-layer.component';
 import type { Drawable, DrawState } from '../../../models/Drawable';
 import { CommonModule } from '@angular/common';
 import { RenderService } from '../../../services/render/render.service';
-import type { Observable} from 'rxjs';
-import { firstValueFrom, skip } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { GridMode } from '../../../models/Grid';
 import { Grid } from '../../../models/Grid';
-import { Store } from '@ngrx/store';
-import type { WorkspaceState } from '../../../store/workspace/state';
-import { selectGridMode, selectGridSpacing } from '../../../store/settings/feature';
+import type { GridSettingsState } from '../../../store/settings/state';
 
 @Component({
     selector: 'app-grid-canvas-layer',
@@ -20,32 +15,49 @@ import { selectGridMode, selectGridSpacing } from '../../../store/settings/featu
     <canvas #canvas (contextmenu)="$event.preventDefault()" [ngStyle]="{'z-index': zIndex, 'background': bground}"></canvas>
     `
 })
-export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent implements OnInit {
-    private store = inject<Store<WorkspaceState>>(Store);
+export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
     private renderService = inject(RenderService);
 
-    @ViewChild('canvas') canvasRef?: ElementRef<HTMLCanvasElement>;
-
     private grid?: Grid;
+    private _gridMode?: GridMode;
+    private _gridSpacing?: number;
 
-    private gridMode$: Observable<GridMode>;
-    private gridSpacing$: Observable<number>;
-    private destroyRef = inject(DestroyRef);
+    @ViewChild('canvas') canvasRef?: ElementRef<HTMLCanvasElement>;
+    
+    @Input()
+    set gridSettings(settings: GridSettingsState | null | undefined) {
+        if (!settings) {
+            console.warn('Settings is null or undefined - skipping update.');
+            return;
+        }
+        this.gridMode = settings.gridMode;
+        this.gridSpacing = settings.gridSpacing;
+    }
 
-    constructor() {
-        super();
-        this.gridMode$ = this.store.select(selectGridMode);
-        this.gridSpacing$ = this.store.select(selectGridSpacing);
+    set gridMode(mode: GridMode | null) {
+        this._gridMode = mode ?? 'dots';
+        this.onGridModeChanged(mode);
+    }
+
+    get gridMode(): GridMode | undefined {
+        return this._gridMode;
+    }
+
+    get gridSpacing(): number | undefined {
+        return this._gridSpacing;
     }
     
-    async ngOnInit(): Promise<void> {
-        const mode = await firstValueFrom(this.gridMode$);
-        const spacing = await firstValueFrom(this.gridSpacing$);
+    set gridSpacing(spacing: number | null) {
+        this._gridSpacing = spacing ?? 20;
+        this.onGridSpacingChanged(spacing);
+    }
+ 
+    constructor() {
+        super();
+        const mode = this.gridMode ?? 'dots';
+        const spacing = this.gridSpacing ?? 20;
         this.grid = new Grid(spacing, mode);
         this.add(this.grid);
-
-        this.gridMode$.pipe(skip(1), takeUntilDestroyed(this.destroyRef)).subscribe(gm => this.updateGridMode(gm));
-        this.gridSpacing$.pipe(skip(1), takeUntilDestroyed(this.destroyRef)).subscribe(gs => this.updateGridSpacing(gs));
     }
 
     override ngAfterViewInit(): void {
@@ -70,8 +82,8 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent imple
         this.resetAllDrawablesForUpdates();
     }
 
-    private updateGridSpacing(gridSpacing?: number) {
-        if (gridSpacing === undefined || this.grid === undefined) {
+    private onGridSpacingChanged(gridSpacing?: number | null) {
+        if (!gridSpacing || !this.grid) {
             console.warn('Cannot update grid spacing - skipping update');
             return;
         }
@@ -80,8 +92,8 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent imple
         this.forceClear = true;
     }
 
-    private updateGridMode(gridMode?: GridMode) {
-        if (gridMode === undefined || this.grid === undefined) {
+    private onGridModeChanged(gridMode?: GridMode | null) {
+        if (!gridMode || !this.grid) {
             console.warn('Cannot update grid mode - skipping update');
             return;
         }

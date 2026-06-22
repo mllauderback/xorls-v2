@@ -43,7 +43,7 @@ End-to-end tests should be added to an appropriate categorized directory in `app
 
 ### Running unit tests
 
-Unit tests are run using [Karma](https://karma-runner.github.io).  To run unit tests, use the following command:
+Unit tests are run using [Vitest](https://vitest.dev/).  For now, vitest is restricted to using only jsdom.  To run unit tests, use the following command:
 
 ```bash
 npm run test

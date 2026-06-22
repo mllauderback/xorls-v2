@@ -1,8 +1,9 @@
+@if (settings) {
 <div class="flex flex-row justify-between py-2">
     <h3 class="pl-2 m-0 flex self-center">Application Settings</h3>
     <!-- <p-button class="pr-2" label="Apply" icon="pi pi-check" iconPos="right" [disabled]="false" (onClick)="applySettingsChanges()"/> -->
 </div>
-<p-divider/>
+<p-divider />
 <div class="flex flex-col p-2">
     <!-- <p-fieldset legend="Left Panel" [toggleable]="true" [collapsed]="true">
         <div class="pt-2 pb-2 flex-auto">
@@ -17,12 +18,21 @@
     </p-fieldset> -->
     <p-fieldset legend="Grid Settings" [toggleable]="true" [collapsed]="true">
         <div class="pt-2 pb-2 flex-auto">
-            <label for="gridSpacing" class="ml-2" pTooltip="Width and height of a grid cell in pixels" showDelay="1000">Cell size</label>
-            <p-inputNumber inputId="gridSpacing" suffix="px" [ngModel]="this.settings.gridSpacing" (ngModelChange)="gridSpacing.emit($event)"></p-inputNumber>
+            <label for="gridSpacing" class="ml-2" pTooltip="Width and height of a grid cell in pixels"
+                showDelay="1000">Cell size</label>
+            <p-inputNumber inputId="gridSpacing" suffix="px"
+                [ngModel]="this.settings.workspaceSettings.gridSettings.gridSpacing"
+                (ngModelChange)="gridSpacing.emit($event)"></p-inputNumber>
         </div>
         <div class="pt-2 pb-2 flex-auto">
-            <label for="gridMode" class="ml-2" pTooltip="Choose how to display the grid" showDelay="1000">Display mode</label>
-            <p-selectbutton [options]="this.gridModes" [ngModel]="this.settings.gridMode" (ngModelChange)="gridMode.emit($event)"></p-selectbutton>
+            <label for="gridMode" class="ml-2" pTooltip="Choose how to display the grid" showDelay="1000">Display
+                mode</label>
+            <p-selectbutton [options]="this.gridModes" [ngModel]="this.settings.workspaceSettings.gridSettings.gridMode"
+                (ngModelChange)="gridMode.emit($event)"></p-selectbutton>
         </div>
     </p-fieldset>
 </div>
+}
+@else {
+<p>Loading settings...</p>
+}

@@ -1,6 +1,53 @@
-<div class="flex flex-col w-full h-full">
-  <app-left-panel-container class="grow overflow-hidden w-full"></app-left-panel-container>
-  <app-statusbar style="z-index: 10;"></app-statusbar>
+<div class="flex flex-col flex-grow">
+    <!-- <p-splitter class="h-full" class="h-full" [gutterSize]="2" [panelSizes]="[30, 70]"> -->
+    <div id="mainContent" class="flex flex-grow overflow-hidden">
+        <div class="flex flex-row flex-grow">
+            <!-- <ng-template #panel> -->
+            <div
+                style="width: 400px; box-sizing: content-box; border-right-style: solid; border-right-width: 1px; border-right-color: var(--p-content-border-color);">
+                <p-tabs [scrollable]="false" class="orientation-left left-panel" value="0">
+                    <p-tablist style="width: 54px;">
+                        <p-tab class="navigationTabs" id="explorerTab" value="0" pTooltip="Explorer" showDelay="750"><i class="pi pi-copy"
+                                style="font-size: 1.4rem;"></i></p-tab>
+                        <p-tab class="navigationTabs" id="componentsTab" value="1" pTooltip="Components" showDelay="750"><i class="pi pi-box"
+                                style="font-size: 1.4rem;"></i></p-tab>
+                        <div class="grow flex items-end">
+                            <p-tab class="navigationTabs" id="settingsTab" value="2" pTooltip="Settings" showDelay="750"><i class="pi pi-cog"
+                                    style="font-size: 1.4rem;"></i></p-tab>
+                        </div>
+                    </p-tablist>
+                    <p-tabpanels>
+                        <p-tabpanel id="explorerTabPanel" value="0">
+                            <p class="m-0">
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+                                incididunt ut
+                                labore et
+                                dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
+                                nisi
+                                ut
+                                aliquip ex
+                                ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+                                cillum
+                                dolore eu fugiat
+                                nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+                                officia
+                                deserunt mollit
+                                anim id est laborum.
+                            </p>
+                        </p-tabpanel>
+                        <p-tabpanel id="componentsTabPanel" value="1">
+                            <app-component-palette-container></app-component-palette-container>
+                        </p-tabpanel>
+                        <p-tabpanel id="settingsTabPanel" value="2">
+                            <app-settings-container class="w-full"></app-settings-container>
+                        </p-tabpanel>
+                    </p-tabpanels>
+                </p-tabs>
+            </div>
+            <app-workspace-container class="flex-grow overflow-hidden"></app-workspace-container>
+        </div>
+    </div>
+    <app-statusbar style="z-index: 10;"></app-statusbar>
 </div>
 
-<router-outlet />
+<!-- <router-outlet /> -->
