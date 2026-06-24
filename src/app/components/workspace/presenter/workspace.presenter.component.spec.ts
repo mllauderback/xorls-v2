@@ -7,8 +7,6 @@ import { RenderService } from '../../../services/render/render.service';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { GridCanvasLayerComponent } from '../../canvas-layers/grid-canvas-layer/grid-canvas-layer.component';
 import { AbstractCanvasLayerComponent } from '../../canvas-layers/abstract-canvas-layer.component';
-import { By } from '@angular/platform-browser';
-import { TabPanels } from 'primeng/tabs';
 import { ComponentCanvasLayerComponent } from '../../canvas-layers/component-canvas-layer/component-canvas-layer.component';
 import { IOCanvasLayerComponent } from '../../canvas-layers/io-canvas-layer/io-canvas-layer.component';
 import { WireCanvasLayerComponent } from '../../canvas-layers/wire-canvas-layer/wire-canvas-layer.component';
@@ -103,10 +101,6 @@ describe('WorkspacePresenterComponent', () => {
     });
 
     describe('Viewport and canvas layer object types', () => {
-        it('should have contentViewport be a TabPanels object', () => {
-            expect(component.viewport).toBeInstanceOf(TabPanels);
-        });
-
         it('should have grid be a GridCanvasLayerComponent object', () => {
             // expect(component.gridCanvasLayerComponent).toBeInstanceOf(MockGridCanvasLayerComponent);
             expect(component.gridCanvasLayerComponent).toBeInstanceOf(GridCanvasLayerComponent);
@@ -133,23 +127,39 @@ describe('WorkspacePresenterComponent', () => {
         });
     });
 
-    describe('Layout structure', () => {
-        it('should render tabs element', () => {
-            const tabs = fixture.debugElement.query(By.css('p-tabs'));
-            expect(tabs).toBeTruthy();
-        });
+    // TODO:    remove these tests for now.  In the future, tabs will be dynamically polulated and will be easier to property unit test.
+    //          e2e tests will serve the layout far better than unit tests anyways
+    
+    // describe('Layout structure', () => {
+    //     // it('content viewport should have width and height of parent', () => {
+    //     //     expect(component.viewport?.nativeElement.classList).toContain('h-full');
+    //     //     expect(component.viewport?.nativeElement.classList).toContain('w-full');
+    //     // });
 
-        it('should make tabs element fill width and height of parent', () => {
-            const tabsEl = fixture.debugElement.query(By.css('p-tabs')).nativeElement;
-            expect(tabsEl.classList).toContain('h-full');
-            expect(tabsEl.classList).toContain('w-full');
-        });
+    //     it('should render tab view element', () => {
+    //         const tabview = fixture.debugElement.query(By.directive(XorlsTabviewComponent));
+    //         expect(tabview).toBeTruthy();
+    //     });
 
-        it('should render tabpanels', () => {
-            const tabPanels = fixture.debugElement.query(By.css('p-tabpanels'));
-            expect(tabPanels).toBeTruthy();
-        });
-    });
+    //     it('should render app-draggable-tab', () => {
+    //         const tab = fixture.debugElement.query(By.directive(MockDraggableTabComponent));
+    //         expect(tab).toBeTruthy();
+    //     });
+
+    //     it('should pass the correct header input', () => {
+    //         const tab = fixture.debugElement.query(
+    //             By.directive(MockDraggableTabComponent)
+    //         ).componentInstance as MockDraggableTabComponent;
+
+    //         expect(tab.header).toBe('Tab One');
+    //     });
+
+    //     it('should render projected content inside the tab', () => {
+    //         const content = fixture.debugElement.query(By.css('.tab-one-content'));
+    //         expect(content).toBeTruthy();
+    //         expect(content.nativeElement.textContent).toBe('Tab one content');
+    //     });
+    // });
 
     describe('onViewportResize', () => {
         it('should call resize when viewport is wider than current render width', () => {
@@ -182,7 +192,7 @@ describe('WorkspacePresenterComponent', () => {
             capturedCallback([buildEntry(initialWidth, initialHeight - 1)], null!);
             expect(mockRenderService.resize).not.toHaveBeenCalled();
         });
-        
+
         it('should grow width when viewport is wider than current render width', () => {
             mockRenderService.width = initialWidth;
             capturedCallback([buildEntry(initialWidth + 1, initialHeight)], null!);
@@ -202,7 +212,7 @@ describe('WorkspacePresenterComponent', () => {
 
     describe('Resize observer', () => {
         it('should observe contentViewport element for resizing', () => {
-            expect(mockObserve).toHaveBeenCalledWith(component.viewport?.el.nativeElement);
+            expect(mockObserve).toHaveBeenCalledWith(component.viewport?.nativeElement);
         });
 
         it('should disconnect on destroy', () => {

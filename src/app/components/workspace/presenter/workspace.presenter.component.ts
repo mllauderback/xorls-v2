@@ -1,7 +1,6 @@
-import type { AfterViewInit, OnDestroy } from "@angular/core";
+import type { AfterViewInit, ElementRef, OnDestroy } from "@angular/core";
 import { ChangeDetectionStrategy, Component, Input, ViewChild, inject } from "@angular/core";
 import { ButtonModule } from "primeng/button";
-import type { TabPanels } from "primeng/tabs";
 import { TabsModule } from "primeng/tabs";
 // import { WorkspaceMouseEventService } from "../../../services/mouse/workspace-mouse-event.service";
 import { RenderService } from "../../../services/render/render.service";
@@ -13,6 +12,7 @@ import { WireCanvasLayerComponent } from "../../canvas-layers/wire-canvas-layer/
 import { ActiveWireCanvasLayerComponent } from "../../canvas-layers/active-wire-canvas-layer/active-wire-canvas-layer.component";
 import { CommonModule } from "@angular/common";
 import type { WorkspaceSettingsState } from "../../../store/settings/state";
+import { DraggableTabComponent, XorlsTabviewComponent } from "../../xorls-tabview/xorls-tabview.component";
 
 @Component({
     selector: 'app-workspace-presenter',
@@ -20,6 +20,8 @@ import type { WorkspaceSettingsState } from "../../../store/settings/state";
         CommonModule,
         TabsModule,
         ButtonModule,
+        XorlsTabviewComponent,
+        DraggableTabComponent,
         GridCanvasLayerComponent,
         ComponentCanvasLayerComponent,
         ActiveComponentCanvasLayerComponent,
@@ -27,7 +29,7 @@ import type { WorkspaceSettingsState } from "../../../store/settings/state";
         WireCanvasLayerComponent,
         ActiveWireCanvasLayerComponent
     ],
-    templateUrl: './workspace.presenter.component.html',
+    templateUrl: 'workspace.presenter.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
@@ -36,7 +38,7 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
 
     @Input({ required: true }) workspaceSettings?: WorkspaceSettingsState | null;
 
-    @ViewChild('contentViewport') viewport?: TabPanels;
+    @ViewChild('contentViewport') viewport?: ElementRef<HTMLDivElement>;
     @ViewChild('grid') gridCanvasLayerComponent?: GridCanvasLayerComponent;
     @ViewChild('component') componentCanvasLayerComponent?: ComponentCanvasLayerComponent;
     @ViewChild('activeComponent') activeComponentCanvasLayerComponent?: ActiveComponentCanvasLayerComponent;
@@ -50,7 +52,8 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         this.resizeObserver = new ResizeObserver((entries) =>
             entries.forEach(e => this.onViewportResize(e))
         );
-        this.resizeObserver?.observe(this.viewport?.el.nativeElement);
+        const viewportEl = this.viewport?.nativeElement;
+        if (viewportEl) this.resizeObserver?.observe(viewportEl);
 
         this.renderService.add(this.gridCanvasLayerComponent!)
             .add(this.componentCanvasLayerComponent!)
@@ -83,5 +86,7 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         if (newWidth !== oldWidth || newHeight !== oldHeight) this.renderService.resize(newWidth, newHeight);
     }
 
-    protected closeTab() { }
+    protected closeTab(index: number) {
+        console.log(index);
+    }
 }

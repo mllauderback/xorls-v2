@@ -1,0 +1,34 @@
+<div class="draggable-tab-view">
+    @if (tabs.length > 0) {
+    <!-- custom draggable header -->
+    <ul cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="onDrop($event)"
+        class="draggable-tab-header-list">
+        @for (tab of tabs; track tab.header; let i = $index) {
+        <li cdkDrag cdkDragLockAxis="x" [cdkDragDisabled]="tabs.length <= 1" class="draggable-tab-header"
+            [class.active]="activeIndex === i" tabindex="0" role="tab" (click)="activeIndex = i"
+            (keydown.enter)="activeIndex = i" (keydown.space)="activeIndex = i">
+            {{ tab.header }}
+            <button class="close-btn" (click)="onClose($event, i)"><i class="pi pi-times"></i></button>
+            <div class="draggable-tab-drag-placeholder" *cdkDragPlaceholder></div>
+        </li>
+        }
+    </ul>
+
+    <!-- tab content -->
+    <div class="draggable-tab-content">
+        @if (tabs[activeIndex]) {
+        <ng-container [ngTemplateOutlet]="tabs[activeIndex].content" />
+        }
+    </div>
+    }
+    @else {
+    <div class="flex flex-1 justify-center align-center">
+        <div class="empty-content">
+            <div class="flex">
+                <app-palette-component-svgs className="XorGate" width="400" height="400"></app-palette-component-svgs>
+            </div>
+            <h1>Xor Logic Simulator</h1>
+        </div>
+    </div>
+    }
+</div>

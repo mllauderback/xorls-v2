@@ -30,7 +30,7 @@ export class GridSelectionPanelComponent {
         }
         else {
             this.clearPaletteSelection(mapCopy);
-            mapCopy.get(this.category)?.forEach((mapPaletteComponent: PaletteComponent, _index: number) => {
+            mapCopy.get(this.category)?.forEach((mapPaletteComponent: PaletteComponent) => {
                 if (mapPaletteComponent.className === paletteComponent.className) {
                     mapPaletteComponent.selected = true;
                 }
@@ -49,10 +49,9 @@ export class GridSelectionPanelComponent {
     }
 
     private clearPaletteSelection(mapCopy: Map<PaletteComponentCategories, PaletteComponent[]>): void {
-        for (const [_category, paletteComponents] of mapCopy) {
-            for (const paletteComponent of paletteComponents) {
-                paletteComponent.selected = false;
-            }
+        for (const category of mapCopy.keys()) {
+            const components = mapCopy.get(category);
+            components?.forEach(component => component.selected = false);
         }
     }
 }

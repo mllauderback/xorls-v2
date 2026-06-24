@@ -107,7 +107,7 @@ describe('WorkspaceContainerComponent', () => {
     });
 
     it('should not pass null or undefined settings to the presenter', () => {
-        store.overrideSelector(selectWorkspaceSettings, null as any);
+        store.overrideSelector(selectWorkspaceSettings, null as unknown as WorkspaceSettingsState);
         store.refreshState();
 
         const presenterEl = fixture.debugElement.query(
