@@ -6,8 +6,12 @@ import * as functions from "./reducer-functions";
 export const initialSettingsState: SettingsState = { // eventually load these from a database on startup
     leftPanelResizeByPct: true,
     leftPanelWidth: 30,
-    gridSpacing: 20,
-    gridMode: 'dots'
+    workspaceSettings: {
+        gridSettings: {
+            gridSpacing: 20,
+            gridMode: 'dots'
+        }
+    }
 };
 
 export const settingsReducer = createReducer(
@@ -54,6 +58,5 @@ export const {
     selectSettingsFeatureState,
     selectLeftPanelResizeByPct,
     selectLeftPanelWidth,
-    selectGridSpacing,
-    selectGridMode
+    selectWorkspaceSettings,
 } = settingsFeature;

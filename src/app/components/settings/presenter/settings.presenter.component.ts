@@ -28,7 +28,7 @@ import type { GridMode } from '../../../models/Grid';
     styleUrl: './settings.presenter.component.scss'
 })
 export class SettingsPresenterComponent {
-    @Input({ required: true }) settings!: SettingsState;
+    @Input({ required: true }) settings?: SettingsState | null;
     @Output() gridMode = new EventEmitter<GridMode>();
     @Output() gridSpacing = new EventEmitter<number>();
 

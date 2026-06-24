@@ -1,8 +1,8 @@
-import type { ComponentFixture } from '@angular/core/testing';
-import { TestBed } from '@angular/core/testing';
+// import type { ComponentFixture } from '@angular/core/testing';
+// import { TestBed } from '@angular/core/testing';
 import { describe, it, expect } from 'vitest';
 
-import { AbstractCanvasLayerComponent } from './abstract-canvas-layer.component';
+// import { AbstractCanvasLayerComponent } from './abstract-canvas-layer.component';
 
 describe('AbstractCanvasLayerComponent', () => {
     // let component: AbstractCanvasLayerComponent;
@@ -21,7 +21,7 @@ describe('AbstractCanvasLayerComponent', () => {
 
     // figure out how to test abstract components
 
-    it('should create', () => {
+    it('can\'t create but I\'ll put a dummy test here anyway', () => {
         expect(true).toBe(true);
     });
 });
