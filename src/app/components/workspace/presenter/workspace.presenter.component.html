@@ -1,14 +1,23 @@
-<p-tabs value="0" class="h-full w-full">
-    <!-- these will be iterated over -->
-    <p-tablist>
-        <p-tab style="padding: 0 0 0 1.25rem" value="0">Header I<p-button icon="pi pi-times" severity="secondary" [rounded]="true" [text]="true" size="small" (click)="closeTab()"></p-button></p-tab>
-    </p-tablist>
-    <p-tabpanels #contentViewport class="!p-0 h-full overflow-auto">
-        <app-grid-canvas-layer #grid class="absolute" [zIndex]="0" [bground]="'white'" [gridSettings]="workspaceSettings?.gridSettings"></app-grid-canvas-layer>
-        <app-component-canvas-layer #component class="absolute" [zIndex]="1" [bground]="'transparent'"></app-component-canvas-layer>
-        <app-io-canvas-layer #io class="absolute" [zIndex]="2" [bground]="'transparent'"></app-io-canvas-layer>
-        <app-wire-canvas-layer #wire class="absolute" [zIndex]="3" [bground]="'transparent'"></app-wire-canvas-layer>
-        <app-active-component-canvas-layer #activeComponent class="absolute" [zIndex]="4" [bground]="'transparent'"></app-active-component-canvas-layer>
-        <app-active-wire-canvas-layer #activeWire class="absolute" [zIndex]="4" [bground]="'transparent'"></app-active-wire-canvas-layer>
-    </p-tabpanels>
-</p-tabs>
+<app-xorls-tab-view (tabClose)="closeTab($event)">
+    <app-xorls-tab header="Header I">
+        <div #contentViewport class="h-full w-full">
+            <app-grid-canvas-layer #grid class="absolute" [zIndex]="0" [bground]="'white'"
+                [gridSettings]="workspaceSettings?.gridSettings"></app-grid-canvas-layer>
+            <app-component-canvas-layer #component class="absolute" [zIndex]="1"
+                [bground]="'transparent'"></app-component-canvas-layer>
+            <app-io-canvas-layer #io class="absolute" [zIndex]="2" [bground]="'transparent'"></app-io-canvas-layer>
+            <app-wire-canvas-layer #wire class="absolute" [zIndex]="3"
+                [bground]="'transparent'"></app-wire-canvas-layer>
+            <app-active-component-canvas-layer #activeComponent class="absolute" [zIndex]="4"
+                [bground]="'transparent'"></app-active-component-canvas-layer>
+            <app-active-wire-canvas-layer #activeWire class="absolute" [zIndex]="4"
+                [bground]="'transparent'"></app-active-wire-canvas-layer>
+        </div>
+    </app-xorls-tab>
+    <app-xorls-tab header="Header II">
+        <p>Tab 2 content</p>
+    </app-xorls-tab>
+    <app-xorls-tab header="Header III">
+        <p>Tab 3 content</p>
+    </app-xorls-tab>
+</app-xorls-tab-view>

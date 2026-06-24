@@ -126,7 +126,7 @@ describe('ComponentPaletteContainerComponent', () => {
         });
 
         it('should show the loading message before the store emits', async () => {
-            store.overrideSelector(selectPaletteComponentMap, null as any);
+            store.overrideSelector(selectPaletteComponentMap, null as unknown as Map<PaletteComponentCategories, PaletteComponent[]>);
             store.refreshState();
             fixture.detectChanges();
             await fixture.whenStable();
@@ -136,7 +136,7 @@ describe('ComponentPaletteContainerComponent', () => {
         });
 
         it('should not show the presenter before the store emits', async () => {
-            store.overrideSelector(selectPaletteComponentMap, null as any);
+            store.overrideSelector(selectPaletteComponentMap, null as unknown as Map<PaletteComponentCategories, PaletteComponent[]>);
             store.refreshState();
             fixture.detectChanges();
             await fixture.whenStable();

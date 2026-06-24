@@ -13,7 +13,7 @@ import { selectWorkspaceSettings } from '../../../store/settings/feature';
         WorkspacePresenterComponent
     ],
     template: `
-    <app-workspace-presenter
+    <app-workspace-presenter class="flex flex-grow"
         [workspaceSettings]="workspaceSettings$ | async"
     />
   `,
