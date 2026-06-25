@@ -1,18 +1,14 @@
-import type { AfterViewInit, ElementRef, OnDestroy } from "@angular/core";
+import { AfterViewInit, ElementRef, OnDestroy, OnInit, QueryList, Type, ViewChildren } from "@angular/core";
 import { ChangeDetectionStrategy, Component, Input, ViewChild, inject } from "@angular/core";
 import { ButtonModule } from "primeng/button";
 import { TabsModule } from "primeng/tabs";
-// import { WorkspaceMouseEventService } from "../../../services/mouse/workspace-mouse-event.service";
 import { RenderService } from "../../../services/render/render.service";
-import { GridCanvasLayerComponent } from "../../canvas-layers/grid-canvas-layer/grid-canvas-layer.component";
-import { ComponentCanvasLayerComponent } from "../../canvas-layers/component-canvas-layer/component-canvas-layer.component";
-import { ActiveComponentCanvasLayerComponent } from "../../canvas-layers/active-component-canvas-layer/active-component-canvas-layer.component";
-import { IOCanvasLayerComponent } from "../../canvas-layers/io-canvas-layer/io-canvas-layer.component";
-import { WireCanvasLayerComponent } from "../../canvas-layers/wire-canvas-layer/wire-canvas-layer.component";
-import { ActiveWireCanvasLayerComponent } from "../../canvas-layers/active-wire-canvas-layer/active-wire-canvas-layer.component";
-import { CommonModule } from "@angular/common";
+import { CommonModule, NgComponentOutlet } from "@angular/common";
 import type { WorkspaceSettingsState } from "../../../store/settings/state";
-import { DraggableTabComponent, XorlsTabviewComponent } from "../../xorls-tabview/xorls-tabview.component";
+import { DraggableTabComponent, XorlsTabChangeEvent, XorlsTabModel, XorlsTabviewComponent } from "../../xorls-tabview/xorls-tabview.component";
+import { DiagramWorkspaceContainerComponent } from "../../workspace-types/diagram-workspace/container/diagram-workspace.container.component";
+import { Workspace } from "../../workspace-types/workspace-type";
+
 
 @Component({
     selector: 'app-workspace-presenter',
@@ -22,31 +18,29 @@ import { DraggableTabComponent, XorlsTabviewComponent } from "../../xorls-tabvie
         ButtonModule,
         XorlsTabviewComponent,
         DraggableTabComponent,
-        GridCanvasLayerComponent,
-        ComponentCanvasLayerComponent,
-        ActiveComponentCanvasLayerComponent,
-        IOCanvasLayerComponent,
-        WireCanvasLayerComponent,
-        ActiveWireCanvasLayerComponent
     ],
     templateUrl: 'workspace.presenter.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
+export class WorkspacePresenterComponent implements OnInit, AfterViewInit, OnDestroy {
     private renderService = inject(RenderService);
-    // private mouseEventService = inject(WorkspaceMouseEventService);
 
     @Input({ required: true }) workspaceSettings?: WorkspaceSettingsState | null;
 
+    @ViewChildren('outlet') outlets!: QueryList<NgComponentOutlet>;
     @ViewChild('contentViewport') viewport?: ElementRef<HTMLDivElement>;
-    @ViewChild('grid') gridCanvasLayerComponent?: GridCanvasLayerComponent;
-    @ViewChild('component') componentCanvasLayerComponent?: ComponentCanvasLayerComponent;
-    @ViewChild('activeComponent') activeComponentCanvasLayerComponent?: ActiveComponentCanvasLayerComponent;
-    @ViewChild('io') ioCanvasLayerComponent?: IOCanvasLayerComponent;
-    @ViewChild('wire') wireCanvasLayerComponent?: WireCanvasLayerComponent;
-    @ViewChild('activeWire') activeWireCanvasLayerComponent?: ActiveWireCanvasLayerComponent;
 
     private resizeObserver?: ResizeObserver;
+
+    protected tabs: XorlsTabModel<Workspace>[] = [];
+    protected activeTabIndex = 0;
+
+    ngOnInit(): void {
+        this.tabs = [
+            { id: crypto.randomUUID(), header: "Header I", component: DiagramWorkspaceContainerComponent },
+            { id: crypto.randomUUID(), header: "Header II", component: DiagramWorkspaceContainerComponent }
+        ];
+    }
 
     ngAfterViewInit(): void {
         this.resizeObserver = new ResizeObserver((entries) =>
@@ -54,25 +48,10 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         );
         const viewportEl = this.viewport?.nativeElement;
         if (viewportEl) this.resizeObserver?.observe(viewportEl);
-
-        this.renderService.add(this.gridCanvasLayerComponent!)
-            .add(this.componentCanvasLayerComponent!)
-            .add(this.activeComponentCanvasLayerComponent!)
-            .add(this.ioCanvasLayerComponent!)
-            .add(this.wireCanvasLayerComponent!)
-            .add(this.activeWireCanvasLayerComponent!);
-
-        this.renderService.start();
     }
 
     ngOnDestroy(): void {
         this.renderService.stop();
-        this.renderService.remove(this.gridCanvasLayerComponent!)
-            .remove(this.componentCanvasLayerComponent!)
-            .remove(this.ioCanvasLayerComponent!)
-            .remove(this.wireCanvasLayerComponent!)
-            .remove(this.activeComponentCanvasLayerComponent!)
-            .remove(this.activeWireCanvasLayerComponent!);
         this.resizeObserver?.disconnect();
     }
 
@@ -86,7 +65,23 @@ export class WorkspacePresenterComponent implements AfterViewInit, OnDestroy {
         if (newWidth !== oldWidth || newHeight !== oldHeight) this.renderService.resize(newWidth, newHeight);
     }
 
+    public addTab(tab: XorlsTabModel<Workspace>) {
+        this.tabs.push(tab);
+    }
+
     protected closeTab(index: number) {
-        console.log(index);
+        this.tabs.splice(index, 1);
+    }
+
+    protected changeTab(event: XorlsTabChangeEvent) {
+        this.activeTabIndex = event.index;
+        // const outlet = this.outlets.get(event.index);
+        // const instance: Workspace = outlet?.componentInstance;
+        console.log(event.tab.header);
+        // console.log(instance);
+    }
+
+    protected reorderTabs(orderedIds: string[]) {
+        this.tabs = orderedIds.map(id => this.tabs.find(t => t.id === id)!);
     }
 }

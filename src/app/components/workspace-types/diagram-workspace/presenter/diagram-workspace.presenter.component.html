@@ -1,0 +1,10 @@
+<app-grid-canvas-layer #grid class="absolute" [zIndex]="0" [bground]="'white'"
+    [gridSettings]="workspaceSettings?.gridSettings"></app-grid-canvas-layer>
+<app-component-canvas-layer #component class="absolute" [zIndex]="1"
+    [bground]="'transparent'"></app-component-canvas-layer>
+<app-io-canvas-layer #io class="absolute" [zIndex]="2" [bground]="'transparent'"></app-io-canvas-layer>
+<app-wire-canvas-layer #wire class="absolute" [zIndex]="3" [bground]="'transparent'"></app-wire-canvas-layer>
+<app-active-component-canvas-layer #activeComponent class="absolute" [zIndex]="4"
+    [bground]="'transparent'"></app-active-component-canvas-layer>
+<app-active-wire-canvas-layer #activeWire class="absolute" [zIndex]="4"
+    [bground]="'transparent'"></app-active-wire-canvas-layer>
