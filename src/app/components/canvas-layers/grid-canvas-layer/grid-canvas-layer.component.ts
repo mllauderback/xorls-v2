@@ -4,8 +4,8 @@ import { AbstractCanvasLayerComponent } from '../abstract-canvas-layer.component
 import type { Drawable, DrawState } from '../../../models/Drawable';
 import { CommonModule } from '@angular/common';
 import { RenderService } from '../../../services/render/render.service';
-import type { GridMode } from '../../../models/Grid';
-import { Grid } from '../../../models/Grid';
+import type { GridMode } from './Grid';
+import { Grid } from './Grid';
 import type { GridSettingsState } from '../../../store/settings/state';
 
 @Component({
@@ -74,7 +74,6 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
         const updateDrawables: Drawable[] = this.getUpdateDrawablesList();
         // console.log(updateDrawables.length);
         if (this.forceClear) this.context.clearRect(0, 0, this.width, this.height);
-        this.context.strokeStyle = 'black';
         this.context.lineWidth = this.renderService.THIN_LINE_WIDTH;
         this.context.beginPath();
         updateDrawables.forEach(d => d.draw(this.context!, drawState));

@@ -8,7 +8,7 @@ import { Tooltip } from 'primeng/tooltip';
 import { FieldsetModule } from 'primeng/fieldset';
 import { ButtonModule } from 'primeng/button';
 import type { SettingsState } from '../../../store/settings/state';
-import type { GridMode } from '../../../models/Grid';
+import type { GridMode } from '../../canvas-layers/grid-canvas-layer/Grid';
 
 // TODO: come up with a decent visual layout for this page.  It is messy.
 // TOOD: bind the enter key to an apply changes emitter so changing number values like the grid spacing doesn't happen while editing the field

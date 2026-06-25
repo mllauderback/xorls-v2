@@ -1,4 +1,4 @@
-import type { Drawable, DrawState } from "./Drawable";
+import type { Drawable, DrawState } from "../../../models/Drawable";
 
 export type GridMode = 'lines' | 'dots';
 export class Grid implements Drawable {
