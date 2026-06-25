@@ -1,4 +1,4 @@
-import { type GridMode } from "../../models/Grid";
+import { type GridMode } from "../../components/canvas-layers/grid-canvas-layer/Grid";
 import type { SettingsState } from "./state";
 
 export function setUpdatedSettings(settings: SettingsState): SettingsState {

@@ -9,7 +9,7 @@ import { SettingsContainerComponent } from './settings.container.component';
 import { selectSettingsFeatureState } from '../../../store/settings/feature';
 import * as actions from '../../../store/settings/actions';
 import type { SettingsState } from '../../../store/settings/state';
-import type { GridMode } from '../../../models/Grid';
+import type { GridMode } from '../../canvas-layers/grid-canvas-layer/Grid';
 import { SettingsPresenterComponent } from '../presenter/settings.presenter.component';
 
 @Component({ selector: 'app-settings-presenter', template: '<div></div>' })

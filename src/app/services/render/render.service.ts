@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import type { DrawState } from '../../models/Drawable';
 import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
+import { DiagramWorkspaceComponent } from '../../components/workspace-types/diagram-workspace/presenter/diagram-workspace.presenter.component';
 
 /**
  * The RenderService tracks shared variables across all layers like the origin and scale.
@@ -61,6 +62,10 @@ export class RenderService {
         return this;
     }
 
+    public removeAll(): RenderService {
+        this.layers = [];
+        return this;
+    }
     /**
      * Starts the main draw loop for all layers
      */
