@@ -6,15 +6,15 @@ import { By } from '@angular/platform-browser';
 import { Component, NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentPaletteContainerComponent } from './components/component-palette/container/component-palette.container.component';
 import { SettingsContainerComponent } from './components/settings/container/settings.container.component';
-import { WorkspaceContainerComponent } from './components/workspace/container/workspace.container.component';
+import { provideMockStore } from '@ngrx/store/testing';
 
 // mock components which use the store
 @Component({ selector: 'app-settings-container', template: '<div></div>' })
 class MockSettingsContainerComponent { }
 @Component({ selector: 'app-component-palette-container', template: '<div></div>' })
 class MockComponentPaletteContainerComponent { }
-@Component({ selector: 'app-workspace-container', template: '<div></div>' })
-class MockWorkspaceContainerComponent { }
+// @Component({ selector: 'app-workspace-tabs', template: '<div></div>' })
+// class MockWorkspaceContainerComponent { }
 
 describe('AppComponent', () => {
     let fixture: ComponentFixture<AppComponent>;
@@ -24,6 +24,7 @@ describe('AppComponent', () => {
             imports: [
                 AppComponent
             ],
+            providers: [provideMockStore()],
             schemas: [NO_ERRORS_SCHEMA]
         })
             .overrideComponent(AppComponent, {
@@ -31,14 +32,12 @@ describe('AppComponent', () => {
                     imports: [
                         ComponentPaletteContainerComponent,
                         SettingsContainerComponent,
-                        WorkspaceContainerComponent
                     ]
                 },
                 add: {
                     imports: [
                         MockComponentPaletteContainerComponent,
                         MockSettingsContainerComponent,
-                        MockWorkspaceContainerComponent
                     ]
                 }
             })
@@ -169,8 +168,8 @@ describe('AppComponent', () => {
             expect(mainContent).toBeTruthy();
         });
 
-        it('should render app-workspace-container', () => {
-            const workspace = fixture.debugElement.query(By.css('app-workspace-container'));
+        it('should render app-workspace-tabs', () => {
+            const workspace = fixture.debugElement.query(By.css('app-workspace-tabs'));
             expect(workspace).toBeTruthy();
         });
 

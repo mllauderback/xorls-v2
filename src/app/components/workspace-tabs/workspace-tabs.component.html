@@ -1,0 +1,15 @@
+<app-xorls-tab-view [start]="startIndex" (tabClose)="closeTab($event)" (tabChange)="changeActiveWorkspace($event)">
+    <app-xorls-tab [id]="tabIds[0]" header="Header I">
+        <div #contentViewport class="h-full w-full">
+            <app-diagram-workspace-container [id]="tabIds[0]"></app-diagram-workspace-container>
+        </div>
+    </app-xorls-tab>
+    <app-xorls-tab [id]="tabIds[1]" header="Header II">
+        <div #contentViewport class="h-full w-full">
+            <app-diagram-workspace-container [id]="tabIds[1]"></app-diagram-workspace-container>
+        </div>
+    </app-xorls-tab>
+    <app-xorls-tab header="Header III">
+        <p>Tab 3 content</p>
+    </app-xorls-tab>
+</app-xorls-tab-view>

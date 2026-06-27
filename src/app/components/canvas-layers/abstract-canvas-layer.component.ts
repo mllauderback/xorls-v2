@@ -1,4 +1,4 @@
-import type { AfterViewInit, ElementRef} from "@angular/core";
+import type { AfterViewInit, ElementRef } from "@angular/core";
 import { Directive, Input } from "@angular/core";
 import type { Drawable, DrawState } from "../../models/Drawable";
 
@@ -7,7 +7,7 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
 
     @Input() zIndex?: number;
     @Input() bground?: string;
-    
+
     private ctx!: CanvasRenderingContext2D | null;
     protected drawableList: Drawable[];
     protected updateDrawableList: Drawable[];
@@ -20,11 +20,19 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         this.forceClear = true;
     }
 
+    /**
+     * Sets the layer canvas reference and context.
+     * Should be called in the subclass's AfterViewInit hook.
+     * @param canvasRef HTMLCanvasElement reference for the layer
+     */
     protected initCanvas(canvasRef: ElementRef<HTMLCanvasElement>) {
         this.canvas = canvasRef.nativeElement;
         this.ctx = this.canvas.getContext('2d');
     }
 
+    /**
+     * Sets the layer's canvas width and marks all drawables for updates
+     */
     protected set width(width: number) {
         if (this.canvas.width === width) return;
         this.canvas.width = width;
@@ -33,10 +41,16 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         this.markAllDrawablesForUpdates();
     }
 
+    /**
+     * The layer's canvas width
+     */
     public get width() {
         return this.canvas.width;
     }
 
+    /**
+     * Sets the layer's canvas height and marks all drawables for updates.
+     */
     protected set height(height: number) {
         if (this.canvas.height === height) return;
         this.canvas.height = height;
@@ -45,10 +59,18 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         this.markAllDrawablesForUpdates();
     }
 
+    /**
+     * The layer's canvas height
+     */
     public get height() {
         return this.canvas.height;
     }
 
+    /**
+     * Resizes the layer's canvas and marks all drawables for updates.
+     * @param width New canvas width
+     * @param height New canvas height
+     */
     public resize(width: number, height: number) {
         if (this.canvas.width === width && this.canvas.height === height) return;
         this.width = width;
@@ -58,10 +80,17 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         this.markAllDrawablesForUpdates();
     }
 
+    /**
+     * The layer's canvas context
+     */
     public get context(): CanvasRenderingContext2D | null {
         return this.ctx;
     }
 
+    /**
+     * The layer's canvas context z-index
+     * @returns Z index as a string
+     */
     public getZ(): string {
         return this.canvas.style.zIndex;
     }
@@ -109,14 +138,27 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         this.markAllDrawablesForUpdates();
     }
 
+    /**
+     * The list of Drawable object which are painted on the layer's canvas
+     * @returns The list of drawables in the layer
+     */
     public getDrawableList(): Drawable[] {
         return this.drawableList;
     }
 
+    /**
+     * The list of Drawable objects which are marked for updates on the next render cycle.
+     * @returns The list of drawables needing updates.
+     */
     public getUpdateDrawablesList(): Drawable[] {
         return this.updateDrawableList;
     }
 
+    /**
+     * Marks a drawable instace to be repainted on the next render cycle.
+     * If the layer doesn't have the drawable, the update list is left unchanged.
+     * @param drawable The Drawable instace to repaint
+     */
     public markForUpdate(drawable: Drawable) {
         if (this.drawableList.find(d => d !== drawable)) {
             console.warn('Drawable marked for update not found.  Skipping.');
@@ -141,7 +183,10 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         this.forceClear = false;
     }
 
+    /**
+     * Intelligently repaints the canvas layer
+     * @param drawState
+     */
     public abstract refresh(drawState: DrawState): void;
-
     abstract ngAfterViewInit(): void;
 }

@@ -9,6 +9,8 @@ const buildMockLayer = (overrides = {}): AbstractCanvasLayerComponent => ({
     } as unknown as CanvasRenderingContext2D,
     resize: vi.fn(),
     refresh: vi.fn(),
+    width: 800,
+    height: 600,
     ...overrides,
 } as unknown as AbstractCanvasLayerComponent);
 
@@ -49,95 +51,138 @@ describe('RenderService', () => {
 
     describe('add', () => {
         it('should return the service instance for chaining', () => {
-            const layer = buildMockLayer();
-            expect(service.add(layer)).toBe(service);
+            const layers = [buildMockLayer()];
+            expect(service.add('diagramA', layers)).toBe(service);
         });
 
         it('should allow chaining multiple adds', () => {
-            const layerA = buildMockLayer();
-            const layerB = buildMockLayer();
-            expect(() => service.add(layerA).add(layerB)).not.toThrow();
+            expect(() =>
+                service
+                    .add('diagramA', [buildMockLayer()])
+                    .add('diagramB', [buildMockLayer()])
+            ).not.toThrow();
         });
 
-        it('should increase layers length by 1', () => {
-            const layer = buildMockLayer();
-            const expectedLength = service['layers'].length + 1;
-            service.add(layer);
-            expect(service['layers'].length).toEqual(expectedLength);
+        it('should register the layers under the given id', () => {
+            const layers = [buildMockLayer(), buildMockLayer()];
+            service.add('diagramA', layers);
+            expect(service['diagramsCanvasLayerMap'].get('diagramA')).toBe(layers);
         });
 
-        it('should add correct layer instance', () => {
-            const layer = buildMockLayer();
-            expect(service.add(layer)['layers'].at(0)).toBe(layer);
+        it('should overwrite layers when the same id is added twice', () => {
+            const original = [buildMockLayer()];
+            const replacement = [buildMockLayer(), buildMockLayer()];
+            service.add('diagramA', original).add('diagramA', replacement);
+            expect(service['diagramsCanvasLayerMap'].get('diagramA')).toBe(replacement);
         });
     });
 
     describe('remove', () => {
         it('should return the service instance for chaining', () => {
-            const layer = buildMockLayer();
-            service.add(layer);
-            expect(service.remove(layer)).toBe(service);
+            service.add('diagramA', [buildMockLayer()]);
+            expect(service.remove('diagramA')).toBe(service);
         });
 
-        it('should not call refresh on a removed layer after resize', () => {
-            const layer = buildMockLayer();
-            service.add(layer);
-            service.remove(layer);
-            service.resize(800, 600);
-            expect(layer.refresh).not.toHaveBeenCalled();
+        it('should remove the entry for the given id', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.remove('diagramA');
+            expect(service['diagramsCanvasLayerMap'].has('diagramA')).toBe(false);
         });
 
-        it('should not throw when removing a layer that was never added', () => {
-            const layer = buildMockLayer();
-            expect(() => service.remove(layer)).not.toThrow();
+        it('should keep other diagram entries when removing one id', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.add('diagramB', [buildMockLayer()]);
+            service.remove('diagramA');
+            expect(service['diagramsCanvasLayerMap'].has('diagramB')).toBe(true);
         });
 
-        it('should remove the correct layer', () => {
-            const removedLayer = buildMockLayer();
-            const anotherLayer = buildMockLayer();
-            service.add(anotherLayer).add(removedLayer);
-            expect(service.remove(removedLayer)['layers']).not.toContain(removedLayer);
-        });
-
-        it('should keep all layers except the removed layer', () => {
-            const removedLayer = buildMockLayer();
-            const anotherLayer = buildMockLayer();
-            service.add(removedLayer).add(anotherLayer);
-            expect(service.remove(removedLayer)['layers']).toContain(anotherLayer);
+        it('should warn when removing an id that was never added', () => {
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
+            service.remove('nonexistent');
+            expect(warnSpy).toHaveBeenCalledTimes(1);
         });
     });
 
-    describe('width / height', () => {
-        it('should initialize width to 0', () => {
-            expect(service.width).toBe(0);
+    describe('activeId', () => {
+        it('should initialize activeId to an empty string', () => {
+            expect(service.activeId).toBe('');
         });
 
-        it('should initialize height to 0', () => {
-            expect(service.height).toBe(0);
+        it('should update activeId after setting it', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
+            expect(service.activeId).toBe('diagramA');
         });
 
-        it('should update width after resize', () => {
-            service.resize(1000, 600);
-            expect(service.width).toBe(1000);
+        it('should set activeLayers to the layers registered under the given id', () => {
+            const layers = [buildMockLayer(), buildMockLayer()];
+            service.add('diagramA', layers);
+            service.activeId = 'diagramA';
+            expect(service['activeLayers']).toBe(layers);
         });
 
-        it('should update height after resize', () => {
-            service.resize(1000, 600);
-            expect(service.height).toBe(600);
+        it('should set activeLayers to an empty array when the id is not registered', () => {
+            service.activeId = 'nonexistent';
+            expect(service['activeLayers']).toEqual([]);
+        });
+
+        it('should warn when setting an id that is not registered', () => {
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
+            service.activeId = 'nonexistent';
+            expect(warnSpy).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('getActiveDiagramWidth', () => {
+        it('should return -1 when no active diagram is set', () => {
+            expect(service.getActiveDiagramWidth()).toBe(-1);
+        });
+
+        it('should return -1 when the active id is not registered', () => {
+            service.activeId = 'nonexistent';
+            expect(service.getActiveDiagramWidth()).toBe(-1);
+        });
+
+        it('should return the width of the first layer in the active diagram', () => {
+            const layer = buildMockLayer({ width: 1280 });
+            service.add('diagramA', [layer]);
+            service.activeId = 'diagramA';
+            expect(service.getActiveDiagramWidth()).toBe(1280);
+        });
+    });
+
+    describe('getActiveDiagramHeight', () => {
+        it('should return -1 when no active diagram is set', () => {
+            expect(service.getActiveDiagramHeight()).toBe(-1);
+        });
+
+        it('should return -1 when the active id is not registered', () => {
+            service.activeId = 'nonexistent';
+            expect(service.getActiveDiagramHeight()).toBe(-1);
+        });
+
+        it('should return the height of the first layer in the active diagram', () => {
+            const layer = buildMockLayer({ height: 960 });
+            service.add('diagramA', [layer]);
+            service.activeId = 'diagramA';
+            expect(service.getActiveDiagramHeight()).toBe(960);
         });
     });
 
     describe('start', () => {
         it('should call requestAnimationFrame', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
             service.start();
             expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
         });
 
-        it('should scale all layer contexts by the device pixel ratio', () => {
+        it('should scale all active layer contexts by the device pixel ratio', () => {
             const dpr = window.devicePixelRatio || 1;
             const layerA = buildMockLayer();
             const layerB = buildMockLayer();
-            service.add(layerA).add(layerB);
+            service.add('diagramA', [layerA, layerB]);
+            service.activeId = 'diagramA';
             service.start();
 
             expect(layerA.context!.scale).toHaveBeenCalledWith(dpr, dpr);
@@ -147,7 +192,8 @@ describe('RenderService', () => {
         it('should warn and skip layers with a null context', () => {
             const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
             const nullLayer = buildMockLayer({ context: null });
-            service.add(nullLayer);
+            service.add('diagramA', [nullLayer]);
+            service.activeId = 'diagramA';
             service.start();
 
             expect(warnSpy).toHaveBeenCalledTimes(1);
@@ -157,15 +203,29 @@ describe('RenderService', () => {
         it('should warn and skip layers with an undefined context', () => {
             const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
             const undefinedLayer = buildMockLayer({ context: undefined });
-            service.add(undefinedLayer);
+            service.add('diagramA', [undefinedLayer]);
+            service.activeId = 'diagramA';
             service.start();
 
             expect(warnSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('should not scale layers from inactive diagrams', () => {
+            const inactiveLayer = buildMockLayer();
+            const activeLayer = buildMockLayer();
+            service.add('diagramA', [inactiveLayer]);
+            service.add('diagramB', [activeLayer]);
+            service.activeId = 'diagramB';
+            service.start();
+
+            expect(inactiveLayer.context!.scale).not.toHaveBeenCalled();
         });
     });
 
     describe('stop', () => {
         it('should call cancelAnimationFrame with the animation id', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
             service.start();
             service.stop();
             expect(window.cancelAnimationFrame).toHaveBeenCalledWith(1);
@@ -177,6 +237,8 @@ describe('RenderService', () => {
         });
 
         it('should not call cancelAnimationFrame if stop is called twice', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
             service.start();
             service.stop();
             service.stop();
@@ -184,38 +246,41 @@ describe('RenderService', () => {
         });
     });
 
-    describe('scale', () => {
+    describe('scaleActiveDiagram', () => {
         it('should not throw when called', () => {
-            expect(() => service.scale(0.1)).not.toThrow();
+            expect(() => service.scaleActiveDiagram(0.1)).not.toThrow();
         });
 
-        it('should affect the drawState passed to layers on the next refresh', () => {
+        it('should affect the drawState passed to layers on the next resize+refresh', () => {
             const layer = buildMockLayer();
-            service.add(layer);
-            service.scale(0.5);
-            service.resize(800, 600); // resize triggers a refresh with current drawState
+            service.add('diagramA', [layer]);
+            service.activeId = 'diagramA';
+            service.scaleActiveDiagram(0.5);
+            service.resizeActiveDiagram(800, 600);
 
             const drawState = (layer.refresh as ReturnType<typeof vi.fn>).mock.calls[0][0];
             expect(drawState.scale).toBe(1.5);
         });
     });
 
-    describe('resize', () => {
-        it('should call resize on all layers with the new dimensions', () => {
+    describe('resizeActiveDiagram', () => {
+        it('should call resize on all active layers with the new dimensions', () => {
             const layerA = buildMockLayer();
             const layerB = buildMockLayer();
-            service.add(layerA).add(layerB);
-            service.resize(1024, 768);
+            service.add('diagramA', [layerA, layerB]);
+            service.activeId = 'diagramA';
+            service.resizeActiveDiagram(1024, 768);
 
             expect(layerA.resize).toHaveBeenCalledWith(1024, 768);
             expect(layerB.resize).toHaveBeenCalledWith(1024, 768);
         });
 
-        it('should call refresh on all layers after resize to prevent flickering', () => {
+        it('should call refresh on all active layers after resize to prevent flickering', () => {
             const layerA = buildMockLayer();
             const layerB = buildMockLayer();
-            service.add(layerA).add(layerB);
-            service.resize(1024, 768);
+            service.add('diagramA', [layerA, layerB]);
+            service.activeId = 'diagramA';
+            service.resizeActiveDiagram(1024, 768);
 
             expect(layerA.refresh).toHaveBeenCalledTimes(1);
             expect(layerB.refresh).toHaveBeenCalledTimes(1);
@@ -227,10 +292,23 @@ describe('RenderService', () => {
                 resize: vi.fn(() => callOrder.push('resize')),
                 refresh: vi.fn(() => callOrder.push('refresh')),
             });
-            service.add(layer);
-            service.resize(800, 600);
+            service.add('diagramA', [layer]);
+            service.activeId = 'diagramA';
+            service.resizeActiveDiagram(800, 600);
 
             expect(callOrder).toEqual(['resize', 'refresh']);
+        });
+
+        it('should not call resize or refresh on layers from inactive diagrams', () => {
+            const inactiveLayer = buildMockLayer();
+            const activeLayer = buildMockLayer();
+            service.add('diagramA', [inactiveLayer]);
+            service.add('diagramB', [activeLayer]);
+            service.activeId = 'diagramB';
+            service.resizeActiveDiagram(800, 600);
+
+            expect(inactiveLayer.resize).not.toHaveBeenCalled();
+            expect(inactiveLayer.refresh).not.toHaveBeenCalled();
         });
     });
 });
