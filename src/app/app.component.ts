@@ -5,9 +5,8 @@ import { TabsModule } from 'primeng/tabs';
 import { TooltipModule } from 'primeng/tooltip';
 import { SettingsContainerComponent } from './components/settings/container/settings.container.component';
 import { ComponentPaletteContainerComponent } from './components/component-palette/container/component-palette.container.component';
-import { WorkspaceContainerComponent } from './components/workspace/container/workspace.container.component';
-
-import { StatusbarComponent } from "./components/statusbar/statusbar.component";
+import { WorkspaceTabsComponent } from './components/workspace-tabs/workspace-tabs.component';
+import { StatusbarComponent } from './components/statusbar/statusbar.component';
 
 @Component({
     selector: 'app-root',
@@ -19,7 +18,7 @@ import { StatusbarComponent } from "./components/statusbar/statusbar.component";
         TooltipModule,
         SettingsContainerComponent,
         ComponentPaletteContainerComponent,
-        WorkspaceContainerComponent,
+        WorkspaceTabsComponent,
     ],
     templateUrl: './app.component.html',
     styleUrl: './app.component.scss'

@@ -21,53 +21,77 @@ export class RenderService {
     private lastTimestamp = 0;
     private readonly targetFPS: number = 30;
     private animationId: number | null = null;
-    private layers: AbstractCanvasLayerComponent[] = [];
-    private _width = 0;
-    private _height = 0;
+    private diagramsCanvasLayerMap = new Map<string, AbstractCanvasLayerComponent[]>();
+    private activeLayers: AbstractCanvasLayerComponent[] = [];
+    private _activeId = "";
 
-    private set width(width: number) {
-        this._width = width;
-    }
-
-    public get width() {
-        return this._width;
-    }
-
-    private set height(height: number) {
-        this._height = height;
-    }
-
-    public get height() {
-        return this._height;
+    /**
+     * Set the active diagram id.
+     */
+    public set activeId(id: string) {
+        this.activeLayers = (this.diagramsCanvasLayerMap.get(id)) ?? [];
+        if (!this.diagramsCanvasLayerMap.has(id)) {
+            console.warn(`id ${id} not registered in render service.`);
+        }
+        this._activeId = id;
     }
 
     /**
-     * Adds a layer to the list of layers to render
-     * @param layer The layer to add
+     * The active diagram id
+     */
+    public get activeId() {
+        return this._activeId;
+    }
+
+    /**
+     * Returns the layer height of the active diagram.
+     * If the active diagram ID doesn't exist in the map, returns -1
+     * @returns height of the active layers
+     */
+    public getActiveDiagramHeight(): number {
+        if (!this.diagramsCanvasLayerMap.has(this._activeId)) return -1;
+        return this.diagramsCanvasLayerMap.get(this._activeId)![0].height;
+    }
+
+    /**
+     * Returns the layer widths of the active diagram.
+     * If the active diagram ID doesn't exist in the map, returns -1
+     * @returns width of the active layers
+     */
+    public getActiveDiagramWidth(): number {
+        if (!this.diagramsCanvasLayerMap.has(this._activeId)) return -1;
+        return this.diagramsCanvasLayerMap.get(this._activeId)![0].width;
+    }
+
+    /**
+     * Adds layers to the list of layers to render for a diagram id
+     * @param layers The list of layers to add
+     * @param id The unique id string of the diagram
      * @returns The updated render service
      */
-    public add(layer: AbstractCanvasLayerComponent): RenderService {
-        this.layers.push(layer);
+    public add(id: string, layers: AbstractCanvasLayerComponent[]): RenderService {
+        this.diagramsCanvasLayerMap.set(id, layers);
         return this;
     }
 
     /**
-     * Removes a layer from the list of layers to render
-     * @param layer The layer to remove
+     * Removes a diagram from the list of diagrams to render
+     * @param id The unique id string of the diagram to remove
      * @returns The updated render service
      */
-    public remove(layer: AbstractCanvasLayerComponent): RenderService {
-        this.layers = this.layers.filter(d => d !== layer);
+    public remove(id: string): RenderService {
+        const success = this.diagramsCanvasLayerMap.delete(id);
+        if (!success) console.warn(`Diagram with id ${id} does not exist.`);
         return this;
     }
 
     /**
-     * Starts the main draw loop for all layers
+     * Starts the main draw loop for the the active diagram
      */
     public start() {
         const interval = 1000 / this.targetFPS;
         const dpr = window.devicePixelRatio || 1;
-        this.layers.forEach(layer => {
+        this.activeLayers.forEach(layer => {
             if (layer.context === null || layer.context === undefined) {
                 console.warn('At least 1 layer context is null or undefined.  Skipping.');
                 return;
@@ -85,7 +109,7 @@ export class RenderService {
                 // preventing a long queue of potentially very very heavy refreshes.  This would result in 
                 // "jumping" in the animation, but layer will be at the most up-to-date state possible intead of
                 // trying to draw every missed frame which might appear smoother, but will be much laggier.
-                this.layers.forEach(layer => layer.refresh(this.drawState));
+                this.activeLayers.forEach(layer => layer.refresh(this.drawState));
             }
         };
         this.animationId = requestAnimationFrame(drawLoop);
@@ -104,18 +128,16 @@ export class RenderService {
     /**
      * Updates the draw state scale by offset which affects all layers
      */
-    public scale(offset: number) {
+    public scaleActiveDiagram(offset: number) {
         this.drawState.scale += offset;
     }
 
     /**
-     * Updates the width and height of all layers
+     * Updates the width and height of all layers in the active diagram
      */
-    public resize(width: number, height: number) {
-        this.width = width;
-        this.height = height;
-        this.layers.forEach(l => {
-            l.resize(this.width, this.height);
+    public resizeActiveDiagram(width: number, height: number) {
+        this.activeLayers.forEach(l => {
+            l.resize(width, height);
             // setting canvas width/height automatically clear the canvas
             // so we need to force a refresh now to prevent flickering
             // due to the canvas being blank until the next draw loop cycle.

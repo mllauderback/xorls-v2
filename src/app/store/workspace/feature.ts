@@ -1,11 +1,11 @@
-import { createFeature, createReducer, on } from "@ngrx/store";
-import type { WorkspaceState } from "./state";
+import { createFeature, createReducer, createSelector, on } from "@ngrx/store";
+import type { DiagramWorkspaceState, WorkspaceState } from "./state";
 import * as actions from './actions';
 import * as functions from './reducer-functions';
 
 export const initialWorkspaceState: WorkspaceState = {
     mouseMode: 'select',
-    mousePosition: { x: 0, y: 0},
+    mousePosition: { x: 0, y: 0 },
 };
 
 export const workspaceReducer = createReducer(
@@ -14,7 +14,7 @@ export const workspaceReducer = createReducer(
     on(
         actions.updateMouseMode,
         (state, { mode }): WorkspaceState =>
-            functions.setMouseMode(state, mode)      
+            functions.setMouseMode(state, mode)
     ),
     on(
         actions.updateMousePosition,
@@ -26,12 +26,26 @@ export const workspaceReducer = createReducer(
 export const workspaceFeature = createFeature({
     name: 'workspaceFeature',
     reducer: workspaceReducer,
-    // extraSelectors: ({}) => ({})
+    extraSelectors: ({ selectMouseMode, selectMousePosition }) => ({
+        selectDiagramWorkspaceState: createSelector(
+            selectMouseMode,
+            selectMousePosition,
+            (mouseMode, mousePosition): DiagramWorkspaceState => {
+                return {
+                    mouseMode,
+                    mousePosition
+                };
+            }
+        ),
+        //selectCodeWorkspaceState: createSelector(...)
+    })
 });
 
 export const {
     name,
     reducer,
+    selectWorkspaceFeatureState,
+    selectDiagramWorkspaceState,
     selectMouseMode,
     selectMousePosition,
 } = workspaceFeature;
