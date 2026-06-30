@@ -14,19 +14,19 @@ export class Grid implements Drawable {
         this._width = this._height = 0;
     }
 
-    private _updateDimensions(ctx: CanvasRenderingContext2D): void {
+    private _updateDimensions(ctx: OffscreenCanvasRenderingContext2D): void {
+        console.log(`${ctx.canvas.width}, ${ctx.canvas.height}`);
         this._width = ctx.canvas.width;
         this._height = ctx.canvas.height;
     }
 
-    // TODO: fix width/height = 0 issue when resizing
     /**
      * Handles individual component drawing function
      * 
      * @param ctx The 2D context on which to draw
      * @param forceUpdate Global draw state information
      */
-    public draw(ctx: CanvasRenderingContext2D, _drawState: DrawState) {
+    public draw(ctx: OffscreenCanvasRenderingContext2D, _drawState: DrawState) {
         this._updateDimensions(ctx);
 
         // console.log('Grid drawn, ', this._width + ", " + this._height);

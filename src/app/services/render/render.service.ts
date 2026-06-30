@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import type { DrawState } from '../../models/Drawable';
-import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
+import type { OffscreenCanvasLayer } from '../../models/offscreen-canvas-layers/OffscreenCanvasLayer';
 
 /**
  * The RenderService tracks shared variables across all layers like the origin and scale.
@@ -21,18 +21,21 @@ export class RenderService {
     private lastTimestamp = 0;
     private readonly targetFPS: number = 30;
     private animationId: number | null = null;
-    private diagramsCanvasLayerMap = new Map<string, AbstractCanvasLayerComponent[]>();
-    private activeLayers: AbstractCanvasLayerComponent[] = [];
+    private diagramsOffscreenCanvasLayerMap = new Map<string, OffscreenCanvasLayer[]>();
+    private diagramsCanvasMap = new Map<string, HTMLCanvasElement>();
+    private activeLayers: OffscreenCanvasLayer[] = [];
+    private activeCanvas: HTMLCanvasElement | null = null;
     private _activeId = "";
 
     /**
      * Set the active diagram id.
      */
     public set activeId(id: string) {
-        this.activeLayers = (this.diagramsCanvasLayerMap.get(id)) ?? [];
-        if (!this.diagramsCanvasLayerMap.has(id)) {
+        if (!this.diagramsOffscreenCanvasLayerMap.has(id)) {
             console.warn(`id ${id} not registered in render service.`);
         }
+        this.activeLayers = this.diagramsOffscreenCanvasLayerMap.get(id) ?? [];
+        this.activeCanvas = this.diagramsCanvasMap.get(id)!;
         this._activeId = id;
     }
 
@@ -49,8 +52,8 @@ export class RenderService {
      * @returns height of the active layers
      */
     public getActiveDiagramHeight(): number {
-        if (!this.diagramsCanvasLayerMap.has(this._activeId)) return -1;
-        return this.diagramsCanvasLayerMap.get(this._activeId)![0].height;
+        if (!this.diagramsCanvasMap.has(this._activeId)) return -1;
+        return this.diagramsCanvasMap.get(this._activeId)!.height;
     }
 
     /**
@@ -59,18 +62,29 @@ export class RenderService {
      * @returns width of the active layers
      */
     public getActiveDiagramWidth(): number {
-        if (!this.diagramsCanvasLayerMap.has(this._activeId)) return -1;
-        return this.diagramsCanvasLayerMap.get(this._activeId)![0].width;
+        if (!this.diagramsCanvasMap.has(this._activeId)) return -1;
+        // return this.diagramsOffscreenCanvasLayerMap.get(this._activeId)![0].width;
+        return this.diagramsCanvasMap.get(this._activeId)!.width;
     }
 
     /**
-     * Adds layers to the list of layers to render for a diagram id
+     * Adds offscreen canvas layers to the list of offscreen layers to render for a diagram id
      * @param layers The list of layers to add
      * @param id The unique id string of the diagram
      * @returns The updated render service
      */
-    public add(id: string, layers: AbstractCanvasLayerComponent[]): RenderService {
-        this.diagramsCanvasLayerMap.set(id, layers);
+    public addOffscreenLayers(id: string, offscreenLayers: OffscreenCanvasLayer[]): RenderService {
+        this.diagramsOffscreenCanvasLayerMap.set(id, offscreenLayers);
+        return this;
+    }
+
+    public setMainCanvas(id: string, canvas: HTMLCanvasElement): RenderService {
+        this.diagramsCanvasMap.set(id, canvas);
+        if (!this.diagramsOffscreenCanvasLayerMap.has(id)) {
+            console.warn(`Offscreen layers map not registered with id ${id}`);
+            return this;
+        }
+        this.diagramsOffscreenCanvasLayerMap.get(id)!.forEach(l => l.resize(canvas.width, canvas.height));
         return this;
     }
 
@@ -80,8 +94,10 @@ export class RenderService {
      * @returns The updated render service
      */
     public remove(id: string): RenderService {
-        const success = this.diagramsCanvasLayerMap.delete(id);
-        if (!success) console.warn(`Diagram with id ${id} does not exist.`);
+        let success = this.diagramsOffscreenCanvasLayerMap.delete(id);
+        if (!success) console.warn(`Offscreen canvas layers with id ${id} do not exist.`);
+        success = this.diagramsCanvasMap.delete(id);
+        if (!success) console.warn(`Canvas with id ${id} does not exist.`);
         return this;
     }
 
@@ -90,13 +106,11 @@ export class RenderService {
      */
     public start() {
         const interval = 1000 / this.targetFPS;
-        const dpr = window.devicePixelRatio || 1;
         this.activeLayers.forEach(layer => {
             if (layer.context === null || layer.context === undefined) {
                 console.warn('At least 1 layer context is null or undefined.  Skipping.');
                 return;
             }
-            layer.context.scale(dpr, dpr);
         });
         const drawLoop = (timestamp: number) => {
             const elapsedTime = timestamp - this.lastTimestamp;
@@ -109,7 +123,12 @@ export class RenderService {
                 // preventing a long queue of potentially very very heavy refreshes.  This would result in 
                 // "jumping" in the animation, but layer will be at the most up-to-date state possible intead of
                 // trying to draw every missed frame which might appear smoother, but will be much laggier.
-                this.activeLayers.forEach(layer => layer.refresh(this.drawState));
+                this.activeLayers.forEach(layer => {
+                    const updateMainCanvas = layer.refresh(this.drawState);
+                    if (!updateMainCanvas) return;
+                    const activeCtx = this.activeCanvas!.getContext('2d');
+                    layer.drawToMainCanvas(activeCtx);
+                });
             }
         };
         this.animationId = requestAnimationFrame(drawLoop);
@@ -136,12 +155,16 @@ export class RenderService {
      * Updates the width and height of all layers in the active diagram
      */
     public resizeActiveDiagram(width: number, height: number) {
+        const activeCtx = this.activeCanvas!.getContext('2d');
+        this.activeCanvas!.width = width;
+        this.activeCanvas!.height = height;
         this.activeLayers.forEach(l => {
             l.resize(width, height);
             // setting canvas width/height automatically clear the canvas
             // so we need to force a refresh now to prevent flickering
             // due to the canvas being blank until the next draw loop cycle.
-            l.refresh(this.drawState);
+            const updated = l.refresh(this.drawState);
+            if (updated) l.drawToMainCanvas(activeCtx);
         });
     }
 }

@@ -41,6 +41,7 @@ export class WorkspaceTabsComponent implements AfterViewInit, OnDestroy {
         this.resizeObserver = new ResizeObserver((entries) => entries.forEach(e => this.onViewportResize(e)));
         const viewportEl = this.viewports?.get(this.startIndex)?.nativeElement;
         if (viewportEl) this.updateResizeListenerSubject(viewportEl);
+        this.renderService.activeId = this.tabIds[this.startIndex];
         this.renderService.start();
     }
 
