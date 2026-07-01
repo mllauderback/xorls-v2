@@ -1,4 +1,4 @@
-import type { ElementRef} from '@angular/core';
+import type { ElementRef } from '@angular/core';
 import { Component, ViewChild, inject } from '@angular/core';
 import { AbstractCanvasLayerComponent } from '../abstract-canvas-layer.component';
 import type { Drawable, DrawState } from '../../../models/Drawable';
@@ -15,25 +15,35 @@ import { RenderService } from '../../../services/render/render.service';
 export class ComponentCanvasLayerComponent extends AbstractCanvasLayerComponent {
     private renderService = inject(RenderService);
 
-    @ViewChild('canvas') canvasRef?: ElementRef<HTMLCanvasElement>;
+    @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
     override ngAfterViewInit(): void {
-        this.initCanvas(this.canvasRef!);
+        const width = this.canvasRef.nativeElement.width;
+        const height = this.canvasRef.nativeElement.height;
+        this.initCanvas(new OffscreenCanvas(width, height), this.canvasRef);
     }
-    
+
     override refresh(drawState: DrawState) {
-        if (this.context === null) {
-            console.warn('Component context is null: Skipping refresh.');
+        if (this.offscreenContext === null) {
+            console.warn('Component offscreenContext is null: Skipping refresh.');
             this.resetAllDrawablesForUpdates();
             return;
         }
         const updateDrawables: Drawable[] = this.getUpdateDrawablesList();
-        if (this.forceClear) this.context.clearRect(0, 0, this.width, this.height);
-        this.context.strokeStyle = 'black';
-        this.context.lineWidth = this.renderService.STANDARD_LINE_WIDTH;
-        this.context.beginPath();
-        updateDrawables.forEach(d => d.draw(this.context!, drawState));
-        this.context.stroke();
+        if (this.forceClear) {
+            this.offscreenContext.clearRect(0, 0, this.width, this.height);
+            this.context?.clearRect(0, 0, this.width, this.height);
+            const dpr = window.devicePixelRatio || 1;
+            this.offscreenContext.scale(dpr, dpr);
+            this.context?.scale(dpr, dpr);
+        }
+        if (updateDrawables.length === 0) return;
+        this.offscreenContext.strokeStyle = 'black';
+        this.offscreenContext.lineWidth = this.renderService.STANDARD_LINE_WIDTH;
+        this.offscreenContext.beginPath();
+        updateDrawables.forEach(d => d.draw(this.offscreenContext!, drawState));
+        this.offscreenContext.stroke();
+        this.repaintCanvas();
         this.resetAllDrawablesForUpdates();
     }
 }

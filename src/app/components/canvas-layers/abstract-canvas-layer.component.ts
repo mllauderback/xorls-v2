@@ -8,10 +8,12 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     @Input() zIndex?: number;
     @Input() bground?: string;
 
-    private ctx!: CanvasRenderingContext2D | null;
     protected drawableList: Drawable[];
     protected updateDrawableList: Drawable[];
     protected canvas!: HTMLCanvasElement;
+    private ctx!: CanvasRenderingContext2D | null;
+    protected offscreen!: OffscreenCanvas;
+    private offscreenCtx!: OffscreenCanvasRenderingContext2D | null;
     protected forceClear: boolean;
 
     constructor() {
@@ -25,9 +27,11 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
      * Should be called in the subclass's AfterViewInit hook.
      * @param canvasRef HTMLCanvasElement reference for the layer
      */
-    protected initCanvas(canvasRef: ElementRef<HTMLCanvasElement>) {
+    protected initCanvas(offscreen: OffscreenCanvas, canvasRef: ElementRef<HTMLCanvasElement>) {
         this.canvas = canvasRef.nativeElement;
         this.ctx = this.canvas.getContext('2d');
+        this.offscreen = offscreen;
+        this.offscreenCtx = this.offscreen.getContext('2d');
     }
 
     /**
@@ -36,6 +40,7 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     protected set width(width: number) {
         if (this.canvas.width === width) return;
         this.canvas.width = width;
+        this.offscreen.width = width;
         const dpr = window.devicePixelRatio || 1;
         this.ctx?.scale(dpr, dpr);
         this.markAllDrawablesForUpdates();
@@ -54,8 +59,7 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     protected set height(height: number) {
         if (this.canvas.height === height) return;
         this.canvas.height = height;
-        const dpr = window.devicePixelRatio || 1;
-        this.ctx?.scale(dpr, dpr);
+        this.offscreen.height = height;
         this.markAllDrawablesForUpdates();
     }
 
@@ -75,8 +79,6 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         if (this.canvas.width === width && this.canvas.height === height) return;
         this.width = width;
         this.height = height;
-        const dpr = window.devicePixelRatio || 1;
-        this.ctx?.scale(dpr, dpr);
         this.markAllDrawablesForUpdates();
     }
 
@@ -85,6 +87,10 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
      */
     public get context(): CanvasRenderingContext2D | null {
         return this.ctx;
+    }
+
+    public get offscreenContext(): OffscreenCanvasRenderingContext2D | null {
+        return this.offscreenCtx;
     }
 
     /**
@@ -181,6 +187,12 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     public resetAllDrawablesForUpdates() {
         this.updateDrawableList = [];
         this.forceClear = false;
+    }
+
+    protected repaintCanvas() {
+        const image = this.offscreen.transferToImageBitmap();
+        this.context!.drawImage(image, 0, 0);
+        image.close();
     }
 
     /**
