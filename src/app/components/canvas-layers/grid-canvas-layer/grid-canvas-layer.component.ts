@@ -22,8 +22,8 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
     private _gridMode?: GridMode;
     private _gridSpacing?: number;
 
-    @ViewChild('canvas') canvasRef?: ElementRef<HTMLCanvasElement>;
-    
+    @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+
     @Input()
     set gridSettings(settings: GridSettingsState | null | undefined) {
         if (!settings) {
@@ -46,12 +46,12 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
     get gridSpacing(): number | undefined {
         return this._gridSpacing;
     }
-    
+
     set gridSpacing(spacing: number | null) {
         this._gridSpacing = spacing ?? 20;
         this.onGridSpacingChanged(spacing);
     }
- 
+
     constructor() {
         super();
         const mode = this.gridMode ?? 'dots';
@@ -61,24 +61,33 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
     }
 
     override ngAfterViewInit(): void {
-        this.initCanvas(this.canvasRef!);
+        const width = this.canvasRef.nativeElement.width;
+        const height = this.canvasRef.nativeElement.height;
+        this.initCanvas(new OffscreenCanvas(width, height), this.canvasRef);
     }
 
     override refresh(drawState: DrawState) {
-        // console.log(this.canvasRef?.nativeElement.clientWidth);
-        if (this.context === null) {
-            console.warn('Grid context is null: Skipping refresh.');
+        if (this.offscreenContext === null) {
+            console.warn('Grid offscreenContext is null: Skipping refresh.');
             this.resetAllDrawablesForUpdates();
             return;
         }
         const updateDrawables: Drawable[] = this.getUpdateDrawablesList();
-        // console.log(updateDrawables.length);
-        if (this.forceClear) this.context.clearRect(0, 0, this.width, this.height);
-        this.context.strokeStyle = 'black';
-        this.context.lineWidth = this.renderService.THIN_LINE_WIDTH;
-        this.context.beginPath();
-        updateDrawables.forEach(d => d.draw(this.context!, drawState));
-        this.context.stroke();
+        if (this.forceClear) {
+            this.offscreenContext.clearRect(0, 0, this.width, this.height);
+            this.context?.clearRect(0, 0, this.width, this.height);
+            const dpr = window.devicePixelRatio || 1;
+            this.offscreenContext.scale(dpr, dpr);
+            this.context?.scale(dpr, dpr);
+        }
+        if (updateDrawables.length === 0) return;
+        this.offscreenContext.strokeStyle = 'black';
+        this.offscreenContext.lineWidth = this.renderService.THIN_LINE_WIDTH;
+        this.offscreenContext.beginPath();
+        updateDrawables.forEach(d => d.draw(this.offscreenContext!, drawState));
+        this.offscreenContext.stroke();
+        // console.log('repaint');
+        this.repaintCanvas();
         this.resetAllDrawablesForUpdates();
     }
 

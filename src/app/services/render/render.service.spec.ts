@@ -262,7 +262,6 @@ describe('RenderService', () => {
             expect(drawState.scale).toBe(1.5);
         });
     });
-
     describe('resizeActiveDiagram', () => {
         it('should call resize on all active layers with the new dimensions', () => {
             const layerA = buildMockLayer();
@@ -273,6 +272,18 @@ describe('RenderService', () => {
 
             expect(layerA.resize).toHaveBeenCalledWith(1024, 768);
             expect(layerB.resize).toHaveBeenCalledWith(1024, 768);
+        });
+
+        it('should scale the context of each active layer by the device pixel ratio', () => {
+            const dpr = window.devicePixelRatio || 1;
+            const layerA = buildMockLayer();
+            const layerB = buildMockLayer();
+            service.add('diagramA', [layerA, layerB]);
+            service.activeId = 'diagramA';
+            service.resizeActiveDiagram(1024, 768);
+
+            expect(layerA.context!.scale).toHaveBeenCalledWith(dpr, dpr);
+            expect(layerB.context!.scale).toHaveBeenCalledWith(dpr, dpr);
         });
 
         it('should call refresh on all active layers after resize to prevent flickering', () => {
@@ -286,20 +297,30 @@ describe('RenderService', () => {
             expect(layerB.refresh).toHaveBeenCalledTimes(1);
         });
 
-        it('should call resize before refresh on each layer', () => {
+        it('should call resize, then scale the context, then refresh, in that order', () => {
             const callOrder: string[] = [];
             const layer = buildMockLayer({
                 resize: vi.fn(() => callOrder.push('resize')),
                 refresh: vi.fn(() => callOrder.push('refresh')),
             });
+            (layer.context as unknown as { scale: ReturnType<typeof vi.fn> }).scale =
+                vi.fn(() => callOrder.push('scale'));
             service.add('diagramA', [layer]);
             service.activeId = 'diagramA';
             service.resizeActiveDiagram(800, 600);
 
-            expect(callOrder).toEqual(['resize', 'refresh']);
+            expect(callOrder).toEqual(['resize', 'scale', 'refresh']);
         });
 
-        it('should not call resize or refresh on layers from inactive diagrams', () => {
+        it('should not throw when a layer context is null during resize', () => {
+            const nullLayer = buildMockLayer({ context: null });
+            service.add('diagramA', [nullLayer]);
+            service.activeId = 'diagramA';
+
+            expect(() => service.resizeActiveDiagram(800, 600)).not.toThrow();
+        });
+
+        it('should not call resize, refresh, or scale context on layers from inactive diagrams', () => {
             const inactiveLayer = buildMockLayer();
             const activeLayer = buildMockLayer();
             service.add('diagramA', [inactiveLayer]);
@@ -309,6 +330,7 @@ describe('RenderService', () => {
 
             expect(inactiveLayer.resize).not.toHaveBeenCalled();
             expect(inactiveLayer.refresh).not.toHaveBeenCalled();
+            expect(inactiveLayer.context!.scale).not.toHaveBeenCalled();
         });
     });
 });

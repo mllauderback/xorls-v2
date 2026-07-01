@@ -23,17 +23,25 @@ import { XorlsTabviewComponent, DraggableTabComponent } from './xorls-tabview.co
         </app-xorls-tab-view>
     `
 })
-class TestHostComponent {}
+class TestHostComponent { }
 
 @Component({
     selector: 'app-empty-host',
     imports: [XorlsTabviewComponent],
     template: `<app-xorls-tab-view />`
 })
-class EmptyHostComponent {}
+class EmptyHostComponent { }
 
 const getTabviewInstance = (fixture: ComponentFixture<unknown>): XorlsTabviewComponent =>
     fixture.debugElement.query(By.directive(XorlsTabviewComponent)).componentInstance;
+
+const finishLatestAnimation = () => {
+    const animateMock = vi.mocked(Element.prototype.animate);
+    const results = animateMock.mock.results;
+    const latest = results[results.length - 1];
+    const animation = latest.value as Animation & { finish: () => void };
+    animation.finish();
+};
 
 describe('XorlsTabviewComponent', () => {
     describe('with tabs', () => {
@@ -154,12 +162,11 @@ describe('XorlsTabviewComponent', () => {
         });
 
         describe('onClose', () => {
-            beforeAll(() => {
-                HTMLElement.prototype.animate = vi.fn().mockImplementation(() => {
-                    const animation = { onfinish: null as (() => void) | null };
-                    Promise.resolve().then(() => animation.onfinish?.());
-                    return animation as unknown as Animation;
-                });
+            it('should call animate on the closing tab element', () => {
+                const closeBtns = fixture.debugElement.queryAll(By.css('.close-btn'));
+                closeBtns[0].nativeElement.click();
+
+                expect(Element.prototype.animate).toHaveBeenCalledTimes(1);
             });
 
             it('should emit tabClose with the closed tab index', async () => {
@@ -168,6 +175,7 @@ describe('XorlsTabviewComponent', () => {
 
                 const closeBtns = fixture.debugElement.queryAll(By.css('.close-btn'));
                 closeBtns[1].nativeElement.click();
+                finishLatestAnimation();
                 await fixture.whenStable();
 
                 expect(emitSpy).toHaveBeenCalledWith(1);
@@ -178,6 +186,7 @@ describe('XorlsTabviewComponent', () => {
 
                 const closeBtns = fixture.debugElement.queryAll(By.css('.close-btn'));
                 closeBtns[0].nativeElement.click();
+                finishLatestAnimation();
                 await fixture.whenStable();
                 fixture.detectChanges();
 
@@ -190,6 +199,7 @@ describe('XorlsTabviewComponent', () => {
 
                 const closeBtns = fixture.debugElement.queryAll(By.css('.close-btn'));
                 closeBtns[0].nativeElement.click();
+                finishLatestAnimation();
                 await fixture.whenStable();
 
                 expect(tabview['activeIndex']).toBe(1);
@@ -201,20 +211,10 @@ describe('XorlsTabviewComponent', () => {
 
                 const closeBtns = fixture.debugElement.queryAll(By.css('.close-btn'));
                 closeBtns[0].nativeElement.click();
+                finishLatestAnimation();
                 await fixture.whenStable();
 
                 expect(tabview['activeIndex']).toBeGreaterThanOrEqual(0);
-            });
-
-            it('should call animate on the closing tab element', () => {
-                const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue({
-                    onfinish: null,
-                } as unknown as Animation);
-
-                const closeBtns = fixture.debugElement.queryAll(By.css('.close-btn'));
-                closeBtns[0].nativeElement.click();
-
-                expect(animateSpy).toHaveBeenCalledTimes(1);
             });
         });
     });

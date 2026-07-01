@@ -6,10 +6,8 @@ import { WorkspaceTabsComponent } from './workspace-tabs.component';
 import { RenderService } from '../../services/render/render.service';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { provideMockStore } from '@ngrx/store/testing';
+import { resizeObserverInstances } from '../../../../vitest.setup';
 
-const mockObserve = vi.fn();
-const mockUnobserve = vi.fn();
-const mockDisconnect = vi.fn();
 
 describe('WorkspaceTabsComponent', () => {
     let component: WorkspaceTabsComponent;
@@ -27,18 +25,13 @@ describe('WorkspaceTabsComponent', () => {
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         set activeId(_: string) { },
     };
-    let capturedCallback: ResizeObserverCallback;
-    vi.stubGlobal('ResizeObserver', vi.fn().mockImplementation((cb) => {
-        capturedCallback = cb;
-        return {
-            observe: mockObserve,
-            unobserve: mockUnobserve,
-            disconnect: mockDisconnect,
-        };
-    }));
+
     const buildEntry = (width: number, height: number): ResizeObserverEntry => ({
         contentRect: { width, height } as DOMRectReadOnly
     } as ResizeObserverEntry);
+
+    // convenience getter — this component creates one observer, so index 0
+    const observer = () => resizeObserverInstances[0];
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -50,9 +43,11 @@ describe('WorkspaceTabsComponent', () => {
             schemas: [NO_ERRORS_SCHEMA]
         }).compileComponents();
 
-        vi.clearAllMocks();
-        mockRenderService.getActiveDiagramWidth.mockReturnValue(initialWidth);
-        mockRenderService.getActiveDiagramHeight.mockReturnValue(initialHeight);
+        mockRenderService.getActiveDiagramWidth.mockClear().mockReturnValue(initialWidth);
+        mockRenderService.getActiveDiagramHeight.mockClear().mockReturnValue(initialHeight);
+        mockRenderService.start.mockClear();
+        mockRenderService.stop.mockClear();
+        mockRenderService.resizeActiveDiagram.mockClear();
 
         fixture = TestBed.createComponent(WorkspaceTabsComponent);
         component = fixture.componentInstance;
@@ -65,39 +60,39 @@ describe('WorkspaceTabsComponent', () => {
 
     describe('onViewportResize', () => {
         it('should call resizeActiveDiagram when viewport is wider than current render width', () => {
-            capturedCallback([buildEntry(initialWidth + 1, initialHeight)], null!);
+            observer().callback([buildEntry(initialWidth + 1, initialHeight)], null!);
             expect(mockRenderService.resizeActiveDiagram).toHaveBeenCalled();
         });
 
         it('should not call resizeActiveDiagram when viewport is narrower than current render width', () => {
-            capturedCallback([buildEntry(initialWidth - 1, initialHeight)], null!);
+            observer().callback([buildEntry(initialWidth - 1, initialHeight)], null!);
             expect(mockRenderService.resizeActiveDiagram).not.toHaveBeenCalled();
         });
 
         it('should not call resizeActiveDiagram when viewport matches current render dimensions', () => {
-            capturedCallback([buildEntry(initialWidth, initialHeight)], null!);
+            observer().callback([buildEntry(initialWidth, initialHeight)], null!);
             expect(mockRenderService.resizeActiveDiagram).not.toHaveBeenCalled();
         });
 
         it('should call resizeActiveDiagram when viewport is taller than current render height', () => {
-            capturedCallback([buildEntry(initialWidth, initialHeight + 1)], null!);
+            observer().callback([buildEntry(initialWidth, initialHeight + 1)], null!);
             expect(mockRenderService.resizeActiveDiagram).toHaveBeenCalled();
         });
 
         it('should not call resizeActiveDiagram when viewport is shorter than current render height', () => {
-            capturedCallback([buildEntry(initialWidth, initialHeight - 1)], null!);
+            observer().callback([buildEntry(initialWidth, initialHeight - 1)], null!);
             expect(mockRenderService.resizeActiveDiagram).not.toHaveBeenCalled();
         });
 
         it('should grow width when viewport is wider than current render width', () => {
-            capturedCallback([buildEntry(initialWidth + 1, initialHeight)], null!);
+            observer().callback([buildEntry(initialWidth + 1, initialHeight)], null!);
             const [newWidth, newHeight] = mockRenderService.resizeActiveDiagram.mock.calls[0];
             expect(newWidth).toBeGreaterThan(initialWidth);
             expect(newHeight).toBe(initialHeight);
         });
 
         it('should grow height when viewport is taller than current render height', () => {
-            capturedCallback([buildEntry(initialWidth, initialHeight + 1)], null!);
+            observer().callback([buildEntry(initialWidth, initialHeight + 1)], null!);
             const [newWidth, newHeight] = mockRenderService.resizeActiveDiagram.mock.calls[0];
             expect(newWidth).toBe(initialWidth);
             expect(newHeight).toBeGreaterThan(initialHeight);
@@ -107,20 +102,20 @@ describe('WorkspaceTabsComponent', () => {
     describe('Resize observer', () => {
         it('should observe the first contentViewport element for resizing on init', () => {
             const firstViewport = component.viewports?.get(0)?.nativeElement;
-            expect(mockObserve).toHaveBeenCalledWith(firstViewport);
+            expect(observer().observe).toHaveBeenCalledWith(firstViewport);
         });
 
         it('should unobserve and re-observe the new viewport element when the active tab changes', () => {
             const firstViewport = component.viewports?.get(0)?.nativeElement;
             const secondViewport = component.viewports?.get(1)?.nativeElement;
             component['changeActiveWorkspace']({ id: 'some-uuid', index: 1 });
-            expect(mockUnobserve).toHaveBeenCalledWith(firstViewport);
-            expect(mockObserve).toHaveBeenCalledWith(secondViewport);
+            expect(observer().unobserve).toHaveBeenCalledWith(firstViewport);
+            expect(observer().observe).toHaveBeenCalledWith(secondViewport);
         });
 
         it('should disconnect on destroy', () => {
             fixture.destroy();
-            expect(mockDisconnect).toHaveBeenCalledOnce();
+            expect(observer().disconnect).toHaveBeenCalledOnce();
         });
     });
 
