@@ -7,5 +7,5 @@ export interface DrawState {
 }
 
 export interface Drawable {
-    draw(ctx: CanvasRenderingContext2D, state: DrawState): void;
+    draw(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, state: DrawState): void;
 }

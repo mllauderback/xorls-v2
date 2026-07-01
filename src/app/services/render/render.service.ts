@@ -141,6 +141,8 @@ export class RenderService {
             // setting canvas width/height automatically clear the canvas
             // so we need to force a refresh now to prevent flickering
             // due to the canvas being blank until the next draw loop cycle.
+            const dpr = window.devicePixelRatio || 1;
+            l.context?.scale(dpr, dpr);
             l.refresh(this.drawState);
         });
     }
