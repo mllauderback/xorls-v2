@@ -30,20 +30,24 @@ export class IOCanvasLayerComponent extends AbstractCanvasLayerComponent {
             return;
         }
         const updateDrawables: Drawable[] = this.getUpdateDrawablesList();
-        if (this.forceClear) {
+        if (this.forceClearAll) {
             this.offscreenContext.clearRect(0, 0, this.width, this.height);
             this.context?.clearRect(0, 0, this.width, this.height);
             const dpr = window.devicePixelRatio || 1;
             this.offscreenContext.scale(dpr, dpr);
             this.context?.scale(dpr, dpr);
         }
-        if (updateDrawables.length === 0) return;
-        this.offscreenContext.strokeStyle = 'black';
-        this.offscreenContext.lineWidth = this.renderService.STANDARD_LINE_WIDTH;
-        this.offscreenContext.beginPath();
-        updateDrawables.forEach(d => d.draw(this.context!, drawState));
-        this.offscreenContext.stroke();
-        this.repaintCanvas();
-        this.resetAllDrawablesForUpdates();
+        if (updateDrawables.length > 0) {
+            this.offscreenContext.strokeStyle = 'black';
+            this.offscreenContext.lineWidth = this.renderService.STANDARD_LINE_WIDTH;
+            this.offscreenContext.beginPath();
+            updateDrawables.forEach(d => d.draw(this.context!, drawState));
+            this.offscreenContext.stroke();
+            this.updateCachedOffscreenImage();
+            this.resetAllDrawablesForUpdates();
+        }
+        if (updateDrawables.length > 0 || this.forceRepaint) {
+            this.repaintCanvas();
+        }
     }
 }

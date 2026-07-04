@@ -30,12 +30,9 @@ export class WireCanvasLayerComponent extends AbstractCanvasLayerComponent {
             return;
         }
         const updateDrawables: Drawable[] = this.getUpdateDrawablesList();
-        if (this.forceClear) {
-            this.offscreenContext.clearRect(0, 0, this.width, this.height);
-            this.context?.clearRect(0, 0, this.width, this.height);
-            const dpr = window.devicePixelRatio || 1;
-            this.offscreenContext.scale(dpr, dpr);
-            this.context?.scale(dpr, dpr);
+        if (this.forceClearAll) {
+            this.clearOffscreenCanvas();
+            this.clearCanvas();
         }
         if (updateDrawables.length === 0) return;
         this.offscreenContext.strokeStyle = 'black';

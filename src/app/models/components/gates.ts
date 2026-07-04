@@ -1,8 +1,10 @@
 
 import type { DrawState } from "../Drawable";
 import type { Point } from "../Point";
-import type { Component} from "./Component";
+import type { Component } from "./Component";
 import { Node } from "./Component";
+
+// TODO: Apply drawState.origin adjustments to all other gates/components
 
 export class AndGate implements Component {
     position: Point;
@@ -20,22 +22,24 @@ export class AndGate implements Component {
     draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
         // console.log('And gate drawn', this.position.x, ', ', this.position.y);
         // body
-        ctx.moveTo(this.position.x + 40, this.position.y);
-        ctx.lineTo(this.position.x, this.position.y);
-        ctx.lineTo(this.position.x, this.position.y + 80);
-        ctx.lineTo(this.position.x + 40, this.position.y + 80);
-        ctx.moveTo(this.position.x + 40, this.position.y);
-        ctx.arc(this.position.x + 40, this.position.y + 40, 40, 1.5 * Math.PI, 0.5 * Math.PI);
+        const x = this.position.x + drawState.origin.x;
+        const y = this.position.y + drawState.origin.y;
+        ctx.moveTo(x + 40, y);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x, y + 80);
+        ctx.lineTo(x + 40, y + 80);
+        ctx.moveTo(x + 40, y);
+        ctx.arc(x + 40, y + 40, 40, 1.5 * Math.PI, 0.5 * Math.PI);
 
         // output node
-        ctx.moveTo(this.position.x + 80, this.position.y + 40);
-        ctx.lineTo(this.position.x + 100, this.position.y + 40);
+        ctx.moveTo(x + 80, y + 40);
+        ctx.lineTo(x + 100, y + 40);
 
         // input nodes... TODO: auto create based on inodes size
-        ctx.moveTo(this.position.x, this.position.y + 20);
-        ctx.lineTo(this.position.x - 20, this.position.y + 20);
-        ctx.moveTo(this.position.x, this.position.y + 60);
-        ctx.lineTo(this.position.x - 20, this.position.y + 60);
+        ctx.moveTo(x, y + 20);
+        ctx.lineTo(x - 20, y + 20);
+        ctx.moveTo(x, y + 60);
+        ctx.lineTo(x - 20, y + 60);
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -143,7 +147,6 @@ export class Buffer implements Component {
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }
-    
 }
 
 export class NandGate implements Component {
