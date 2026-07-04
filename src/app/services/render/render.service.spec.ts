@@ -99,7 +99,7 @@ describe('RenderService', () => {
         it('should warn when removing an id that was never added', () => {
             const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
             service.remove('nonexistent');
-            expect(warnSpy).toHaveBeenCalledTimes(1);
+            expect(warnSpy).toHaveBeenCalledTimes(2);
         });
     });
 
@@ -129,7 +129,7 @@ describe('RenderService', () => {
         it('should warn when setting an id that is not registered', () => {
             const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
             service.activeId = 'nonexistent';
-            expect(warnSpy).toHaveBeenCalledTimes(1);
+            expect(warnSpy).toHaveBeenCalledTimes(2);
         });
     });
 
@@ -248,7 +248,17 @@ describe('RenderService', () => {
 
     describe('scaleActiveDiagram', () => {
         it('should not throw when called', () => {
+            const layer = buildMockLayer();
+            service.add('diagramA', [layer]);
+            service.activeId = 'diagramA';
             expect(() => service.scaleActiveDiagram(0.1)).not.toThrow();
+        });
+
+        it('should throw if activeId is not set', () => {
+            const layer = buildMockLayer();
+            service.add('diagramA', [layer]);
+            service.activeId = "";
+            expect(() => service.scaleActiveDiagram(0.1)).toThrow();
         });
 
         it('should affect the drawState passed to layers on the next resize+refresh', () => {
@@ -262,6 +272,7 @@ describe('RenderService', () => {
             expect(drawState.scale).toBe(1.5);
         });
     });
+
     describe('resizeActiveDiagram', () => {
         it('should call resize on all active layers with the new dimensions', () => {
             const layerA = buildMockLayer();

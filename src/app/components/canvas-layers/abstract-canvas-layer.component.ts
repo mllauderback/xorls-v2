@@ -1,6 +1,7 @@
 import type { AfterViewInit, ElementRef } from "@angular/core";
 import { Directive, Input } from "@angular/core";
 import type { Drawable, DrawState } from "../../models/Drawable";
+import type { Point } from "../../models/Point";
 
 @Directive()
 export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
@@ -14,12 +15,18 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     private ctx!: CanvasRenderingContext2D | null;
     protected offscreen!: OffscreenCanvas;
     private offscreenCtx!: OffscreenCanvasRenderingContext2D | null;
-    protected forceClear: boolean;
+    protected forceClearAll: boolean;
+    private _forceRepaint: boolean;
+    private _viewportOffset: Point;
+
+    private cachedOffscreenImage?: ImageBitmap;
 
     constructor() {
         this.drawableList = [];
         this.updateDrawableList = [];
-        this.forceClear = true;
+        this.forceClearAll = true;
+        this._forceRepaint = false;
+        this._viewportOffset = { x: 0, y: 0 };
     }
 
     /**
@@ -32,6 +39,38 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         this.ctx = this.canvas.getContext('2d');
         this.offscreen = offscreen;
         this.offscreenCtx = this.offscreen.getContext('2d');
+    }
+
+    /**
+     * Returns the viewport offset used for drawing the offscreen canvas at a location on the main canvas
+     */
+    public get viewportOffset() {
+        return this._viewportOffset;
+    }
+
+    /**
+     * Change the viewport offset by dx,dy and force a repaint
+     * @param dx x amount to change
+     * @param dy y amount to change
+     */
+    public shiftViewportOffsetBy(dx: number, dy: number) {
+        this._viewportOffset.x += dx;
+        this._viewportOffset.y += dy;
+        this._forceRepaint = true;
+    }
+
+    /**
+     * Force or reset the main canvas to repaint.  Does not redraw the offscreen canvas.
+     */
+    public set forceRepaint(force: boolean) {
+        this._forceRepaint = force;
+    }
+
+    /**
+     * Return the value of forceRepaint
+     */
+    public get forceRepaint() {
+        return this._forceRepaint;
     }
 
     /**
@@ -80,6 +119,7 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         this.width = width;
         this.height = height;
         this.markAllDrawablesForUpdates();
+        this._forceRepaint = true;
     }
 
     /**
@@ -89,6 +129,9 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         return this.ctx;
     }
 
+    /**
+     * The layer's offscreen canvas context
+     */
     public get offscreenContext(): OffscreenCanvasRenderingContext2D | null {
         return this.offscreenCtx;
     }
@@ -186,13 +229,51 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
      */
     public resetAllDrawablesForUpdates() {
         this.updateDrawableList = [];
-        this.forceClear = false;
+        this.forceClearAll = false;
     }
 
+    /**
+     * Clears the offscreen canvas and rescales to the device pixel ratio.
+     */
+    protected clearOffscreenCanvas() {
+        if (this.offscreenCtx === null) {
+            console.warn('offscreen context is null.  skipping clear.');
+            return;
+        }
+        this.offscreenCtx.clearRect(0, 0, this.width, this.height);
+        const dpr = window.devicePixelRatio || 1;
+        this.offscreenCtx.scale(dpr, dpr);
+    }
+
+    /**
+     * Clears the main canvas and rescales to the device pixel ratio.
+     */
+    protected clearCanvas() {
+        if (this.ctx === null) {
+            console.warn('canvas context is null.  skipping clear.');
+            return;
+        }
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        const dpr = window.devicePixelRatio || 1;
+        this.ctx.scale(dpr, dpr);
+    }
+
+    /**
+     * Cache the offscreen canvas as a bitmap.
+     */
+    protected updateCachedOffscreenImage() {
+        this.cachedOffscreenImage = this.offscreen.transferToImageBitmap();
+    }
+
+    /**
+     * Repaint the main canvas.  The cached offscreen canvas image is updated if its null.
+     * The offscreen canvas is not redrawn.
+     */
     protected repaintCanvas() {
-        const image = this.offscreen.transferToImageBitmap();
-        this.context!.drawImage(image, 0, 0);
-        image.close();
+        this.clearCanvas();
+        const image = this.cachedOffscreenImage ?? this.offscreen.transferToImageBitmap();
+        this.context!.drawImage(image, this._viewportOffset.x, this._viewportOffset.y);
+        this._forceRepaint = false;
     }
 
     /**
