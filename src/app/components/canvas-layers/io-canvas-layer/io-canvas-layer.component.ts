@@ -41,7 +41,7 @@ export class IOCanvasLayerComponent extends AbstractCanvasLayerComponent {
             this.offscreenContext.strokeStyle = 'black';
             this.offscreenContext.lineWidth = this.renderService.STANDARD_LINE_WIDTH;
             this.offscreenContext.beginPath();
-            updateDrawables.forEach(d => d.draw(this.context!, drawState));
+            updateDrawables.forEach(d => d.draw(this.offscreenContext!, drawState));
             this.offscreenContext.stroke();
             this.updateCachedOffscreenImage();
             this.resetAllDrawablesForUpdates();

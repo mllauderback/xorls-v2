@@ -15,7 +15,7 @@ export class Input implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -36,13 +36,13 @@ export class Output implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }
-    
+
 }
 
 export class SevenSegmentDisplay implements Component {
@@ -58,15 +58,15 @@ export class SevenSegmentDisplay implements Component {
         this.inodes = [];
         this.onodes = []; // TODO: 1 onode
         this.isGhost = false;
-        
+
         this.busWidth = busWidth;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }
-    
+
 }
