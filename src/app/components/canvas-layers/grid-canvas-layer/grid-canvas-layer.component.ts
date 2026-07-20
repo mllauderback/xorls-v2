@@ -4,8 +4,8 @@ import { AbstractCanvasLayerComponent } from '../abstract-canvas-layer.component
 import type { Drawable, DrawState } from '../../../models/Drawable';
 import { CommonModule } from '@angular/common';
 import { RenderService } from '../../../services/render/render.service';
-import type { GridMode } from '../../../models/Grid';
-import { Grid } from '../../../models/Grid';
+import type { GridMode } from './Grid';
+import { Grid } from './Grid';
 import type { GridSettingsState } from '../../../store/settings/state';
 
 @Component({

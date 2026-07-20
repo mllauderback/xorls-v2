@@ -7,7 +7,7 @@ import type { SettingsState } from '../../../store/settings/state';
 import { selectSettingsFeatureState } from '../../../store/settings/feature';
 import * as actions from '../../../store/settings/actions';
 import { type Observable } from 'rxjs';
-import { type GridMode } from '../../../models/Grid';
+import { type GridMode } from '../../canvas-layers/grid-canvas-layer/Grid';
 
 @Component({
     selector: 'app-settings-container',
