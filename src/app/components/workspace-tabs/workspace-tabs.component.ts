@@ -110,6 +110,13 @@ export class WorkspaceTabsComponent implements AfterViewInit, OnDestroy {
     }
 
     private onMouseClick(event: MouseEvent) {
-        console.log('click');
+        // not sure that this is correct.  this returns the absolute position on the canvas.
+        // the relative position to the original 0,0 might be what i need instead, not sure yet.
+        // const offsetX = event.offsetX - this.renderService.getActiveDiagram()[0].viewportOffset.x;
+        // const offsetY = event.offsetY - this.renderService.getActiveDiagram()[0].viewportOffset.y;
+        // this does the relative position to the original 0,0.
+        const offsetX = event.offsetX - (this.renderService.getActiveDiagram()[0].viewportOffset.x + this.renderService.activeDrawState?.origin.x!);
+        const offsetY = event.offsetY - (this.renderService.getActiveDiagram()[0].viewportOffset.y + this.renderService.activeDrawState?.origin.y!);
+        console.log(`true coords: ${offsetX}, ${offsetY}`);
     }
 }

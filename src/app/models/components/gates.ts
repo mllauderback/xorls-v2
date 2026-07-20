@@ -19,7 +19,7 @@ export class AndGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
         // console.log('And gate drawn', this.position.x, ', ', this.position.y);
         // body
         const x = this.position.x + drawState.origin.x;
@@ -69,7 +69,7 @@ export class OrGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -95,7 +95,7 @@ export class XorGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -120,7 +120,7 @@ export class NotGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -141,7 +141,7 @@ export class Buffer implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -162,7 +162,7 @@ export class NandGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -187,7 +187,7 @@ export class NorGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -212,7 +212,7 @@ export class XnorGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {
