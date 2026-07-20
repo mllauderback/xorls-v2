@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import type { ComponentFixture} from '@angular/core/testing';
+import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -9,7 +9,7 @@ import { SettingsContainerComponent } from './settings.container.component';
 import { selectSettingsFeatureState } from '../../../store/settings/feature';
 import * as actions from '../../../store/settings/actions';
 import type { SettingsState } from '../../../store/settings/state';
-import type { GridMode } from '../../../models/Grid';
+import type { GridMode } from '../../canvas-layers/grid-canvas-layer/Grid';
 import { SettingsPresenterComponent } from '../presenter/settings.presenter.component';
 
 @Component({ selector: 'app-settings-presenter', template: '<div></div>' })
@@ -114,7 +114,7 @@ describe('SettingsContainerComponent', () => {
         it('should dispatch updateGridMode action with the emitted mode', async () => {
             await fixture.whenStable();
 
-            const mode: GridMode = 'dots'; 
+            const mode: GridMode = 'dots';
             const presenter = fixture.debugElement.query(
                 By.directive(MockSettingsPresenterComponent)
             ).componentInstance as MockSettingsPresenterComponent;
