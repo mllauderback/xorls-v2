@@ -1,4 +1,4 @@
-import type { AfterViewInit } from '@angular/core';
+import type { AfterViewInit, OnDestroy } from '@angular/core';
 import { Component, inject, Input, ViewChild } from '@angular/core';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { CodeWorkspaceState, DiagramWorkspaceState } from '../../../../store/workspace/state';
@@ -17,7 +17,7 @@ import type { AbstractCanvasLayerComponent } from '../../../canvas-layers/abstra
     templateUrl: './diagram-workspace.presenter.component.html',
     styleUrl: './diagram-workspace.presenter.component.scss',
 })
-export class DiagramWorkspacePresenterComponent implements AfterViewInit {
+export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnDestroy {
     private renderService = inject(RenderService);
 
     @Input({ required: true }) id!: string;
@@ -41,6 +41,10 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit {
             this.activeWireCanvasLayerComponent
         ];
         this.renderService.add(this.id, layers);
-        // console.log('view inited');
+        console.log(`view inited for ${this.id}`);
+    }
+
+    ngOnDestroy(): void {
+        this.renderService.remove(this.id);
     }
 }

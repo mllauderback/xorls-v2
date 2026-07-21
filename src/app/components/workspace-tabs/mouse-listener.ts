@@ -1,11 +1,12 @@
-import type { Observable, Subscription} from "rxjs";
-import { filter, fromEvent, startWith, Subject, switchMap, takeUntil } from "rxjs";
-import type { DestroyRef } from "@angular/core";
+import type { Observable, Subscription } from "rxjs";
+import { filter, fromEvent, share, startWith, Subject, switchMap, takeUntil } from "rxjs";
+import type { DestroyRef} from "@angular/core";
+import { inject, NgZone } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
 export class MouseEventListener {
     private destroyRef: DestroyRef;
-
+    private ngZone: NgZone;
     private mouseDown$!: Observable<MouseEvent>;
     private mouseDownSub?: Subscription;
     private mouseUp$!: Observable<MouseEvent>;
@@ -23,6 +24,7 @@ export class MouseEventListener {
 
     constructor(destroyRef: DestroyRef) {
         this.destroyRef = destroyRef;
+        this.ngZone = inject(NgZone)
         this.viewportChangeSubject = new Subject<HTMLElement>();
         this.viewportChange$ = this.viewportChangeSubject.asObservable();
         this.defineListeners();
@@ -37,6 +39,7 @@ export class MouseEventListener {
         this.mouseDown$ = this.viewportChange$.pipe(
             startWith(this.viewport),
             switchMap(viewport => fromEvent<MouseEvent>(viewport ?? window, 'pointerdown')),
+            share(),
             takeUntilDestroyed(this.destroyRef)
         );
         this.mouseUp$ = fromEvent<MouseEvent>(window, 'pointerup').pipe(takeUntilDestroyed(this.destroyRef));

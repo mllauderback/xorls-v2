@@ -1,13 +1,15 @@
-import type { AfterViewInit, ElementRef, OnDestroy, QueryList } from "@angular/core";
-import { ChangeDetectionStrategy, Component, DestroyRef, ViewChildren, inject } from "@angular/core";
+import type { AfterViewInit, ElementRef, OnDestroy, OnInit, QueryList } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, NgZone, ViewChildren, inject } from "@angular/core";
 import { ButtonModule } from "primeng/button";
 import { TabsModule } from "primeng/tabs";
 import { RenderService } from '../../services/render/render.service'
 import { CommonModule } from "@angular/common";
-import type { TabChangeEvent } from "../xorls-tabview/xorls-tabview.component";
+import type { TabChangeEvent, XorlsTabModel } from "../xorls-tabview/xorls-tabview.component";
 import { DraggableTabComponent, XorlsTabviewComponent } from "../xorls-tabview/xorls-tabview.component";
-import { DiagramWorkspaceContainerComponent } from "../workspaces/diagram-workspace/container/diagram-workspace.container.component";
+import { DiagramWorkspaceContainerComponent } from "../workspaces-types/diagram-workspace/container/diagram-workspace.container.component";
 import { MouseEventListener } from "./mouse-listener";
+import type { Workspace } from "../workspaces-types/workspaceType";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
 @Component({
     selector: 'app-workspace-tabs',
@@ -17,45 +19,51 @@ import { MouseEventListener } from "./mouse-listener";
         ButtonModule,
         XorlsTabviewComponent,
         DraggableTabComponent,
-        DiagramWorkspaceContainerComponent
     ],
     templateUrl: 'workspace-tabs.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WorkspaceTabsComponent implements AfterViewInit, OnDestroy {
+export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy {
     @ViewChildren('contentViewport') viewports?: QueryList<ElementRef<HTMLDivElement>>;
     private currentViewportEl?: HTMLDivElement;
 
     private resizeObserver?: ResizeObserver;
     private renderService = inject(RenderService);
+    private destroyRef = inject(DestroyRef);
+    private ngZone = inject(NgZone);
+    private cdr = inject(ChangeDetectorRef);
     private mouseListener: MouseEventListener;
     protected startIndex = 0;
+    protected activeTabIndex = this.startIndex;
+    protected tabs: XorlsTabModel<Workspace>[] = [];
 
     constructor() {
         this.mouseListener = new MouseEventListener(inject(DestroyRef));
-        this.mouseListener.onMouseClick((event: MouseEvent) => this.onMouseClick(event));
-        this.mouseListener.onMouseDrag((event: MouseEvent) => this.onMouseDrag(event));
-        this.mouseListener.onMouseUp(() => this.onMouseUp());
+        this.mouseListener.onMouseClick((event: MouseEvent) => this.ngZone.runOutsideAngular(() => this.onMouseClick(event)));
+        this.mouseListener.onMouseDrag((event: MouseEvent) => this.ngZone.runOutsideAngular(() => this.onMouseDrag(event)));
+        this.mouseListener.onMouseUp(() => this.ngZone.runOutsideAngular(() => this.onMouseUp()));
     }
 
-    // tab IDs are automatically generated if no id is provided
-    // we want to guarantee that tab ids and workspace ids match, so we need to provide both
-    // this will eventually be done automatically by looping through data for each workspace
-    protected tabIds: string[] = [
-        crypto.randomUUID(),
-        crypto.randomUUID(),
-    ];
+    ngOnInit(): void {
+        this.tabs = [
+            { id: crypto.randomUUID(), header: "Tab 1", component: DiagramWorkspaceContainerComponent },
+            { id: crypto.randomUUID(), header: "Tab 2", component: DiagramWorkspaceContainerComponent }
+        ];
+    }
 
     ngAfterViewInit(): void {
         this.resizeObserver = new ResizeObserver((entries) => entries.forEach(e => this.onViewportResize(e)));
-        const viewportEl = this.viewports?.get(this.startIndex)?.nativeElement;
+        this.viewports?.changes.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(list => {
+            const el = list.first?.nativeElement;
+            // console.log(`viewport changed, got element: ${el}`);
+            if (!el) {
+                console.warn('No viewport in updated querylist.');
+                return;
+            }
+            this.setActiveViewport(el);
+            this.updateResizeListenerSubject(el);
+        });
         this.renderService.start();
-        if (!viewportEl) {
-            console.warn(`Viewport element ${viewportEl} not defined or null.`);
-            return;
-        }
-        this.setActiveViewport(viewportEl);
-        this.updateResizeListenerSubject(viewportEl);
     }
 
     ngOnDestroy(): void {
@@ -65,6 +73,7 @@ export class WorkspaceTabsComponent implements AfterViewInit, OnDestroy {
     }
 
     private updateResizeListenerSubject(newEl: HTMLDivElement | undefined) {
+        // console.log('resize listener subject updated');
         if (this.currentViewportEl) this.resizeObserver?.unobserve(this.currentViewportEl);
         if (newEl) this.resizeObserver?.observe(newEl);
     }
@@ -80,19 +89,22 @@ export class WorkspaceTabsComponent implements AfterViewInit, OnDestroy {
     }
 
     protected closeTab(index: number) {
-        console.log(index);
+        // console.log(index);
+        this.tabs.splice(index, 1); // update tabs model to reflect UI changes
     }
 
     protected changeActiveWorkspace(event: TabChangeEvent) {
         // console.log(`tab changed: id=${event.id}, index=${event.index}`);
+        this.activeTabIndex = event.index;
         this.renderService.activeId = event.id;
-        const newViewport = this.viewports?.get(event.index)?.nativeElement;
+        const newViewport = this.viewports?.get(this.activeTabIndex)?.nativeElement;
         if (!newViewport) {
             console.warn(`New viewport ${newViewport} is undefined or null.`);
             return;
         }
         this.updateResizeListenerSubject(newViewport);
         this.setActiveViewport(newViewport);
+        this.cdr.detectChanges();
     }
 
     private setActiveViewport(newViewport: HTMLDivElement) {
