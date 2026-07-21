@@ -22,7 +22,7 @@ import { CommonModule } from "@angular/common";
     `
 })
 export class DiagramWorkspaceContainerComponent extends AbstractWorkspaceComponent {
-    @Input({ required: true }) id = "";
+    @Input({ required: true }) id!: string;
     private settingsStore: Store<WorkspaceSettingsState> = inject(Store);
     private workspaceStore: Store<WorkspaceState> = inject(Store);
     protected override workspaceSettings$: Observable<WorkspaceSettingsState>;

@@ -1,5 +1,5 @@
-import type { QueryList, AfterContentInit, TemplateRef } from '@angular/core';
-import { Component, ContentChildren, Input, ViewChild, ChangeDetectorRef, inject, ElementRef, Output, EventEmitter } from '@angular/core';
+import type { QueryList, AfterContentInit, TemplateRef, Type } from '@angular/core';
+import { Component, ContentChildren, Input, ViewChild, inject, ElementRef, Output, EventEmitter } from '@angular/core';
 import type { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
@@ -7,16 +7,20 @@ import { TabsModule } from 'primeng/tabs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { ButtonModule } from 'primeng/button';
 import { PaletteComponentSvgsComponent } from '../responsive-svgs/palette-component-svgs/palette-component-svgs.component';
+import { startWith } from 'rxjs';
+
+export interface XorlsTabModel<T = unknown> {
+    id: string;
+    header: string;
+    component: Type<T>;
+    inputs?: Record<string, unknown>
+
+}
 
 export interface TabChangeEvent {
     id: string;
     index: number;
 }
-
-// TODO/REMINDER: eventually I'll add an [(ngModel)] override which will take in some TabModel interface.
-// The data passed in will provide the initial state for the tab view, the tab view maintains its own state,
-// and then emits the updated state back out.  emissions are done to keep the model in the parent updated with
-// the tabview state.  The tabview component SHOULD NOT BE FUNCTIONAL.
 
 @Component({
     selector: 'app-xorls-tab',
@@ -46,21 +50,25 @@ export class XorlsTabviewComponent implements AfterContentInit {
     protected tabs: DraggableTabComponent[] = []
     private _activeIndex = 0;
 
-    private cdr = inject(ChangeDetectorRef);
     private el = inject(ElementRef);
     private readonly untilDestroyed = takeUntilDestroyed();
 
     ngAfterContentInit(): void {
         Promise.resolve().then(() => {
-            this.tabs = this.tabComponents.toArray();
-            this.setInitialIndex(this.start);
-            this.cdr.detectChanges();
+            this.tabComponents.changes.pipe(startWith(this.tabComponents), this.untilDestroyed).subscribe(() => this.onTabsChanged());
         });
+    }
 
-        this.tabComponents.changes.pipe(this.untilDestroyed).subscribe(() => {
-            this.tabs = this.tabComponents.toArray();
-            this.cdr.detectChanges();
-        });
+    private onTabsChanged(): void {
+        const isInitialized = this.tabs.length === 0;
+        this.tabs = this.tabComponents.toArray();
+
+        if (isInitialized) {
+            this.setInitialIndex(this.start);
+        } else {
+            if (this._activeIndex >= this.tabs.length && this._activeIndex > 0) this._activeIndex--;
+            this.changeTab();
+        }
     }
 
     public setInitialIndex(index: number) {
@@ -116,13 +124,6 @@ export class XorlsTabviewComponent implements AfterContentInit {
             }
         );
 
-        animation.onfinish = () => {
-            if (this.activeIndex >= index && this.activeIndex > 0) {
-                this.activeIndex--;
-            }
-            this.tabs.splice(index, 1);
-            this.tabClose.emit(index);
-            this.cdr.detectChanges();
-        };
+        animation.onfinish = () => this.tabClose.emit(index);
     }
 }

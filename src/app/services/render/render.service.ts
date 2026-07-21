@@ -106,6 +106,7 @@ export class RenderService {
      * Starts the main draw loop for the the active diagram
      */
     public start() {
+        if (this.animationId !== null) return;
         const interval = 1000 / this.targetFPS;
         const dpr = window.devicePixelRatio || 1;
         this.activeLayers.forEach(layer => {
