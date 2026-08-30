@@ -45,7 +45,7 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     ngOnInit(): void {
-        this.tabs = [
+        this.tabs = [ // randomUUID will eventually be replaced with file ids from the DB
             { id: crypto.randomUUID(), header: "Tab 1", component: DiagramWorkspaceContainerComponent },
             { id: crypto.randomUUID(), header: "Tab 2", component: DiagramWorkspaceContainerComponent }
         ];
@@ -94,17 +94,29 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     protected changeActiveWorkspace(event: TabChangeEvent) {
-        // console.log(`tab changed: id=${event.id}, index=${event.index}`);
-        this.activeTabIndex = event.index;
         this.renderService.activeId = event.id;
+
+        const modelIndex = this.tabs.findIndex(t => t.id === event.id);
+        if (modelIndex === -1) {
+            console.warn(`Tab with id ${event.id} not found in workspace tabs.`);
+            return;
+        }
+        this.activeTabIndex = modelIndex;
+
         const newViewport = this.viewports?.get(this.activeTabIndex)?.nativeElement;
         if (!newViewport) {
-            console.warn(`New viewport ${newViewport} is undefined or null.`);
+            console.warn(`New viewport for tab ${event.id} is undefined or null.`);
             return;
         }
         this.updateResizeListenerSubject(newViewport);
         this.setActiveViewport(newViewport);
         this.cdr.detectChanges();
+    }
+
+    protected reorderTabs(idsInOrder: string[]) {
+        this.tabs = idsInOrder
+            .map(id => this.tabs.find(t => t.id === id))
+            .filter((t): t is XorlsTabModel<Workspace> => !!t);
     }
 
     private setActiveViewport(newViewport: HTMLDivElement) {

@@ -1,4 +1,5 @@
-<app-xorls-tab-view [start]="startIndex" (tabClose)="closeTab($event)" (tabChange)="changeActiveWorkspace($event)">
+<app-xorls-tab-view [start]="startIndex" (tabClose)="closeTab($event)" (tabChange)="changeActiveWorkspace($event)"
+    (tabsReordered)="reorderTabs($event)">
     @for (tab of tabs; track tab.id; let i = $index) {
     <app-xorls-tab [id]="tab.id" [header]="tab.header">
         <div #contentViewport class="h-full w-full" [hidden]="activeTabIndex !== i">

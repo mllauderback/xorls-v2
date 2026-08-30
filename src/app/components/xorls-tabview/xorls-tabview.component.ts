@@ -43,10 +43,11 @@ export class XorlsTabviewComponent implements AfterContentInit {
     @Input() start = 0;
     @Output() tabClose = new EventEmitter<number>();
     @Output() tabChange = new EventEmitter<TabChangeEvent>();
+    @Output() tabsReordered = new EventEmitter<string[]>();
 
     @ContentChildren(DraggableTabComponent) tabComponents!: QueryList<DraggableTabComponent>;
 
-    icon = "pi pi-times"
+    readonly icon = "pi pi-times"
     protected tabs: DraggableTabComponent[] = []
     private _activeIndex = 0;
 
@@ -93,6 +94,7 @@ export class XorlsTabviewComponent implements AfterContentInit {
         const activeTab = this.tabs[this.activeIndex];
         moveItemInArray(this.tabs, event.previousIndex, event.currentIndex);
         this.activeIndex = this.tabs.indexOf(activeTab);
+        this.tabsReordered.emit(this.tabs.map(t => t.id));
     }
 
     private changeTab() {
@@ -103,6 +105,7 @@ export class XorlsTabviewComponent implements AfterContentInit {
             id,
             index: this.activeIndex
         };
+        // console.log(event);
         this.tabChange.emit(event);
     }
 
