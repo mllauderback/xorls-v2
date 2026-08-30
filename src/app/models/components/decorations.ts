@@ -14,8 +14,8 @@ export class Text implements Decoration {
         this.size = 12;
         this.isGhost = false;
     }
-    
-    draw(ctx: CanvasRenderingContext2D, drawState: DrawState) {
+
+    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
     }
 
     isSelected(mousePosition: Point): boolean {

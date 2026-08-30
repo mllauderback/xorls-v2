@@ -20,15 +20,23 @@ export class RenderService {
     private diagramsCanvasLayerMap = new Map<string, AbstractCanvasLayerComponent[]>();
     private diagramsDrawStateMap = new Map<string, DrawState>();
     private activeLayers: AbstractCanvasLayerComponent[] = [];
-    private activeDrawState: DrawState | null = null;
+    private _activeDrawState: DrawState | null = null;
     private _activeId = "";
+
+    public getActiveDiagram() {
+        return this.diagramsCanvasLayerMap.get(this._activeId)!;
+    }
+
+    public get activeDrawState() {
+        return this._activeDrawState;
+    }
 
     /**
      * Set the active diagram id.
      */
     public set activeId(id: string) {
         this.activeLayers = (this.diagramsCanvasLayerMap.get(id)) ?? [];
-        this.activeDrawState = this.diagramsDrawStateMap.get(id) ?? null;
+        this._activeDrawState = this.diagramsDrawStateMap.get(id) ?? null;
         if (!this.diagramsCanvasLayerMap.has(id)) {
             console.warn(`layer id ${id} not registered in render service.`);
         }
@@ -65,11 +73,6 @@ export class RenderService {
         return this.diagramsCanvasLayerMap.get(this._activeId)![0].width;
     }
 
-    private _shiftOriginBy(dx: number, dy: number) {
-        this.activeDrawState!.origin.x += dx;
-        this.activeDrawState!.origin.y += dy;
-    }
-
     /**
      * Adds layers to the list of layers to render for a diagram id
      * @param layers The list of layers to add
@@ -103,6 +106,7 @@ export class RenderService {
      * Starts the main draw loop for the the active diagram
      */
     public start() {
+        if (this.animationId !== null) return;
         const interval = 1000 / this.targetFPS;
         const dpr = window.devicePixelRatio || 1;
         this.activeLayers.forEach(layer => {
@@ -123,7 +127,7 @@ export class RenderService {
                 // preventing a long queue of potentially very very heavy refreshes.  This would result in 
                 // "jumping" in the animation, but layer will be at the most up-to-date state possible intead of
                 // trying to draw every missed frame which might appear smoother, but will be much laggier.
-                this.activeLayers.forEach(layer => layer.refresh(this.activeDrawState!));
+                this.activeLayers.forEach(layer => layer.refresh(this._activeDrawState!));
             }
         };
         this.animationId = requestAnimationFrame(drawLoop);
@@ -143,7 +147,7 @@ export class RenderService {
      * Updates the draw state scale by offset which affects all layers
      */
     public scaleActiveDiagram(offset: number) {
-        this.activeDrawState!.scale += offset;
+        this._activeDrawState!.scale += offset;
     }
 
     /**
@@ -163,7 +167,7 @@ export class RenderService {
         const dpr = window.devicePixelRatio || 1;
         layer.context?.scale(dpr, dpr);
         layer.offscreenContext?.scale(dpr, dpr);
-        layer.refresh(this.activeDrawState!);
+        layer.refresh(this._activeDrawState!);
     }
 
     public panActiveDiagram(dx: number, dy: number, viewportWidth: number, viewportHeight: number) {
@@ -183,8 +187,8 @@ export class RenderService {
 
         if (!growLeft && !growTop && !growRight && !growBottom) return;
 
-        if (growLeft) this.activeDrawState!.origin.x += growLeft;
-        if (growTop) this.activeDrawState!.origin.y += growTop;
+        if (growLeft) this._activeDrawState!.origin.x += growLeft;
+        if (growTop) this._activeDrawState!.origin.y += growTop;
 
         // apply layer resize, optional offset adjustment, and redraw
         this.activeLayers.forEach(l => {

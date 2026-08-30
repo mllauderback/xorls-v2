@@ -1,8 +1,8 @@
-import { type GridMode } from "../../models/Grid";
+import { type GridMode } from "../../components/canvas-layers/grid-canvas-layer/Grid";
 
 export interface GridSettingsState {
     gridSpacing: number;
-    gridMode: GridMode;   
+    gridMode: GridMode;
 }
 
 export interface WorkspaceSettingsState {
