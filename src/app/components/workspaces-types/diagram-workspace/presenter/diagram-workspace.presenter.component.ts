@@ -1,5 +1,6 @@
 import type { AfterViewInit, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
-import { Component, DestroyRef, ElementRef, EventEmitter, HostListener, inject, Input, Output, ViewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, EventEmitter, HostListener, inject, Input, NgZone, Output, ViewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { CodeWorkspaceState, DiagramWorkspaceState } from '../../../../store/workspace/state';
 import type { SelectedSelectable } from '../../../../store/components/state';
@@ -11,7 +12,8 @@ import { ActiveComponentCanvasLayerComponent } from "../../../canvas-layers/acti
 import { ActiveWireCanvasLayerComponent } from "../../../canvas-layers/active-wire-canvas-layer/active-wire-canvas-layer.component";
 import { RenderService } from '../../../../services/render/render.service';
 import type { AbstractCanvasLayerComponent } from '../../../canvas-layers/abstract-canvas-layer.component';
-import { MouseEventListener } from '../../../workspace-tabs/mouse-listener';
+import { PointerService } from '../../../../services/pointer/pointer.service';
+import { KeyboardService } from '../../../../services/keyboard/keyboard.service';
 import type { Placeable } from '../../../../models/components/ComponentFactory';
 import { isIOComponent, isPlaceable } from '../../../../models/components/ComponentFactory';
 import type { Selectable } from '../../../../models/Selectable';
@@ -34,7 +36,10 @@ function isEditableTarget(target: EventTarget | null): boolean {
 export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChanges, OnDestroy {
     private renderService = inject(RenderService);
     private host = inject<ElementRef<HTMLElement>>(ElementRef);
-    private mouseListener: MouseEventListener;
+    private pointerService = inject(PointerService);
+    private ngZone = inject(NgZone);
+    private keyboardService = inject(KeyboardService);
+    private destroyRef = inject(DestroyRef);
 
     @Input({ required: true }) id!: string;
     @Input({ required: true }) workspaceSettings!: WorkspaceSettingsState | null;
@@ -42,11 +47,11 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     /** The app-wide selection. A ghost selectable is previewed here until it is placed. */
     @Input() selectedSelectable: SelectedSelectable | null = null;
 
-    /** Emits when Esc is pressed while this workspace is the one shown: the user wants to deselect or cancel the placement. */
-    @Output() selectionCleared = new EventEmitter<void>();
-
     /** Emits once the previewed ghost has been placed in this workspace. */
     @Output() componentPlaced = new EventEmitter<void>();
+
+    /** Emits when Esc is pressed while this workspace is the one shown: the user wants to deselect or cancel the placement. */
+    @Output() selectionCleared = new EventEmitter<void>();
 
     @ViewChild('grid') gridCanvasLayerComponent!: GridCanvasLayerComponent;
     @ViewChild('component') componentCanvasLayerComponent!: ComponentCanvasLayerComponent;
@@ -61,11 +66,13 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     private lastPointer: Point | null = null;
 
     constructor() {
-        this.mouseListener = new MouseEventListener(inject(DestroyRef));
-        this.mouseListener.onMouseMove(event => this.onMouseMove(event));
-        this.mouseListener.onMouseClick(event => this.onMouseClick(event));
-        // only pointer presses inside this workspace count as clicks on it
-        this.mouseListener.changeViewport(this.host.nativeElement);
+        // Only the pointer over this workspace counts. The service delivers events outside the Angular zone, which
+        // is right for moves (they fire at display rate), but a click ends in a store update, so it re-enters the zone.
+        const pointer = this.pointerService.within(this.host.nativeElement);
+        pointer.move$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.onMouseMove(event));
+        pointer.click$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.ngZone.run(() => this.onMouseClick(event)));
+
+        this.keyboardService.on('Escape', () => this.onEscape(), { enabled: () => this.isActive(), destroyRef: this.destroyRef });
     }
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -92,18 +99,13 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     }
 
     ngOnDestroy(): void {
-        this.mouseListener.stop();
         this.renderService.remove(this.id);
     }
 
-    /**
-     * Esc clears the selection. Ignored while typing in a field (a code editor or properties input, say, where Esc
-     * means something else) and when something else, like a dialog, already handled the key.
-     */
-    @HostListener('document:keydown.escape', ['$event'])
-    onEscape(event: Event) {
-        if (!this.isActive() || event.defaultPrevented || isEditableTarget(event.target)) return;
+    private onEscape(): boolean {
+        if (!this.ghost && !this.selectedSelectable?.selectable) return false;
         this.selectionCleared.emit();
+        return true;
     }
 
     /** Whether this workspace is the one currently shown. Every open workspace is listening to the mouse. */
@@ -140,16 +142,16 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     }
 
     /**
-     * Wired to MouseEventListener.onMouseMove. Runs outside the Angular zone.
+     * Wired to the pointer's move$ over this workspace. Runs outside the Angular zone.
      * The ghost follows the pointer, snapped to the grid.
      */
     private onMouseMove(event: MouseEvent) {
-        if (!this.isActive() || !this.host.nativeElement.contains(event.target as Node)) return;
+        if (!this.isActive()) return;
         this.lastPointer = { x: event.clientX, y: event.clientY };
         if (this.ghost) this.moveGhostTo(this.lastPointer);
     }
 
-    /** Wired to MouseEventListener.onMouseClick. A left click places the ghost where it is previewed. */
+    /** Wired to the pointer's click$ over this workspace. A left click places the ghost where it is previewed. */
     private onMouseClick(event: MouseEvent) {
         if (event.button !== 0 || !this.isActive() || !this.ghost) return;
         // a click without a preceding move (touch, for example) still needs to land where it was clicked
@@ -203,8 +205,7 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     }
 
     /**
-     * Snaps a diagram position to the nearest grid point. The grid is drawn on the canvas, not relative to the
-     * diagram origin, so snapping happens in canvas coordinates to line up with the grid points the user sees.
+     * Snaps a diagram position to the nearest grid point on the canvas
      */
     private snapToGrid(position: Point): Point {
         const origin = this.renderService.activeDrawState?.origin ?? { x: 0, y: 0 };

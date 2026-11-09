@@ -11,13 +11,13 @@ import { GridSelectionPanelComponent } from '../../grid-selection-panel/grid-sel
 @Component({
     selector: 'app-component-palette-presenter',
     imports: [
-    AccordionModule,
-    SplitterModule,
-    PanelModule,
-    ButtonModule,
-    CommonModule,
-    GridSelectionPanelComponent,
-],
+        AccordionModule,
+        SplitterModule,
+        PanelModule,
+        ButtonModule,
+        CommonModule,
+        GridSelectionPanelComponent,
+    ],
     templateUrl: './component-palette.presenter.component.html',
     styleUrl: './component-palette.presenter.component.scss'
 })

@@ -1,6 +1,6 @@
 import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
-import { Component, Input, SimpleChange } from '@angular/core';
+import { Component, Input, NgZone, SimpleChange } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -301,10 +301,12 @@ describe('DiagramWorkspacePresenterComponent', () => {
         const selection = (selectable: Selectable | null): SelectedSelectable =>
             ({ selectable, concreteClassName: selectable?.constructor.name ?? '' });
 
-        const select = (previous: Selectable | null, current: Selectable | null) =>
+        const select = (previous: Selectable | null, current: Selectable | null) => {
+            component.selectedSelectable = selection(current); // the input the container binds
             component.ngOnChanges({
                 selectedSelectable: new SimpleChange(selection(previous), selection(current), false)
             });
+        };
 
         const buildGhost = () => {
             const gate = new AndGate({ x: 0, y: 0 }, 2);
@@ -494,6 +496,28 @@ describe('DiagramWorkspacePresenterComponent', () => {
                 expect(placed).toHaveBeenCalledTimes(1);
             });
 
+            it('should emit componentPlaced inside the Angular zone, since it leads to a store update', () => {
+                let inZone: boolean | undefined;
+                component.componentPlaced.subscribe(() => { inZone = NgZone.isInAngularZone(); });
+                select(null, buildGhost());
+                moveTo(200, 100);
+
+                click(200, 100);
+
+                expect(inZone).toBe(true);
+            });
+
+            it('should still place when the click wobbles a pixel or two', () => {
+                const ghost = buildGhost();
+                select(null, ghost);
+                moveTo(200, 100);
+
+                host.dispatchEvent(pointer('pointerdown', 200, 100));
+                host.dispatchEvent(pointer('pointerup', 202, 101));
+
+                expect(ghost.isGhost).toBe(false);
+            });
+
             it('should stop following the mouse after it is placed', () => {
                 const ghost = buildGhost();
                 select(null, ghost);
@@ -547,6 +571,158 @@ describe('DiagramWorkspacePresenterComponent', () => {
                 document.body.dispatchEvent(pointer('pointerup', 10, 10));
 
                 expect(ghost.isGhost).toBe(true);
+            });
+        });
+
+        describe('pressing Esc', () => {
+            const pressEsc = (target: EventTarget = document.body, init: KeyboardEventInit = {}) => {
+                const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true, ...init });
+                target.dispatchEvent(event);
+                return event;
+            };
+
+            it('should emit selectionCleared when there is a selection', () => {
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+                select(null, buildGhost());
+
+                pressEsc();
+
+                expect(cleared).toHaveBeenCalledTimes(1);
+            });
+
+            it('should clear a placed component that is still selected', () => {
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+                select(null, new AndGate({ x: 0, y: 0 }, 2)); // not a ghost: already placed
+
+                pressEsc();
+
+                expect(cleared).toHaveBeenCalledTimes(1);
+            });
+
+            it('should clear a pending ghost that was never placed, with focus still on the palette checkbox that was clicked', () => {
+                // palette items are checkboxes, and clicking one leaves focus on it
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                document.body.append(checkbox);
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+                const ghost = buildGhost();
+                select(null, ghost);
+                moveTo(200, 100); // moved around, never placed
+
+                pressEsc(checkbox);
+
+                expect(cleared).toHaveBeenCalledTimes(1);
+                checkbox.remove();
+            });
+
+            it('should use the key, so the browser and lower priority handlers leave it alone', () => {
+                select(null, buildGhost());
+
+                expect(pressEsc().defaultPrevented).toBe(true);
+            });
+
+            it('should not use the key when nothing is selected, so something else can', () => {
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+
+                const event = pressEsc();
+
+                expect(cleared).not.toHaveBeenCalled();
+                expect(event.defaultPrevented).toBe(false);
+            });
+
+            it('should emit selectionCleared inside the Angular zone, since it leads to a store update', () => {
+                let inZone: boolean | undefined;
+                component.selectionCleared.subscribe(() => { inZone = NgZone.isInAngularZone(); });
+                select(null, buildGhost());
+
+                pressEsc();
+
+                expect(inZone).toBe(true);
+            });
+
+            it('should stop handling Esc once destroyed', () => {
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+                select(null, buildGhost());
+                fixture.destroy();
+
+                pressEsc();
+
+                expect(cleared).not.toHaveBeenCalled();
+            });
+
+            it('should ignore other keys', () => {
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+
+                document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+                expect(cleared).not.toHaveBeenCalled();
+            });
+
+            it('should ignore Esc when this is not the workspace being shown', () => {
+                select(null, buildGhost()); // so it is only the rule under test that stops it
+                renderService.activeId = 'another-workspace';
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+
+                pressEsc();
+
+                expect(cleared).not.toHaveBeenCalled();
+            });
+
+            it.each(['input', 'textarea', 'select'])('should ignore Esc typed into a %s', (tag) => {
+                select(null, buildGhost()); // so it is only the rule under test that stops it
+                const field = document.createElement(tag);
+                document.body.appendChild(field);
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+
+                pressEsc(field);
+
+                expect(cleared).not.toHaveBeenCalled();
+                field.remove();
+            });
+
+            it('should ignore Esc that something else already handled', () => {
+                select(null, buildGhost()); // so it is only the rule under test that stops it
+                const handler = (e: Event) => e.preventDefault(); // a dialog or menu consuming the key before it bubbles up
+                window.addEventListener('keydown', handler, true);
+                const cleared = vi.fn();
+                component.selectionCleared.subscribe(cleared);
+
+                pressEsc();
+
+                expect(cleared).not.toHaveBeenCalled();
+                window.removeEventListener('keydown', handler, true);
+            });
+
+            it('should make a pending ghost disappear once the selection is cleared', () => {
+                const ghost = buildGhost();
+                select(null, ghost);
+                moveTo(200, 100);
+                expect(active.getDrawableList()).toContain(ghost);
+
+                select(ghost, null); // what the store does after the container dispatches clearSelection
+
+                expect(active.getDrawableList()).not.toContain(ghost);
+                expect(staticComponent.add).not.toHaveBeenCalled();
+            });
+
+            it('should deselect a placed component, moving it back to its normal layer', () => {
+                const placed = buildGhost();
+                select(null, placed);
+                moveTo(200, 100);
+                click(200, 100);
+
+                select(placed, null);
+
+                expect(active.getDrawableList()).not.toContain(placed);
+                expect(staticComponent.add).toHaveBeenCalledWith(placed);
             });
         });
 

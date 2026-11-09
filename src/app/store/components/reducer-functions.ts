@@ -58,18 +58,6 @@ export function clearSelection(state: PaletteComponentsState): PaletteComponents
     };
 }
 
-/**
- * Finishes a placement: the palette is un-highlighted and selectedPaletteComponent is cleared.
- * selectedSelectable is left alone because the placed component stays selected.
- */
-export function placeSelectedPaletteComponent(state: PaletteComponentsState): PaletteComponentsState {
-    return {
-        ...state,
-        paletteComponentMap: clearPaletteHighlights(state.paletteComponentMap),
-        selectedPaletteComponent: null
-    };
-}
-
 function clearPaletteHighlights(map: Map<PaletteComponentCategories, PaletteComponent[]>): Map<PaletteComponentCategories, PaletteComponent[]> {
     return new Map(
         [...map.entries()].map(([category, components]) => [
