@@ -4,11 +4,12 @@ import { Store } from "@ngrx/store";
 import type { WorkspaceSettingsState } from "../../../../store/settings/state";
 import { selectWorkspaceSettings } from "../../../../store/settings/feature";
 import type { Observable } from "rxjs";
-import { filter } from "rxjs";
+import { filter, take } from "rxjs";
 import type { CodeWorkspaceState, DiagramWorkspaceState, WorkspaceState } from "../../../../store/workspace/state";
 import { selectDiagramWorkspaceState } from "../../../../store/workspace/feature";
 import * as workspaceActions from "../../../../store/workspace/actions";
-import { selectSelectedSelectable } from "../../../../store/components/feature";
+import { selectSelectedPaletteComponent, selectSelectedSelectable } from "../../../../store/components/feature";
+import { createPlaceable } from "../../../../models/components/ComponentFactory";
 import * as componentActions from "../../../../store/components/actions";
 import type { PaletteComponentsState, SelectedSelectable } from "../../../../store/components/state";
 import { DiagramWorkspacePresenterComponent } from "../presenter/diagram-workspace.presenter.component";
@@ -48,10 +49,27 @@ export class DiagramWorkspaceContainerComponent extends AbstractWorkspaceCompone
         this.selectedSelectable$ = this.componentsStore.select(selectSelectedSelectable);
     }
 
-    /** The presenter placed the previewed component: the palette selection is finished and the mouse goes back to selecting. */
+    /**
+     * The presenter placed the previewed component. The palette component stays selected so it can be placed again:
+     * a fresh ghost becomes the selection, which also releases the component that was just placed to its regular layer.
+     * Only Esc (or toggling the palette entry off) ends the palette selection.
+     */
     protected onComponentPlaced() {
-        this.componentsStore.dispatch(componentActions.placeSelectedPaletteComponent());
-        this.workspaceStore.dispatch(workspaceActions.updateMouseMode({ mode: 'select' }));
+        this.componentsStore.select(selectSelectedPaletteComponent).pipe(take(1)).subscribe(paletteComponent => {
+            if (!paletteComponent) {
+                // nothing left to place again
+                this.workspaceStore.dispatch(workspaceActions.updateMouseMode({ mode: 'select' }));
+                return;
+            }
+            // The ghost's position is set by the workspace as soon as it is selected, from the last pointer position.
+            const selectable = createPlaceable(paletteComponent.className, { x: 0, y: 0 });
+            selectable.isGhost = true;
+            this.componentsStore.dispatch(componentActions.selectPaletteComponent({
+                paletteComponent,
+                selectable,
+                concreteClassName: paletteComponent.className
+            }));
+        });
     }
 
     /** Esc was pressed: drop the ghost or deselect the placed component, un-highlight the palette, and go back to selecting. */

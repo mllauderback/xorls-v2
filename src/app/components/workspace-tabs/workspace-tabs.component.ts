@@ -1,5 +1,5 @@
 import type { AfterViewInit, ElementRef, OnDestroy, OnInit, QueryList } from "@angular/core";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, NgZone, ViewChildren, inject } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ViewChildren, inject } from "@angular/core";
 import { ButtonModule } from "primeng/button";
 import { TabsModule } from "primeng/tabs";
 import { RenderService } from '../../services/render/render.service'
@@ -7,9 +7,11 @@ import { CommonModule } from "@angular/common";
 import type { TabChangeEvent, XorlsTabModel } from "../xorls-tabview/xorls-tabview.component";
 import { DraggableTabComponent, XorlsTabviewComponent } from "../xorls-tabview/xorls-tabview.component";
 import { DiagramWorkspaceContainerComponent } from "../workspaces-types/diagram-workspace/container/diagram-workspace.container.component";
-import { MouseEventListener } from "./mouse-listener";
+import { ElementPointer, PointerService } from "../../services/pointer/pointer.service";
 import type { Workspace } from "../workspaces-types/workspaceType";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import type { Observable } from "rxjs";
+import { BehaviorSubject, EMPTY, switchMap } from "rxjs";
 
 @Component({
     selector: 'app-workspace-tabs',
@@ -30,18 +32,28 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
     private resizeObserver?: ResizeObserver;
     private renderService = inject(RenderService);
     private destroyRef = inject(DestroyRef);
-    private ngZone = inject(NgZone);
     private cdr = inject(ChangeDetectorRef);
-    private mouseListener: MouseEventListener;
+    private pointerService = inject(PointerService);
+    /** The active tab's viewport. The pointer streams below follow it as it changes. */
+    private viewport$ = new BehaviorSubject<HTMLDivElement | undefined>(undefined);
     protected startIndex = 0;
     protected activeTabIndex = this.startIndex;
     protected tabs: XorlsTabModel<Workspace>[] = [];
 
     constructor() {
-        this.mouseListener = new MouseEventListener(inject(DestroyRef));
-        this.mouseListener.onMouseClick((event: MouseEvent) => this.ngZone.runOutsideAngular(() => this.onMouseClick(event)));
-        this.mouseListener.onMouseDrag((event: MouseEvent) => this.ngZone.runOutsideAngular(() => this.onMouseDrag(event)));
-        this.mouseListener.onMouseUp(() => this.ngZone.runOutsideAngular(() => this.onMouseUp()));
+        // The pointer service delivers events outside the Angular zone, which is what panning and clicks on the canvas want.
+        this.onViewportPointer(pointer => pointer.click$).subscribe(({ event }) => this.onMouseClick(event));
+        this.onViewportPointer(pointer => pointer.drag$).subscribe(({ event }) => this.onMouseDrag(event));
+        // releasing ends the grab wherever the pointer is, even if the drag left the viewport
+        this.pointerService.up$.pipe(takeUntilDestroyed()).subscribe(() => this.onMouseUp());
+    }
+
+    /** A pointer stream of the active viewport that switches over when the active tab (and so the viewport) changes. */
+    private onViewportPointer<T>(select: (pointer: ElementPointer) => Observable<T>): Observable<T> {
+        return this.viewport$.pipe(
+            switchMap(viewport => viewport ? select(this.pointerService.within(viewport)) : EMPTY),
+            takeUntilDestroyed(this.destroyRef)
+        );
     }
 
     ngOnInit(): void {
@@ -68,7 +80,6 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
 
     ngOnDestroy(): void {
         this.renderService.stop();
-        this.mouseListener.stop();
         this.resizeObserver?.disconnect();
     }
 
@@ -121,7 +132,7 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
 
     private setActiveViewport(newViewport: HTMLDivElement) {
         this.currentViewportEl = newViewport;
-        this.mouseListener.changeViewport(newViewport);
+        this.viewport$.next(newViewport);
     }
 
     private onMouseDrag(event: MouseEvent) {
@@ -130,7 +141,7 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     private onMouseUp() {
-        this.currentViewportEl!.style.cursor = 'default';
+        if (this.currentViewportEl) this.currentViewportEl.style.cursor = 'default';
     }
 
     private onMouseClick(event: MouseEvent) {

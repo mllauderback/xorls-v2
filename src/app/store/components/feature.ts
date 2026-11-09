@@ -68,11 +68,6 @@ export const componentsReducer = createReducer(
         (state): PaletteComponentsState =>
             functions.clearSelection(state)
     ),
-    on(
-        actions.placeSelectedPaletteComponent,
-        (state): PaletteComponentsState =>
-            functions.placeSelectedPaletteComponent(state)
-    )
 );
 
 export const componentsFeature = createFeature({

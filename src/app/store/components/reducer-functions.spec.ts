@@ -51,40 +51,6 @@ describe('components reducer functions', () => {
         });
     });
 
-    describe('placeSelectedPaletteComponent', () => {
-        const placed = () => {
-            const gate = new AndGate({ x: 40, y: 40 }, 2);
-            return buildState({
-                paletteComponentMap: buildMap(AndGate.name),
-                selectedPaletteComponent: { className: AndGate.name, selected: true },
-                selectedSelectable: { selectable: gate, concreteClassName: AndGate.name },
-            });
-        };
-
-        it('should clear selectedPaletteComponent', () => {
-            expect(functions.placeSelectedPaletteComponent(placed()).selectedPaletteComponent).toBeNull();
-        });
-
-        it('should un-highlight every palette component', () => {
-            const state = functions.placeSelectedPaletteComponent(placed());
-            const selected = [...state.paletteComponentMap.values()].flat().filter(c => c.selected);
-            expect(selected).toEqual([]);
-        });
-
-        it('should keep the placed component selected', () => {
-            const before = placed();
-            const state = functions.placeSelectedPaletteComponent(before);
-            expect(state.selectedSelectable).toBe(before.selectedSelectable);
-        });
-
-        it('should not mutate the previous state or its palette map', () => {
-            const before = placed();
-            functions.placeSelectedPaletteComponent(before);
-            expect([...before.paletteComponentMap.values()].flat().some(c => c.selected)).toBe(true);
-            expect(before.selectedPaletteComponent).not.toBeNull();
-        });
-    });
-
     describe('clearSelectedPaletteComponent', () => {
         it('should drop a pending ghost from selectedSelectable', () => {
             const state = functions.clearSelectedPaletteComponent(buildState({
@@ -114,24 +80,85 @@ describe('components reducer functions', () => {
         });
     });
 
+    describe('clearSelection', () => {
+        it('should drop a pending ghost and un-highlight the palette', () => {
+            const state = functions.clearSelection(buildState({
+                paletteComponentMap: buildMap(AndGate.name),
+                selectedPaletteComponent: { className: AndGate.name, selected: true },
+                selectedSelectable: { selectable: ghostGate(), concreteClassName: AndGate.name },
+            }));
+
+            expect(state.selectedPaletteComponent).toBeNull();
+            expect(state.selectedSelectable).toEqual({ selectable: null, concreteClassName: '' });
+            expect([...state.paletteComponentMap.values()].flat().some(c => c.selected)).toBe(false);
+        });
+
+        it('should deselect a component that was already placed', () => {
+            const placedGate = new AndGate({ x: 40, y: 40 }, 2); // not a ghost
+
+            const state = functions.clearSelection(buildState({
+                selectedSelectable: { selectable: placedGate, concreteClassName: AndGate.name },
+            }));
+
+            expect(state.selectedSelectable).toEqual({ selectable: null, concreteClassName: '' });
+        });
+
+        it('should return the same state when nothing is selected', () => {
+            const before = buildState();
+            expect(functions.clearSelection(before)).toBe(before);
+        });
+
+        it('should not mutate the previous state or its palette map', () => {
+            const before = buildState({
+                paletteComponentMap: buildMap(AndGate.name),
+                selectedPaletteComponent: { className: AndGate.name, selected: true },
+                selectedSelectable: { selectable: ghostGate(), concreteClassName: AndGate.name },
+            });
+            functions.clearSelection(before);
+            expect([...before.paletteComponentMap.values()].flat().some(c => c.selected)).toBe(true);
+            expect(before.selectedSelectable.selectable).not.toBeNull();
+        });
+
+        it('should clear through the reducer with the clearSelection action', () => {
+            const state = componentsReducer(buildState({
+                selectedSelectable: { selectable: new AndGate({ x: 0, y: 0 }, 2), concreteClassName: AndGate.name },
+            }), actions.clearSelection());
+            expect(state.selectedSelectable.selectable).toBeNull();
+        });
+    });
+
     describe('componentsReducer', () => {
         it('should start with nothing selected', () => {
             expect(initialComponentsState.selectedPaletteComponent).toBeNull();
             expect(initialComponentsState.selectedSelectable.selectable).toBeNull();
         });
 
-        it('should go from palette pick to placement through the actions', () => {
-            const gate = ghostGate();
+        it('should keep the palette component selected while placing it repeatedly', () => {
             const paletteComponent = { className: AndGate.name, selected: true };
+            const map = buildMap(AndGate.name);
+            const first = ghostGate();
 
-            let state = componentsReducer(buildState(), actions.selectPaletteComponent({ paletteComponent, selectable: gate, concreteClassName: AndGate.name }));
+            let state = componentsReducer(buildState({ paletteComponentMap: map }), actions.selectPaletteComponent({ paletteComponent, selectable: first, concreteClassName: AndGate.name }));
+            first.isGhost = false; // placed
+
+            // after each placement a fresh ghost is selected through the same action
+            const second = ghostGate();
+            state = componentsReducer(state, actions.selectPaletteComponent({ paletteComponent, selectable: second, concreteClassName: AndGate.name }));
+
             expect(state.selectedPaletteComponent).toBe(paletteComponent);
-            expect(state.selectedSelectable.selectable).toBe(gate);
+            expect(state.selectedSelectable.selectable).toBe(second);
+            expect([...state.paletteComponentMap.values()].flat().filter(c => c.selected).map(c => c.className)).toEqual([AndGate.name]);
+        });
 
-            gate.isGhost = false;
-            state = componentsReducer(state, actions.placeSelectedPaletteComponent());
+        it('should end a repeated placement with clearSelection', () => {
+            const paletteComponent = { className: AndGate.name, selected: true };
+            let state = componentsReducer(buildState({ paletteComponentMap: buildMap(AndGate.name) }), actions.selectPaletteComponent({ paletteComponent, selectable: ghostGate(), concreteClassName: AndGate.name }));
+
+            state = componentsReducer(state, actions.clearSelection());
+
             expect(state.selectedPaletteComponent).toBeNull();
-            expect(state.selectedSelectable.selectable).toBe(gate);
+            expect(state.selectedSelectable.selectable).toBeNull();
+            expect([...state.paletteComponentMap.values()].flat().some(c => c.selected)).toBe(false);
         });
 
         it('should cancel a pending placement with clearSelectedPaletteComponent', () => {

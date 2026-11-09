@@ -10,7 +10,7 @@ import { DiagramWorkspaceContainerComponent } from './diagram-workspace.containe
 import { DiagramWorkspacePresenterComponent } from '../presenter/diagram-workspace.presenter.component';
 import { selectWorkspaceSettings } from '../../../../store/settings/feature';
 import { selectDiagramWorkspaceState } from '../../../../store/workspace/feature';
-import { selectSelectedSelectable } from '../../../../store/components/feature';
+import { selectSelectedPaletteComponent, selectSelectedSelectable } from '../../../../store/components/feature';
 import * as componentActions from '../../../../store/components/actions';
 import * as workspaceActions from '../../../../store/workspace/actions';
 import type { SelectedSelectable } from '../../../../store/components/state';
@@ -28,6 +28,7 @@ class MockDiagramWorkspacePresenterComponent {
     @Input({ required: true }) workspaceState!: DiagramWorkspaceState | CodeWorkspaceState | null;
     @Input() selectedSelectable: SelectedSelectable | null = null;
     @Output() componentPlaced = new EventEmitter<void>();
+    @Output() selectionCleared = new EventEmitter<void>();
 }
 
 const mockSettings: WorkspaceSettingsState = {} as unknown as WorkspaceSettingsState;
@@ -53,6 +54,7 @@ describe('DiagramWorkspaceContainerComponent', () => {
                         { selector: selectWorkspaceSettings, value: mockSettings },
                         { selector: selectDiagramWorkspaceState, value: mockWorkspaceState },
                         { selector: selectSelectedSelectable, value: mockSelectedSelectable },
+                        { selector: selectSelectedPaletteComponent, value: null },
                     ],
                 }),
             ],
@@ -250,15 +252,76 @@ describe('DiagramWorkspaceContainerComponent', () => {
         });
     });
 
-    describe('componentPlaced', () => {
-        it('should finish the palette selection and go back to select mode when the presenter places a component', () => {
+    describe('selectionCleared', () => {
+        it('should clear the whole selection and go back to select mode when the presenter reports Esc', () => {
             const dispatch = vi.spyOn(store, 'dispatch');
             const presenter = fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
                 .componentInstance as MockDiagramWorkspacePresenterComponent;
 
-            presenter.componentPlaced.emit();
+            presenter.selectionCleared.emit();
 
-            expect(dispatch).toHaveBeenCalledWith(componentActions.placeSelectedPaletteComponent());
+            expect(dispatch).toHaveBeenCalledWith(componentActions.clearSelection());
+            expect(dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
+        });
+    });
+
+    describe('componentPlaced', () => {
+        const presenterOf = () => fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
+            .componentInstance as MockDiagramWorkspacePresenterComponent;
+
+        const selectActions = (dispatch: ReturnType<typeof vi.spyOn>) =>
+            dispatch.mock.calls
+                .map(([a]) => a as unknown as ReturnType<typeof componentActions.selectPaletteComponent>)
+                .filter(a => a.type === componentActions.selectPaletteComponent.type);
+
+        it('should select a fresh ghost of the same palette component so it can be placed again', () => {
+            const paletteComponent = { className: AndGate.name, selected: true };
+            store.overrideSelector(selectSelectedPaletteComponent, paletteComponent);
+            store.refreshState();
+            const dispatch = vi.spyOn(store, 'dispatch');
+
+            presenterOf().componentPlaced.emit();
+
+            const [action] = selectActions(dispatch);
+            expect(action.paletteComponent).toBe(paletteComponent);
+            expect(action.concreteClassName).toBe(AndGate.name);
+            expect(action.selectable).toBeInstanceOf(AndGate);
+            expect((action.selectable as unknown as { isGhost: boolean }).isGhost).toBe(true);
+        });
+
+        it('should create a new instance for every placement', () => {
+            store.overrideSelector(selectSelectedPaletteComponent, { className: AndGate.name, selected: true });
+            store.refreshState();
+            const dispatch = vi.spyOn(store, 'dispatch');
+
+            presenterOf().componentPlaced.emit();
+            presenterOf().componentPlaced.emit();
+
+            const actions = selectActions(dispatch);
+            expect(actions).toHaveLength(2);
+            expect(actions[0].selectable).not.toBe(actions[1].selectable);
+        });
+
+        it('should keep the mouse in place mode and not clear the palette selection', () => {
+            store.overrideSelector(selectSelectedPaletteComponent, { className: AndGate.name, selected: true });
+            store.refreshState();
+            const dispatch = vi.spyOn(store, 'dispatch');
+
+            presenterOf().componentPlaced.emit();
+
+            expect(dispatch).not.toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
+            expect(dispatch).not.toHaveBeenCalledWith(componentActions.clearSelection());
+            expect(dispatch).not.toHaveBeenCalledWith(componentActions.clearSelectedPaletteComponent());
+        });
+
+        it('should go back to select mode when no palette component is selected anymore', () => {
+            store.overrideSelector(selectSelectedPaletteComponent, null);
+            store.refreshState();
+            const dispatch = vi.spyOn(store, 'dispatch');
+
+            presenterOf().componentPlaced.emit();
+
+            expect(selectActions(dispatch)).toHaveLength(0);
             expect(dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
         });
     });
