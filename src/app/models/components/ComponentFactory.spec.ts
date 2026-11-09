@@ -1,0 +1,94 @@
+import { describe, it, expect } from 'vitest';
+import { createPlaceable, isIOComponent, isPlaceable } from './ComponentFactory';
+import * as gates from './gates';
+import * as io from './io';
+import * as decorations from './decorations';
+import { initialComponentsState } from '../../store/components/feature';
+
+describe('ComponentFactory', () => {
+    describe('createPlaceable', () => {
+        it('should create every class the palette offers without throwing', () => {
+            const classNames = [...initialComponentsState.paletteComponentMap.values()]
+                .flat()
+                .map(c => c.className);
+            expect(classNames.length).toBeGreaterThan(0);
+            for (const className of classNames) {
+                expect(() => createPlaceable(className, { x: 0, y: 0 }), className).not.toThrow();
+            }
+        });
+
+        it('should create an instance of the named class', () => {
+            expect(createPlaceable(gates.AndGate.name, { x: 0, y: 0 })).toBeInstanceOf(gates.AndGate);
+            expect(createPlaceable(gates.XnorGate.name, { x: 0, y: 0 })).toBeInstanceOf(gates.XnorGate);
+            expect(createPlaceable(io.Output.name, { x: 0, y: 0 })).toBeInstanceOf(io.Output);
+            expect(createPlaceable(decorations.Text.name, { x: 0, y: 0 })).toBeInstanceOf(decorations.Text);
+        });
+
+        it('should create instances that are not ghosts', () => {
+            expect(createPlaceable(gates.OrGate.name, { x: 0, y: 0 }).isGhost).toBe(false);
+        });
+
+        it('should position the instance at a copy of the given point', () => {
+            const point = { x: 40, y: 60 };
+            const placeable = createPlaceable(gates.AndGate.name, point);
+            expect(placeable.position).toEqual({ x: 40, y: 60 });
+            expect(placeable.position).not.toBe(point);
+        });
+
+        it('should create independent instances', () => {
+            const a = createPlaceable(gates.AndGate.name, { x: 0, y: 0 });
+            const b = createPlaceable(gates.AndGate.name, { x: 0, y: 0 });
+            a.position = { x: 100, y: 100 };
+            expect(b.position).toEqual({ x: 0, y: 0 });
+        });
+
+        it('should throw for an unrecognized class name', () => {
+            expect(() => createPlaceable('NotAComponent', { x: 0, y: 0 })).toThrow('not recognized');
+        });
+    });
+
+    describe('getBoundingBox', () => {
+        it('should give every placeable a non-empty bounding box', () => {
+            const classNames = [...initialComponentsState.paletteComponentMap.values()].flat().map(c => c.className);
+            for (const className of classNames) {
+                const box = createPlaceable(className, { x: 0, y: 0 }).getBoundingBox();
+                expect(box.width, className).toBeGreaterThan(0);
+                expect(box.height, className).toBeGreaterThan(0);
+            }
+        });
+
+        it('should return a copy so callers cannot change the shared footprint', () => {
+            const gate = createPlaceable(gates.AndGate.name, { x: 0, y: 0 });
+            gate.getBoundingBox().width = 1;
+            expect(gate.getBoundingBox().width).toBe(120);
+        });
+
+        it('should cover the and gate body and pins that draw() draws', () => {
+            // draw(): body 0..80, input pins 20px left of it, output pin 20px right of it, 80px tall
+            expect(new gates.AndGate({ x: 0, y: 0 }, 2).getBoundingBox()).toEqual({ x: -20, y: 0, width: 120, height: 80 });
+        });
+    });
+
+    describe('isPlaceable', () => {
+        it('should accept components and decorations', () => {
+            expect(isPlaceable(createPlaceable(gates.AndGate.name, { x: 0, y: 0 }))).toBe(true);
+            expect(isPlaceable(createPlaceable(decorations.Text.name, { x: 0, y: 0 }))).toBe(true);
+        });
+
+        it('should reject null, undefined and selectables that cannot be previewed', () => {
+            expect(isPlaceable(null)).toBe(false);
+            expect(isPlaceable(undefined)).toBe(false);
+            expect(isPlaceable({ isSelected: () => false })).toBe(false);
+        });
+    });
+
+    describe('isIOComponent', () => {
+        it('should be true only for I/O components', () => {
+            expect(isIOComponent(createPlaceable(io.Input.name, { x: 0, y: 0 }))).toBe(true);
+            expect(isIOComponent(createPlaceable(io.Output.name, { x: 0, y: 0 }))).toBe(true);
+            expect(isIOComponent(createPlaceable(io.SevenSegmentDisplay.name, { x: 0, y: 0 }))).toBe(true);
+            expect(isIOComponent(createPlaceable(gates.AndGate.name, { x: 0, y: 0 }))).toBe(false);
+            expect(isIOComponent(createPlaceable(decorations.Text.name, { x: 0, y: 0 }))).toBe(false);
+        });
+    });
+});

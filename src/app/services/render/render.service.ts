@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import type { DrawState } from '../../models/Drawable';
+import type { Drawable, DrawState } from '../../models/Drawable';
+import { isGhostable } from '../../models/Ghostable';
 import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
 
 /**
@@ -12,10 +13,18 @@ import type { AbstractCanvasLayerComponent } from '../../components/canvas-layer
 export class RenderService {
     public readonly THIN_LINE_WIDTH = 1;
     public readonly STANDARD_LINE_WIDTH = 2;
-    public readonly BOLD_LINE_WIDTH = 4;
+    public readonly BOLD_LINE_WIDTH = 3;
+
+    /**
+     * Ghosts (previews of something that hasn't been placed yet) are drawn lighter than everything else.
+     * This style takes precedence over a layer's own style, e.g. the active layer's "selected" style,
+     * because being a ghost implies being selected.
+     */
+    public readonly GHOST_STROKE_STYLE = 'gray';
+    public readonly GHOST_ALPHA = 0.5;
 
     private lastTimestamp = 0;
-    private readonly targetFPS: number = 30;
+    private readonly targetFPS: number = 60;
     private animationId: number | null = null;
     private diagramsCanvasLayerMap = new Map<string, AbstractCanvasLayerComponent[]>();
     private diagramsDrawStateMap = new Map<string, DrawState>();
@@ -100,6 +109,45 @@ export class RenderService {
         success = this.diagramsDrawStateMap.delete(id);
         if (!success) console.warn(`DrawState with id ${id} does not exist`);
         return this;
+    }
+
+    /**
+     * Draws drawables onto a layer's context, drawing ghosts in the ghost style instead of the layer's style.
+     * Non-ghost drawables share one path and one stroke; ghosts share another.
+     *
+     * @param ctx The context to draw on
+     * @param drawables The drawables to draw
+     * @param drawState Global draw state information
+     * @param style The layer's stroke style and line width for non-ghost drawables
+     */
+    public drawDrawables(
+        ctx: OffscreenCanvasRenderingContext2D,
+        drawables: Drawable[],
+        drawState: DrawState,
+        style: { strokeStyle: string, lineWidth: number }
+    ) {
+        const solids = drawables.filter(d => !(isGhostable(d) && d.isGhost));
+        const ghosts = drawables.filter(d => isGhostable(d) && d.isGhost);
+        this.strokeDrawables(ctx, solids, drawState, style.strokeStyle, style.lineWidth, 1);
+        this.strokeDrawables(ctx, ghosts, drawState, this.GHOST_STROKE_STYLE, style.lineWidth, this.GHOST_ALPHA);
+    }
+
+    private strokeDrawables(
+        ctx: OffscreenCanvasRenderingContext2D,
+        drawables: Drawable[],
+        drawState: DrawState,
+        strokeStyle: string,
+        lineWidth: number,
+        alpha: number
+    ) {
+        if (drawables.length === 0) return;
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        drawables.forEach(d => d.draw(ctx, drawState));
+        ctx.stroke();
+        ctx.globalAlpha = 1;
     }
 
     /**

@@ -1,10 +1,17 @@
 
+import type { BoundingBox } from "../Bounded";
 import type { DrawState } from "../Drawable";
 import type { Point } from "../Point";
 import type { Component } from "./Component";
-import { Node } from "./Component";
+import { createInputNodes, Node } from "./Component";
 
 // TODO: Apply drawState.origin adjustments to all other gates/components
+
+/**
+ * Footprint of AndGate.draw(): an 80x80 body with 20px pins on the left (inputs) and right (output).
+ * The other gates reuse it as a placeholder until their own draw() is implemented.
+ */
+const GATE_BOUNDING_BOX: BoundingBox = { x: -20, y: 0, width: 120, height: 80 };
 
 export class AndGate implements Component {
     position: Point;
@@ -46,13 +53,13 @@ export class AndGate implements Component {
         return false;
     }
 
+    getBoundingBox(): BoundingBox {
+        return { ...GATE_BOUNDING_BOX };
+    }
+
     /* set the number of inodes and automatically calculate their positions */
     private getInputNodeListFromSize(size: number): Node[] {
-        const iNodeList = [];
-        for (let i = 0; i < size; i++) {
-            iNodeList.push(new Node({ x: 0, y: 0 }));
-        }
-        return [];
+        return createInputNodes(size);
     }
 }
 
@@ -76,9 +83,13 @@ export class OrGate implements Component {
         throw new Error("Method not implemented.");
     }
 
+    getBoundingBox(): BoundingBox {
+        return { ...GATE_BOUNDING_BOX };
+    }
+
     /* set the number of inodes and automatically calculate their positions */
     private getInputNodeListFromSize(size: number): Node[] {
-        throw new Error("Method not implemented.");
+        return createInputNodes(size);
     }
 }
 
@@ -102,8 +113,12 @@ export class XorGate implements Component {
         throw new Error("Method not implemented.");
     }
 
+    getBoundingBox(): BoundingBox {
+        return { ...GATE_BOUNDING_BOX };
+    }
+
     private getInputNodeListFromSize(size: number): Node[] {
-        throw new Error("Method not implemented.");
+        return createInputNodes(size);
     }
 }
 
@@ -126,6 +141,10 @@ export class NotGate implements Component {
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
     }
+
+    getBoundingBox(): BoundingBox {
+        return { ...GATE_BOUNDING_BOX };
+    }
 }
 
 export class Buffer implements Component {
@@ -146,6 +165,10 @@ export class Buffer implements Component {
 
     isSelected(mousePosition: Point): boolean {
         throw new Error("Method not implemented.");
+    }
+
+    getBoundingBox(): BoundingBox {
+        return { ...GATE_BOUNDING_BOX };
     }
 }
 
@@ -169,8 +192,12 @@ export class NandGate implements Component {
         throw new Error("Method not implemented.");
     }
 
+    getBoundingBox(): BoundingBox {
+        return { ...GATE_BOUNDING_BOX };
+    }
+
     private getInputNodeListFromSize(size: number): Node[] {
-        throw new Error("Method not implemented.");
+        return createInputNodes(size);
     }
 }
 
@@ -194,8 +221,12 @@ export class NorGate implements Component {
         throw new Error("Method not implemented.");
     }
 
+    getBoundingBox(): BoundingBox {
+        return { ...GATE_BOUNDING_BOX };
+    }
+
     private getInputNodeListFromSize(size: number): Node[] {
-        throw new Error("Method not implemented.");
+        return createInputNodes(size);
     }
 }
 
@@ -219,7 +250,11 @@ export class XnorGate implements Component {
         throw new Error("Method not implemented.");
     }
 
+    getBoundingBox(): BoundingBox {
+        return { ...GATE_BOUNDING_BOX };
+    }
+
     private getInputNodeListFromSize(size: number): Node[] {
-        throw new Error("Method not implemented.");
+        return createInputNodes(size);
     }
 }

@@ -30,20 +30,22 @@ export class ActiveComponentCanvasLayerComponent extends AbstractCanvasLayerComp
             return;
         }
         const updateDrawables: Drawable[] = this.getUpdateDrawablesList();
-        if (this.forceClearAll) {
+        const needsClear = this.forceClearAll;
+        if (needsClear) {
             this.clearOffscreenCanvas();
             this.clearCanvas();
         }
-        if (updateDrawables.length > 0) {
-            this.offscreenContext.strokeStyle = 'blue';
-            this.offscreenContext.lineWidth = this.renderService.BOLD_LINE_WIDTH;
-            this.offscreenContext.beginPath();
-            updateDrawables.forEach(d => d.draw(this.offscreenContext!, drawState));
-            this.offscreenContext.stroke();
+        // After a clear, the cached image must be replaced even if nothing is left to draw (e.g. the last
+        // drawable was removed). Otherwise the next repaint, such as a pan, would bring the removed drawable back.
+        if (updateDrawables.length > 0 || needsClear) {
+            this.renderService.drawDrawables(this.offscreenContext, updateDrawables, drawState, {
+                strokeStyle: 'blue',
+                lineWidth: this.renderService.BOLD_LINE_WIDTH
+            });
             this.updateCachedOffscreenImage();
             this.resetAllDrawablesForUpdates();
         }
-        if (updateDrawables.length > 0 || this.forceRepaint) {
+        if (updateDrawables.length > 0 || needsClear || this.forceRepaint) {
             this.repaintCanvas();
         }
     }
