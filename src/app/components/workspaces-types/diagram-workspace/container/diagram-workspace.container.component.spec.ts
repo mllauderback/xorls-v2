@@ -1,8 +1,8 @@
 import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
-import { describe, beforeEach, it, expect } from 'vitest';
+import { describe, beforeEach, it, expect, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { firstValueFrom } from 'rxjs';
 
@@ -10,6 +10,11 @@ import { DiagramWorkspaceContainerComponent } from './diagram-workspace.containe
 import { DiagramWorkspacePresenterComponent } from '../presenter/diagram-workspace.presenter.component';
 import { selectWorkspaceSettings } from '../../../../store/settings/feature';
 import { selectDiagramWorkspaceState } from '../../../../store/workspace/feature';
+import { selectSelectedSelectable } from '../../../../store/components/feature';
+import * as componentActions from '../../../../store/components/actions';
+import * as workspaceActions from '../../../../store/workspace/actions';
+import type { SelectedSelectable } from '../../../../store/components/state';
+import { AndGate } from '../../../../models/components/gates';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { CodeWorkspaceState, DiagramWorkspaceState } from '../../../../store/workspace/state';
 
@@ -21,6 +26,8 @@ class MockDiagramWorkspacePresenterComponent {
     @Input({ required: true }) id!: string;
     @Input({ required: true }) workspaceSettings!: WorkspaceSettingsState | null;
     @Input({ required: true }) workspaceState!: DiagramWorkspaceState | CodeWorkspaceState | null;
+    @Input() selectedSelectable: SelectedSelectable | null = null;
+    @Output() componentPlaced = new EventEmitter<void>();
 }
 
 const mockSettings: WorkspaceSettingsState = {} as unknown as WorkspaceSettingsState;
@@ -29,6 +36,8 @@ const mockWorkspaceState: DiagramWorkspaceState = {
     mouseMode: 'select',
     mousePosition: { x: 0, y: 0 },
 };
+
+const mockSelectedSelectable: SelectedSelectable = { selectable: null, concreteClassName: '' };
 
 describe('DiagramWorkspaceContainerComponent', () => {
     let component: DiagramWorkspaceContainerComponent;
@@ -43,6 +52,7 @@ describe('DiagramWorkspaceContainerComponent', () => {
                     selectors: [
                         { selector: selectWorkspaceSettings, value: mockSettings },
                         { selector: selectDiagramWorkspaceState, value: mockWorkspaceState },
+                        { selector: selectSelectedSelectable, value: mockSelectedSelectable },
                     ],
                 }),
             ],
@@ -210,6 +220,46 @@ describe('DiagramWorkspaceContainerComponent', () => {
             await fixture.whenStable();
 
             expect(getPresenter(fixture).workspaceSettings).toEqual(updatedSettings);
+        });
+    });
+    describe('selectedSelectable$', () => {
+        it('should emit the value from the selected selectable selector', async () => {
+            expect(await firstValueFrom(component['selectedSelectable$'])).toEqual(mockSelectedSelectable);
+        });
+
+        it('should emit the new selection when the store changes', async () => {
+            const gate = new AndGate({ x: 0, y: 0 }, 2);
+            const selection: SelectedSelectable = { selectable: gate, concreteClassName: AndGate.name };
+            store.overrideSelector(selectSelectedSelectable, selection);
+            store.refreshState();
+
+            expect(await firstValueFrom(component['selectedSelectable$'])).toBe(selection);
+        });
+
+        it('should pass the selection to the presenter', async () => {
+            const gate = new AndGate({ x: 0, y: 0 }, 2);
+            const selection: SelectedSelectable = { selectable: gate, concreteClassName: AndGate.name };
+            store.overrideSelector(selectSelectedSelectable, selection);
+            store.refreshState();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const presenter = fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
+                .componentInstance as MockDiagramWorkspacePresenterComponent;
+            expect(presenter.selectedSelectable).toBe(selection);
+        });
+    });
+
+    describe('componentPlaced', () => {
+        it('should finish the palette selection and go back to select mode when the presenter places a component', () => {
+            const dispatch = vi.spyOn(store, 'dispatch');
+            const presenter = fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
+                .componentInstance as MockDiagramWorkspacePresenterComponent;
+
+            presenter.componentPlaced.emit();
+
+            expect(dispatch).toHaveBeenCalledWith(componentActions.placeSelectedPaletteComponent());
+            expect(dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
         });
     });
 });

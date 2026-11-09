@@ -152,7 +152,11 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
      */
     public add(drawable: Drawable) {
         this.drawableList.push(drawable);
-        this.updateDrawableList.push(drawable);
+        // markAllDrawablesForUpdates() makes updateDrawableList the same array as drawableList until the next
+        // refresh. Pushing to both would then add the drawable twice.
+        if (this.updateDrawableList !== this.drawableList) {
+            this.updateDrawableList.push(drawable);
+        }
     }
 
     /**
@@ -222,6 +226,24 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     public markAllDrawablesForUpdates() {
         // assigns drawableList reference to updateDrawableList - faster than [...drawableList]
         this.updateDrawableList = this.drawableList;
+    }
+
+    /**
+     * Clears the layer and redraws every drawable on the next refresh. Use this after adding, removing or moving
+     * a drawable: refresh() only draws drawables marked for update and doesn't clear unless told to, so a moved
+     * drawable would otherwise be drawn again on top of its old position.
+     */
+    public redrawAll() {
+        this.forceClearAll = true;
+        this.markAllDrawablesForUpdates();
+    }
+
+    /**
+     * The layer's canvas position on screen, or null if the canvas hasn't been initialized yet.
+     * Subtract its left/top from a pointer's clientX/clientY to get the pointer position on the canvas.
+     */
+    public getClientRect(): DOMRect | null {
+        return this.canvas?.getBoundingClientRect() ?? null;
     }
 
     /**

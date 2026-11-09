@@ -8,12 +8,14 @@ import type { MemoizedSelector } from '@ngrx/store';
 import { ComponentPaletteContainerComponent } from './component-palette.container.component';
 import { selectPaletteComponentMap } from '../../../store/components/feature';
 import * as actions from '../../../store/components/actions';
+import * as workspaceActions from '../../../store/workspace/actions';
 import type { PaletteComponentsState } from '../../../store/components/state';
 import { PaletteComponentCategories } from '../../../store/components/state';
 import type { PaletteComponent } from '../../../models/components/PaletteComponent';
 import { ComponentPalettePresenterComponent } from '../presenter/component-palette.presenter.component';
 import { SelectablePropertiesContainerComponent } from '../../selectable-properties/container/selectable-properties.container.component';
 import { AndGate, OrGate } from '../../../models/components/gates';
+import type { Ghostable } from '../../../models/Ghostable';
 
 @Component({ selector: 'app-component-palette-presenter', template: '<ng-content />', standalone: true })
 class MockComponentPalettePresenterComponent {
@@ -25,6 +27,10 @@ class MockComponentPalettePresenterComponent {
 class MockSelectablePropertiesContainerComponent {}
 
 const CATEGORY: PaletteComponentCategories = PaletteComponentCategories.gates;
+
+/** Every action dispatched so far, oldest first. */
+const dispatchedActions = (store: MockStore): { type: string }[] =>
+    vi.mocked(store.dispatch).mock.calls.map(([action]) => action as unknown as { type: string });
 
 const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): PaletteComponent => ({
     className: AndGate.name,
@@ -161,7 +167,7 @@ describe('ComponentPaletteContainerComponent', () => {
             );
         });
 
-        it('should dispatch exactly once per emission', async () => {
+        it('should dispatch setPaletteComponentMap exactly once per emission', async () => {
             await fixture.whenStable();
 
             const presenter = fixture.debugElement.query(
@@ -171,7 +177,79 @@ describe('ComponentPaletteContainerComponent', () => {
             presenter.categoryPaletteComponentMapChange.emit(mockMap);
             presenter.categoryPaletteComponentMapChange.emit(mockMap);
 
-            expect(store.dispatch).toHaveBeenCalledTimes(2);
+            const mapDispatches = dispatchedActions(store).filter(
+                action => action.type === actions.setPaletteComponentMap.type
+            );
+            expect(mapDispatches).toHaveLength(2);
+        });
+
+        describe('when a palette component is selected', () => {
+            const selectedMap = new Map<PaletteComponentCategories, PaletteComponent[]>([
+                [CATEGORY, [
+                    buildPaletteComponent({ className: AndGate.name }),
+                    buildPaletteComponent({ className: OrGate.name, selected: true }),
+                ]],
+            ]);
+
+            const emitSelectedMap = async () => {
+                await fixture.whenStable();
+                const presenter = fixture.debugElement.query(
+                    By.directive(MockComponentPalettePresenterComponent)
+                ).componentInstance as MockComponentPalettePresenterComponent;
+                presenter.categoryPaletteComponentMapChange.emit(selectedMap);
+            };
+
+            const selectAction = () => {
+                const action = dispatchedActions(store).find(a => a.type === actions.selectPaletteComponent.type);
+                return action as ReturnType<typeof actions.selectPaletteComponent> | undefined;
+            };
+
+            it('should create a new instance of the selected class with the component factory', async () => {
+                await emitSelectedMap();
+                expect(selectAction()?.selectable).toBeInstanceOf(OrGate);
+                expect(selectAction()?.concreteClassName).toBe(OrGate.name);
+            });
+
+            it('should reference the selected palette component', async () => {
+                await emitSelectedMap();
+                expect(selectAction()?.paletteComponent).toBe(selectedMap.get(CATEGORY)![1]);
+            });
+
+            it('should create the instance as a ghost', async () => {
+                await emitSelectedMap();
+                expect((selectAction()?.selectable as unknown as Ghostable).isGhost).toBe(true);
+            });
+
+            it('should create a new instance for every selection', async () => {
+                await emitSelectedMap();
+                const first = selectAction()?.selectable;
+                vi.mocked(store.dispatch).mockClear();
+                await emitSelectedMap();
+                expect(selectAction()?.selectable).not.toBe(first);
+            });
+
+            it('should switch the mouse to place mode', async () => {
+                await emitSelectedMap();
+                expect(store.dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'place' }));
+            });
+        });
+
+        describe('when the palette selection is toggled off', () => {
+            it('should cancel the pending selection and switch the mouse back to select mode', async () => {
+                await fixture.whenStable();
+                const presenter = fixture.debugElement.query(
+                    By.directive(MockComponentPalettePresenterComponent)
+                ).componentInstance as MockComponentPalettePresenterComponent;
+
+                presenter.categoryPaletteComponentMapChange.emit(mockMap); // nothing selected in mockMap
+
+                expect(store.dispatch).toHaveBeenCalledWith(actions.clearSelectedPaletteComponent());
+                expect(store.dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
+                const selectDispatches = dispatchedActions(store).filter(
+                    action => action.type === actions.selectPaletteComponent.type
+                );
+                expect(selectDispatches).toHaveLength(0);
+            });
         });
     });
 

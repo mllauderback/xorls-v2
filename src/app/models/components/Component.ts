@@ -1,8 +1,8 @@
+import type { Bounded } from "../Bounded";
 import type { Drawable } from "../Drawable";
 import type { Ghostable } from "../Ghostable";
 import type { Point } from "../Point";
 import type { Selectable } from "../Selectable";
-import { AndGate, OrGate } from "./gates";
 
 export class Node implements Selectable {
     public position: Point;
@@ -18,21 +18,16 @@ export class Node implements Selectable {
     }
 }
 
-export interface Component extends Drawable, Selectable, Ghostable {
+export interface Component extends Drawable, Selectable, Ghostable, Bounded {
     position: Point;
     inodes: Node[];
     onodes: Node[];
 }
 
-export function createComponent(componentName: string, mousePosition: Point): Component {
-    switch(componentName) {
-        case AndGate.name:
-            return new AndGate(mousePosition, 2); // iNodeSize will be pulled from properties panel
-        
-        case OrGate.name:
-            return new OrGate(mousePosition, 2);
-
-        default:
-            throw new Error("Component name not recognized.");
-    }
+/**
+ * Creates `size` input nodes.
+ * Node positions are placeholders until each gate lays out its own nodes.
+ */
+export function createInputNodes(size: number): Node[] {
+    return Array.from({ length: size }, () => new Node({ x: 0, y: 0 }));
 }

@@ -21,5 +21,7 @@ export interface SelectedSelectable {
 
 export interface PaletteComponentsState {
     paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]>;
+    /** The palette entry currently waiting to be placed in the workspace, or null once it has been placed/cancelled. */
+    selectedPaletteComponent: PaletteComponent | null;
     selectedSelectable: SelectedSelectable;
 }

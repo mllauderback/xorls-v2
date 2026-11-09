@@ -38,6 +38,7 @@ export const initialComponentsState: PaletteComponentsState = {
             ]
         ]
     ]),
+    selectedPaletteComponent: null,
     selectedSelectable: {
         selectable: null,
         concreteClassName: ""
@@ -51,6 +52,26 @@ export const componentsReducer = createReducer(
         actions.setPaletteComponentMap,
         (state, { paletteComponentMap }): PaletteComponentsState =>
             functions.setSelectedPaletteComponentList(state, paletteComponentMap)
+    ),
+    on(
+        actions.selectPaletteComponent,
+        (state, { paletteComponent, selectable, concreteClassName }): PaletteComponentsState =>
+            functions.setSelectedPaletteComponent(state, paletteComponent, selectable, concreteClassName)
+    ),
+    on(
+        actions.clearSelectedPaletteComponent,
+        (state): PaletteComponentsState =>
+            functions.clearSelectedPaletteComponent(state)
+    ),
+    on(
+        actions.clearSelection,
+        (state): PaletteComponentsState =>
+            functions.clearSelection(state)
+    ),
+    on(
+        actions.placeSelectedPaletteComponent,
+        (state): PaletteComponentsState =>
+            functions.placeSelectedPaletteComponent(state)
     )
 );
 
@@ -63,5 +84,6 @@ export const {
     name,
     reducer,
     selectPaletteComponentMap,
+    selectSelectedPaletteComponent,
     selectSelectedSelectable
 } = componentsFeature

@@ -77,6 +77,18 @@ export class MouseEventListener {
         this.mouseClickSub = this.mouseClick$.subscribe(event => callback(event));
     }
 
+    /**
+     * Subscribes to pointer movement anywhere in the window, with or without a button held.
+     * Unlike onMouseDrag, this fires for plain hovering. Callbacks run outside the Angular zone because
+     * pointermove fires at display rate and shouldn't trigger change detection; re-enter the zone
+     * (NgZone.run) from the callback if it needs to update the UI.
+     */
+    public onMouseMove(callback: (event: MouseEvent) => void): void {
+        this.ngZone.runOutsideAngular(() => {
+            this.mouseMoveSub = this.mouseMove$.subscribe(event => callback(event));
+        });
+    }
+
     public onMouseDrag(callback: (event: MouseEvent) => void): void {
         this.mouseDragSub = this.mouseDrag$.subscribe(event => callback(event));
     }

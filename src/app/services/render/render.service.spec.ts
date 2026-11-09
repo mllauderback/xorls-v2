@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { RenderService } from './render.service';
 import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
+import type { Drawable, DrawState } from '../../models/Drawable';
 
 const buildMockLayer = (overrides = {}): AbstractCanvasLayerComponent => ({
     context: {
@@ -166,6 +167,90 @@ describe('RenderService', () => {
             service.add('diagramA', [layer]);
             service.activeId = 'diagramA';
             expect(service.getActiveDiagramHeight()).toBe(960);
+        });
+    });
+
+    describe('drawDrawables', () => {
+        const drawState: DrawState = { origin: { x: 0, y: 0 }, scale: 1 };
+        const LAYER_STYLE = { strokeStyle: 'blue', lineWidth: 4 };
+
+        /** Records the stroke style, alpha and width that were active when each drawable drew. */
+        const buildContext = () => {
+            const ctx = {
+                strokeStyle: '',
+                lineWidth: 0,
+                globalAlpha: 1,
+                beginPath: vi.fn(),
+                stroke: vi.fn(),
+            };
+            return ctx as typeof ctx & OffscreenCanvasRenderingContext2D;
+        };
+        const buildDrawable = (ctx: { strokeStyle: unknown, globalAlpha: number, lineWidth: number }, isGhost?: boolean) => {
+            const seen: { strokeStyle: unknown, globalAlpha: number, lineWidth: number }[] = [];
+            const drawable = {
+                draw: vi.fn(() => seen.push({ strokeStyle: ctx.strokeStyle, globalAlpha: ctx.globalAlpha, lineWidth: ctx.lineWidth })),
+                ...(isGhost === undefined ? {} : { isGhost }),
+            } as unknown as Drawable;
+            return { drawable, seen };
+        };
+
+        it('should draw a non-ghost drawable in the layer style', () => {
+            const ctx = buildContext();
+            const { drawable, seen } = buildDrawable(ctx, false);
+
+            service.drawDrawables(ctx, [drawable], drawState, LAYER_STYLE);
+
+            expect(seen).toEqual([{ strokeStyle: 'blue', globalAlpha: 1, lineWidth: 4 }]);
+        });
+
+        it('should draw a drawable that is not ghostable in the layer style', () => {
+            const ctx = buildContext();
+            const { drawable, seen } = buildDrawable(ctx);
+
+            service.drawDrawables(ctx, [drawable], drawState, LAYER_STYLE);
+
+            expect(seen).toEqual([{ strokeStyle: 'blue', globalAlpha: 1, lineWidth: 4 }]);
+        });
+
+        it('should draw a ghost in the ghost style instead of the layer style, keeping the line width', () => {
+            const ctx = buildContext();
+            const { drawable, seen } = buildDrawable(ctx, true);
+
+            service.drawDrawables(ctx, [drawable], drawState, LAYER_STYLE);
+
+            expect(seen).toEqual([{ strokeStyle: service.GHOST_STROKE_STYLE, globalAlpha: service.GHOST_ALPHA, lineWidth: 4 }]);
+            expect(service.GHOST_ALPHA).toBeLessThan(1);
+        });
+
+        it('should stroke ghosts and non-ghosts separately and restore full alpha afterwards', () => {
+            const ctx = buildContext();
+            const solid = buildDrawable(ctx, false);
+            const ghost = buildDrawable(ctx, true);
+
+            service.drawDrawables(ctx, [ghost.drawable, solid.drawable], drawState, LAYER_STYLE);
+
+            expect(ctx.stroke).toHaveBeenCalledTimes(2);
+            expect(solid.seen[0].strokeStyle).toBe('blue');
+            expect(ghost.seen[0].strokeStyle).toBe(service.GHOST_STROKE_STYLE);
+            expect(ctx.globalAlpha).toBe(1);
+        });
+
+        it('should pass the draw state to each drawable', () => {
+            const ctx = buildContext();
+            const { drawable } = buildDrawable(ctx, true);
+
+            service.drawDrawables(ctx, [drawable], drawState, LAYER_STYLE);
+
+            expect(drawable.draw).toHaveBeenCalledWith(ctx, drawState);
+        });
+
+        it('should not touch the context when there is nothing to draw', () => {
+            const ctx = buildContext();
+
+            service.drawDrawables(ctx, [], drawState, LAYER_STYLE);
+
+            expect(ctx.beginPath).not.toHaveBeenCalled();
+            expect(ctx.stroke).not.toHaveBeenCalled();
         });
     });
 
