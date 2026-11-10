@@ -45,8 +45,8 @@ describe('RenderService', () => {
             expect(service.STANDARD_LINE_WIDTH).toBe(2);
         });
 
-        it('should expose BOLD_LINE_WIDTH as 4', () => {
-            expect(service.BOLD_LINE_WIDTH).toBe(4);
+        it('should expose BOLD_LINE_WIDTH as 3', () => {
+            expect(service.BOLD_LINE_WIDTH).toBe(3);
         });
     });
 
