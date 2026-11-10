@@ -1,5 +1,5 @@
 import type { AfterViewInit, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
-import { Component, DestroyRef, ElementRef, EventEmitter, HostListener, inject, Input, NgZone, Output, ViewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, EventEmitter, inject, Input, NgZone, Output, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { CodeWorkspaceState, DiagramWorkspaceState } from '../../../../store/workspace/state';
@@ -22,16 +22,11 @@ import type { Point } from '../../../../models/Point';
 // Matches the grid layer's default spacing
 const DEFAULT_GRID_SPACING = 20;
 
-function isEditableTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-}
-
 @Component({
     selector: 'app-diagram-workspace-presenter',
     imports: [GridCanvasLayerComponent, ComponentCanvasLayerComponent, IOCanvasLayerComponent, WireCanvasLayerComponent, ActiveComponentCanvasLayerComponent, ActiveWireCanvasLayerComponent],
     templateUrl: './diagram-workspace.presenter.component.html',
-    styleUrl: './diagram-workspace.presenter.component.scss',
+    styles: `:host { display: block; width: 100%; height: 100%; }`
 })
 export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChanges, OnDestroy {
     private renderService = inject(RenderService);
@@ -64,13 +59,18 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     private ghost: Placeable | null = null;
     /** The last pointer position (client coordinates) seen over this workspace. */
     private lastPointer: Point | null = null;
+    private panning = false;
 
     constructor() {
-        // Only the pointer over this workspace counts. The service delivers events outside the Angular zone, which
-        // is right for moves (they fire at display rate), but a click ends in a store update, so it re-enters the zone.
+        // All mouse handling for a workspace lives here. Only the pointer over this workspace counts. The service
+        // delivers events outside the Angular zone, which is right for moves and drags (they fire at display rate),
+        // but a click ends in a store update, so it re-enters the zone.
         const pointer = this.pointerService.within(this.host.nativeElement);
         pointer.move$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.onMouseMove(event));
         pointer.click$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.ngZone.run(() => this.onMouseClick(event)));
+        pointer.drag$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.onMouseDrag(event));
+        // releasing ends the grab wherever the pointer is, even if the drag left the workspace
+        this.pointerService.up$.pipe(takeUntilDestroyed()).subscribe(() => this.onMouseUp());
 
         this.keyboardService.on('Escape', () => this.onEscape(), { enabled: () => this.isActive(), destroyRef: this.destroyRef });
     }
@@ -162,6 +162,26 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
         this.activeComponentCanvasLayerComponent.redrawAll();
         this.ghost = null;
         this.componentPlaced.emit();
+    }
+
+    /**
+     * Wired to the pointer's drag$ over this workspace. Runs outside the Angular zone.
+     * Dragging pans the diagram.
+     */
+    private onMouseDrag(event: MouseEvent) {
+        if (!this.isActive()) return;
+        const host = this.host.nativeElement;
+        this.renderService.panActiveDiagram(event.movementX, event.movementY, host.clientWidth, host.clientHeight);
+        // eventually link mouse mode to a cursor style using the store
+        this.panning = true;
+        host.style.cursor = 'grabbing';
+    }
+
+    /** Wired to the pointer service's up$. Ends a pan. */
+    private onMouseUp() {
+        if (!this.panning) return;
+        this.panning = false;
+        this.host.nativeElement.style.cursor = 'default';
     }
 
     /**

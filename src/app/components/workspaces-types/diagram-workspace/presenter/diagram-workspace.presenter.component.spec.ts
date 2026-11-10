@@ -2,7 +2,7 @@ import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
 import { Component, Input, NgZone, SimpleChange } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { DiagramWorkspacePresenterComponent } from './diagram-workspace.presenter.component';
 import { RenderService } from '../../../../services/render/render.service';
@@ -57,6 +57,7 @@ class MockRenderService {
     activeDrawState: DrawState | null = { origin: { x: 0, y: 0 }, scale: 1 };
     add = vi.fn();
     remove = vi.fn();
+    panActiveDiagram = vi.fn();
 }
 
 /** Stands in for a canvas layer: records which drawables were added/removed/redrawn. */
@@ -804,6 +805,119 @@ describe('DiagramWorkspacePresenterComponent', () => {
                 expect(active.add).not.toHaveBeenCalled();
                 expect(active.removeDrawable).not.toHaveBeenCalled();
             });
+        });
+    });
+
+    describe('panning', () => {
+        let host: HTMLElement;
+        let outside: HTMLElement;
+
+        const fire = (target: EventTarget, type: string, x = 0, y = 0, init: MouseEventInit = {}) =>
+            target.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, ...init }));
+
+        beforeEach(() => {
+            fixture.detectChanges();
+            host = fixture.nativeElement as HTMLElement;
+            outside = document.createElement('div');
+            document.body.append(host, outside);
+        });
+
+        afterEach(() => {
+            host.remove();
+            outside.remove();
+        });
+
+        it('should pan the diagram when the workspace is dragged', () => {
+            fire(host, 'pointerdown', 10, 10);
+            fire(host, 'pointermove', 20, 10, { movementX: 10, movementY: 0 });
+
+            expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
+            const [dx, dy] = renderService.panActiveDiagram.mock.calls[0];
+            expect(dx).toBe(10);
+            expect(dy).toBe(0);
+        });
+
+        it("should give the pan the workspace's size, for growing the layers", () => {
+            Object.defineProperty(host, 'clientWidth', { value: 640 });
+            Object.defineProperty(host, 'clientHeight', { value: 480 });
+
+            fire(host, 'pointerdown', 10, 10);
+            fire(host, 'pointermove', 20, 10);
+
+            expect(renderService.panActiveDiagram.mock.calls[0].slice(2)).toEqual([640, 480]);
+        });
+
+        it('should keep panning when the drag leaves the workspace', () => {
+            fire(host, 'pointerdown', 10, 10);
+            fire(outside, 'pointermove', 500, 500);
+
+            expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
+        });
+
+        it('should not pan for a drag that starts elsewhere', () => {
+            fire(outside, 'pointerdown', 10, 10);
+            fire(outside, 'pointermove', 20, 10);
+
+            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
+        });
+
+        it('should not pan when moving without a button held', () => {
+            fire(host, 'pointermove', 20, 10);
+
+            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
+        });
+
+        it('should stop panning on release', () => {
+            fire(host, 'pointerdown', 10, 10);
+            fire(host, 'pointerup', 10, 10);
+            fire(host, 'pointermove', 20, 10);
+
+            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
+        });
+
+        it('should not pan when another workspace is the one shown', () => {
+            renderService.activeId = 'workspace-2';
+
+            fire(host, 'pointerdown', 10, 10);
+            fire(host, 'pointermove', 20, 10);
+
+            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
+        });
+
+        it('should show the grabbing cursor while dragging and reset it on release', () => {
+            fire(host, 'pointerdown', 10, 10);
+            fire(host, 'pointermove', 20, 10);
+            expect(host.style.cursor).toBe('grabbing');
+
+            fire(window, 'pointerup', 20, 10);
+            expect(host.style.cursor).toBe('default');
+        });
+
+        it('should reset the cursor when the drag is released outside the workspace', () => {
+            fire(host, 'pointerdown', 10, 10);
+            fire(host, 'pointermove', 20, 10);
+
+            fire(outside, 'pointerup', 500, 500);
+
+            expect(host.style.cursor).toBe('default');
+        });
+
+        it('should leave the cursor alone when nothing was panned', () => {
+            host.style.cursor = 'crosshair';
+
+            fire(host, 'pointerdown', 10, 10);
+            fire(host, 'pointerup', 10, 10);
+
+            expect(host.style.cursor).toBe('crosshair');
+        });
+
+        it('should not react to the pointer once destroyed', () => {
+            fixture.destroy();
+
+            fire(host, 'pointerdown', 10, 10);
+            fire(host, 'pointermove', 20, 10);
+
+            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
         });
     });
 });

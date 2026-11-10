@@ -2,8 +2,8 @@
 import type { BoundingBox } from "../Bounded";
 import type { DrawState } from "../Drawable";
 import type { Point } from "../Point";
-import type { Component } from "./Component";
-import { createInputNodes, Node } from "./Component";
+import type { Component, Node } from "./Component";
+import { createInputNodes } from "./Component";
 
 // TODO: Apply drawState.origin adjustments to all other gates/components
 

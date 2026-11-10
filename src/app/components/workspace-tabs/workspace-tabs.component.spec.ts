@@ -22,7 +22,6 @@ describe('WorkspaceTabsComponent', () => {
         add: vi.fn(),
         remove: vi.fn(),
         resizeActiveDiagram: vi.fn(),
-        panActiveDiagram: vi.fn(),
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         set activeId(_: string) { },
     };
@@ -49,7 +48,6 @@ describe('WorkspaceTabsComponent', () => {
         mockRenderService.start.mockClear();
         mockRenderService.stop.mockClear();
         mockRenderService.resizeActiveDiagram.mockClear();
-        mockRenderService.panActiveDiagram.mockClear();
 
         fixture = TestBed.createComponent(WorkspaceTabsComponent);
         component = fixture.componentInstance;
@@ -137,78 +135,6 @@ describe('WorkspaceTabsComponent', () => {
             const activeIdSpy = vi.spyOn(mockRenderService, 'activeId', 'set');
             component['changeActiveWorkspace']({ id: 'some-uuid', index: 1 });
             expect(activeIdSpy).toHaveBeenCalledWith('some-uuid');
-        });
-    });
-    describe('Pointer', () => {
-        const viewport = (index: number) => component.viewports!.get(index)!.nativeElement;
-        const activate = (index: number) => component['changeActiveWorkspace']({ id: component['tabs'][index].id, index });
-        const fire = (target: EventTarget, type: string, x = 0, y = 0) =>
-            target.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true }));
-
-        it('should pan the diagram when the active viewport is dragged', () => {
-            activate(0);
-
-            fire(viewport(0), 'pointerdown', 10, 10);
-            fire(viewport(0), 'pointermove', 20, 10);
-
-            expect(mockRenderService.panActiveDiagram).toHaveBeenCalledOnce();
-        });
-
-        it('should not pan for a drag that starts outside the active viewport', () => {
-            activate(0);
-
-            fire(document.body, 'pointerdown', 10, 10);
-            fire(document.body, 'pointermove', 20, 10);
-
-            expect(mockRenderService.panActiveDiagram).not.toHaveBeenCalled();
-        });
-
-        it('should follow the viewport of the active tab', () => {
-            // only the active tab's content is attached to the page, so attach the second one the way it would be once shown
-            document.body.append(viewport(1));
-            activate(1);
-
-            fire(viewport(0), 'pointerdown', 10, 10);
-            fire(viewport(0), 'pointermove', 20, 10);
-            expect(mockRenderService.panActiveDiagram).not.toHaveBeenCalled();
-
-            fire(viewport(1), 'pointerup', 20, 10);
-            fire(viewport(1), 'pointerdown', 10, 10);
-            fire(viewport(1), 'pointermove', 20, 10);
-            expect(mockRenderService.panActiveDiagram).toHaveBeenCalledOnce();
-            viewport(1).remove();
-        });
-
-        it('should show the grabbing cursor while dragging and reset it on release', () => {
-            activate(0);
-
-            fire(viewport(0), 'pointerdown', 10, 10);
-            fire(viewport(0), 'pointermove', 20, 10);
-            expect(viewport(0).style.cursor).toBe('grabbing');
-
-            fire(window, 'pointerup', 20, 10);
-            expect(viewport(0).style.cursor).toBe('default');
-        });
-
-        it('should reset the cursor when the drag is released outside the viewport', () => {
-            activate(0);
-            fire(viewport(0), 'pointerdown', 10, 10);
-            fire(viewport(0), 'pointermove', 20, 10);
-
-            fire(document.body, 'pointerup', 500, 500);
-
-            expect(viewport(0).style.cursor).toBe('default');
-        });
-
-        it('should not react to the pointer once destroyed', () => {
-            activate(0);
-            const el = viewport(0);
-            fixture.destroy();
-
-            fire(el, 'pointerdown', 10, 10);
-            fire(el, 'pointermove', 20, 10);
-
-            expect(mockRenderService.panActiveDiagram).not.toHaveBeenCalled();
         });
     });
 });
