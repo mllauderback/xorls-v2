@@ -2,8 +2,6 @@ import { Component, Input } from '@angular/core';
 import { DividerModule } from 'primeng/divider';
 import { ScrollPanelModule } from 'primeng/scrollpanel';
 import type { SelectedSelectable } from '../../../store/components/state';
-import { AndGate } from '../../../models/components/gates';
-import type { Selectable } from '../../../models/Selectable';
 
 @Component({
   selector: 'app-selectable-properties-presenter',
@@ -15,17 +13,5 @@ import type { Selectable } from '../../../models/Selectable';
   styleUrl: './selectable-properties.presenter.component.scss'
 })
 export class SelectablePropertiesPresenterComponent {
-  @Input() selectable!: SelectedSelectable | null; // possibly null bc of async
-
-
-  getConcreteSelectable(): Selectable | null {
-    if (!this.selectable?.selectable) return null;
-    switch(this.selectable?.concreteClassName) {
-      case AndGate.name:
-        return this.selectable.selectable as AndGate;
-      
-      default:
-        return null;
-    }
-  }
+  @Input() selectable!: SelectedSelectable | null; // null when nothing is selected, and before the async pipe emits
 }

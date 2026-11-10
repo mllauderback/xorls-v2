@@ -24,6 +24,27 @@ describe('ComponentFactory', () => {
             expect(createPlaceable(decorations.Text.name, { x: 0, y: 0 })).toBeInstanceOf(decorations.Text);
         });
 
+        it('should give every instance an id, so a component can be referred to without holding it', () => {
+            const classNames = [...initialComponentsState.paletteComponentMap.values()].flat().map(c => c.className);
+            for (const className of classNames) {
+                expect(createPlaceable(className, { x: 0, y: 0 }).id, className).toEqual(expect.any(String));
+                expect(createPlaceable(className, { x: 0, y: 0 }).id, className).not.toBe('');
+            }
+        });
+
+        it('should give each instance its own id, even of the same class', () => {
+            const ids = Array.from({ length: 50 }, () => createPlaceable(gates.AndGate.name, { x: 0, y: 0 }).id);
+            expect(new Set(ids).size).toBe(50);
+        });
+
+        it('should not change the id when the instance moves', () => {
+            const gate = createPlaceable(gates.AndGate.name, { x: 0, y: 0 });
+            const { id } = gate;
+            gate.position = { x: 100, y: 100 };
+            gate.isGhost = true;
+            expect(gate.id).toBe(id);
+        });
+
         it('should create instances that are not ghosts', () => {
             expect(createPlaceable(gates.OrGate.name, { x: 0, y: 0 }).isGhost).toBe(false);
         });
