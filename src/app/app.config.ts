@@ -23,14 +23,7 @@ export const appConfig: ApplicationConfig = {
         }),
         provideZoneChangeDetection({ eventCoalescing: true }),
         provideRouter(routes),
-        // selectedSelectable holds a live component instance that the workspace moves with the mouse while it's a
-        // ghost. NgRx's dev-mode immutability checks deep-freeze state and actions, which would make that throw.
-        provideStore({}, {
-            runtimeChecks: {
-                strictStateImmutability: false,
-                strictActionImmutability: false
-            }
-        }),
+        provideStore(),
         provideState(settingsFeature),
         provideState(workspaceFeature),
         provideState(componentsFeature),

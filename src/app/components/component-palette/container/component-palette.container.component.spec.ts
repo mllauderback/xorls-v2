@@ -15,7 +15,6 @@ import type { PaletteComponent } from '../../../models/components/PaletteCompone
 import { ComponentPalettePresenterComponent } from '../presenter/component-palette.presenter.component';
 import { SelectablePropertiesContainerComponent } from '../../selectable-properties/container/selectable-properties.container.component';
 import { AndGate, OrGate } from '../../../models/components/gates';
-import type { Ghostable } from '../../../models/Ghostable';
 
 @Component({ selector: 'app-component-palette-presenter', template: '<ng-content />', standalone: true })
 class MockComponentPalettePresenterComponent {
@@ -204,28 +203,19 @@ describe('ComponentPaletteContainerComponent', () => {
                 return action as ReturnType<typeof actions.selectPaletteComponent> | undefined;
             };
 
-            it('should create a new instance of the selected class with the component factory', async () => {
+            it('should select the palette component', async () => {
                 await emitSelectedMap();
-                expect(selectAction()?.selectable).toBeInstanceOf(OrGate);
-                expect(selectAction()?.concreteClassName).toBe(OrGate.name);
+                expect(selectAction()?.paletteComponent).toEqual({ className: OrGate.name, selected: true });
             });
 
-            it('should reference the selected palette component', async () => {
+            it('should give the store its own copy of the palette component, because the palette changes its entries in place', async () => {
                 await emitSelectedMap();
-                expect(selectAction()?.paletteComponent).toBe(selectedMap.get(CATEGORY)![1]);
+                expect(selectAction()?.paletteComponent).not.toBe(selectedMap.get(CATEGORY)![1]);
             });
 
-            it('should create the instance as a ghost', async () => {
+            it('should not create the component itself: the workspace previews it from the class name', async () => {
                 await emitSelectedMap();
-                expect((selectAction()?.selectable as unknown as Ghostable).isGhost).toBe(true);
-            });
-
-            it('should create a new instance for every selection', async () => {
-                await emitSelectedMap();
-                const first = selectAction()?.selectable;
-                vi.mocked(store.dispatch).mockClear();
-                await emitSelectedMap();
-                expect(selectAction()?.selectable).not.toBe(first);
+                expect(Object.keys(selectAction()!).sort()).toEqual(['paletteComponent', 'type']);
             });
 
             it('should switch the mouse to place mode', async () => {

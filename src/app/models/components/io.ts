@@ -9,6 +9,7 @@ const SEVEN_SEGMENT_BOUNDING_BOX: BoundingBox = { x: 0, y: 0, width: 80, height:
 
 export class Input implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -34,6 +35,7 @@ export class Input implements Component {
 
 export class Output implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -60,6 +62,7 @@ export class Output implements Component {
 
 export class SevenSegmentDisplay implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;

@@ -1,5 +1,5 @@
 import type { AfterViewInit, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
-import { Component, DestroyRef, ElementRef, EventEmitter, inject, Input, NgZone, Output, ViewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, EventEmitter, inject, Input, Output, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { CodeWorkspaceState, DiagramWorkspaceState } from '../../../../store/workspace/state';
@@ -15,8 +15,8 @@ import type { AbstractCanvasLayerComponent } from '../../../canvas-layers/abstra
 import { PointerService } from '../../../../services/pointer/pointer.service';
 import { KeyboardService } from '../../../../services/keyboard/keyboard.service';
 import type { Placeable } from '../../../../models/components/ComponentFactory';
-import { isIOComponent, isPlaceable } from '../../../../models/components/ComponentFactory';
-import type { Selectable } from '../../../../models/Selectable';
+import { createPlaceable, isIOComponent } from '../../../../models/components/ComponentFactory';
+import type { PaletteComponent } from '../../../../models/components/PaletteComponent';
 import type { Point } from '../../../../models/Point';
 
 // Matches the grid layer's default spacing
@@ -32,18 +32,16 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     private renderService = inject(RenderService);
     private host = inject<ElementRef<HTMLElement>>(ElementRef);
     private pointerService = inject(PointerService);
-    private ngZone = inject(NgZone);
     private keyboardService = inject(KeyboardService);
     private destroyRef = inject(DestroyRef);
 
     @Input({ required: true }) id!: string;
     @Input({ required: true }) workspaceSettings!: WorkspaceSettingsState | null;
     @Input({ required: true }) workspaceState!: DiagramWorkspaceState | CodeWorkspaceState | null; // null would be if no workspaces are open
-    /** The app-wide selection. A ghost selectable is previewed here until it is placed. */
+    /** The highlighted palette component waiting to be placed. */
+    @Input() selectedPaletteComponent: PaletteComponent | null = null;
+    /** The selected component that was already placed. It is a reference by id: the component itself isn't in the store. */
     @Input() selectedSelectable: SelectedSelectable | null = null;
-
-    /** Emits once the previewed ghost has been placed in this workspace. */
-    @Output() componentPlaced = new EventEmitter<void>();
 
     /** Emits when Esc is pressed while this workspace is the one shown: the user wants to deselect or cancel the placement. */
     @Output() selectionCleared = new EventEmitter<void>();
@@ -55,7 +53,7 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     @ViewChild('wire') wireCanvasLayerComponent!: WireCanvasLayerComponent;
     @ViewChild('activeWire') activeWireCanvasLayerComponent!: ActiveWireCanvasLayerComponent;
 
-    /** The selectable currently previewed in this workspace, if any. Not in app state: it only affects how it's drawn. */
+    /** The preview of the palette component being placed, if any. Not in app state: it only affects how it's drawn. */
     private ghost: Placeable | null = null;
     /** The last pointer position (client coordinates) seen over this workspace. */
     private lastPointer: Point | null = null;
@@ -63,11 +61,11 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
 
     constructor() {
         // All mouse handling for a workspace lives here. Only the pointer over this workspace counts. The service
-        // delivers events outside the Angular zone, which is right for moves and drags (they fire at display rate),
-        // but a click ends in a store update, so it re-enters the zone.
+        // delivers events outside the Angular zone, which is right while nothing here reaches the store: it's all
+        // canvas drawing. Whatever ends up dispatching an action has to re-enter the zone.
         const pointer = this.pointerService.within(this.host.nativeElement);
         pointer.move$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.onMouseMove(event));
-        pointer.click$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.ngZone.run(() => this.onMouseClick(event)));
+        pointer.click$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.onMouseClick(event));
         pointer.drag$.pipe(takeUntilDestroyed()).subscribe(({ event }) => this.onMouseDrag(event));
         // releasing ends the grab wherever the pointer is, even if the drag left the workspace
         this.pointerService.up$.pipe(takeUntilDestroyed()).subscribe(() => this.onMouseUp());
@@ -76,13 +74,14 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     }
 
     ngOnChanges(changes: SimpleChanges): void {
-        const change = changes['selectedSelectable'];
+        const change = changes['selectedPaletteComponent'];
         if (!change) return;
-        const previous: Selectable | null = change.previousValue?.selectable ?? null;
-        const current: Selectable | null = change.currentValue?.selectable ?? null;
+        const previous: string | null = change.previousValue?.className ?? null;
+        const current: string | null = change.currentValue?.className ?? null;
         if (previous === current) return;
-        if (previous) this.releaseSelectable(previous);
-        if (current) this.beginPreview(current);
+
+        this.discardGhost();
+        if (current && this.ensureGhost() && this.lastPointer) this.moveGhostTo(this.lastPointer);
     }
 
     ngAfterViewInit(): void {
@@ -103,7 +102,7 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     }
 
     private onEscape(): boolean {
-        if (!this.ghost && !this.selectedSelectable?.selectable) return false;
+        if (!this.selectedPaletteComponent && !this.selectedSelectable) return false;
         this.selectionCleared.emit();
         return true;
     }
@@ -114,31 +113,30 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     }
 
     /**
-     * A selectable stopped being the selected one.
-     * A ghost that was never placed is discarded. A placed component moves from the active layer back to its regular layer.
+     * Makes the ghost for the selected palette component, if there should be one: a component is waiting to be placed
+     * and this is the workspace being shown. A workspace that isn't being shown has no ghost, so one is made on the
+     * first mouse move after the user switches to it.
+     *
+     * @returns The ghost, or null if there shouldn't be one
      */
-    private releaseSelectable(previous: Selectable) {
-        if (!isPlaceable(previous)) return;
-        if (this.ghost === previous) this.ghost = null;
-
-        const activeLayer = this.activeComponentCanvasLayerComponent;
-        if (!activeLayer?.getDrawableList().includes(previous)) return; // belongs to another workspace, or was never added
-        activeLayer.removeDrawable(previous);
-        activeLayer.redrawAll();
-
-        if (!previous.isGhost) {
-            const layer = isIOComponent(previous) ? this.ioCanvasLayerComponent : this.componentCanvasLayerComponent;
-            layer.add(previous);
-            layer.redrawAll();
+    private ensureGhost(): Placeable | null {
+        const className = this.selectedPaletteComponent?.className;
+        if (!this.ghost && className && this.isActive()) {
+            // The position is set from the pointer, as soon as there is one. It is added to the layer then.
+            this.ghost = createPlaceable(className, { x: 0, y: 0 });
+            this.ghost.isGhost = true;
         }
+        return this.ghost;
     }
 
-    /** A new selectable was selected. If it's a ghost, preview it here as long as this is the workspace being shown. */
-    private beginPreview(current: Selectable) {
-        if (!isPlaceable(current) || !current.isGhost || !this.isActive()) return;
-        this.ghost = current;
-        // Without a pointer position there's nowhere sensible to draw it yet. It is added on the first mouse move.
-        if (this.lastPointer) this.moveGhostTo(this.lastPointer);
+    /** Removes the ghost, if there is one, because nothing is waiting to be placed anymore. */
+    private discardGhost() {
+        const ghost = this.ghost;
+        this.ghost = null;
+        const layer = this.activeComponentCanvasLayerComponent;
+        if (!ghost || !layer?.getDrawableList().includes(ghost)) return; // it was never positioned, so never drawn
+        layer.removeDrawable(ghost);
+        layer.redrawAll();
     }
 
     /**
@@ -148,20 +146,31 @@ export class DiagramWorkspacePresenterComponent implements AfterViewInit, OnChan
     private onMouseMove(event: MouseEvent) {
         if (!this.isActive()) return;
         this.lastPointer = { x: event.clientX, y: event.clientY };
-        if (this.ghost) this.moveGhostTo(this.lastPointer);
+        if (this.ensureGhost()) this.moveGhostTo(this.lastPointer);
     }
 
-    /** Wired to the pointer's click$ over this workspace. A left click places the ghost where it is previewed. */
+    /**
+     * Wired to the pointer's click$ over this workspace. Runs outside the Angular zone.
+     * A left click places the previewed component where it is previewed: it becomes a regular component of the
+     * diagram, on its normal layer. The palette component stays selected, so a new ghost takes its place.
+     */
     private onMouseClick(event: MouseEvent) {
-        if (event.button !== 0 || !this.isActive() || !this.ghost) return;
+        if (event.button !== 0 || !this.isActive() || !this.ensureGhost()) return;
+        const pointer = { x: event.clientX, y: event.clientY };
         // a click without a preceding move (touch, for example) still needs to land where it was clicked
-        this.moveGhostTo({ x: event.clientX, y: event.clientY });
+        this.moveGhostTo(pointer);
 
-        // Stays selected and stays on the active layer. Selecting something else is what releases it.
-        this.ghost.isGhost = false;
-        this.activeComponentCanvasLayerComponent.redrawAll();
+        const placed = this.ghost!;
         this.ghost = null;
-        this.componentPlaced.emit();
+        placed.isGhost = false;
+        const activeLayer = this.activeComponentCanvasLayerComponent;
+        activeLayer.removeDrawable(placed);
+        activeLayer.redrawAll();
+        const layer = isIOComponent(placed) ? this.ioCanvasLayerComponent : this.componentCanvasLayerComponent;
+        layer.add(placed);
+        layer.redrawAll();
+
+        if (this.ensureGhost()) this.moveGhostTo(pointer);
     }
 
     /**

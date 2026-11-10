@@ -21,7 +21,7 @@ import { CommonModule } from '@angular/common';
 export class SelectablePropertiesContainerComponent {
   private store = inject<Store<PaletteComponentsState>>(Store);
 
-  protected selectable$!: Observable<SelectedSelectable>;
+  protected selectable$!: Observable<SelectedSelectable | null>;
 
   constructor() {
     this.selectable$ = this.store.select(componentsFeature.selectSelectedSelectable);

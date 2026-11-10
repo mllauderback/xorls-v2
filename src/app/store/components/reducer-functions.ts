@@ -1,7 +1,5 @@
 import type { PaletteComponent } from "../../models/components/PaletteComponent";
-import type { Selectable } from "../../models/Selectable";
-import { isGhostable } from "../../models/Ghostable";
-import type { PaletteComponentsState, PaletteComponentCategories } from "./state";
+import type { PaletteComponentsState, PaletteComponentCategories, SelectedSelectable } from "./state";
 
 export function setSelectedPaletteComponentList(state: PaletteComponentsState, paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]>): PaletteComponentsState {
     // console.log("componentsFeature: ", paletteComponentMap);
@@ -12,49 +10,54 @@ export function setSelectedPaletteComponentList(state: PaletteComponentsState, p
 }
 
 /**
- * Records the palette component that was picked and the new instance created for it.
- * Both selectedPaletteComponent and selectedSelectable hold the references they are given.
+ * Records the palette component that was picked, ready to be placed. Selecting something to place deselects whatever
+ * was selected in a diagram.
  */
-export function setSelectedPaletteComponent(
-    state: PaletteComponentsState,
-    paletteComponent: PaletteComponent,
-    selectable: Selectable,
-    concreteClassName: string
-): PaletteComponentsState {
+export function setSelectedPaletteComponent(state: PaletteComponentsState, paletteComponent: PaletteComponent): PaletteComponentsState {
     return {
         ...state,
         selectedPaletteComponent: paletteComponent,
-        selectedSelectable: { selectable, concreteClassName }
+        selectedSelectable: null
     };
 }
 
 /**
- * Cancels a palette selection that hasn't been placed yet: the palette is un-highlighted and a pending
- * ghost is dropped from selectedSelectable. A component that was already placed stays selected.
+ * Selects a component that is already placed. Selecting a component ends the palette selection, because only one
+ * thing is selected at a time and a click on the diagram means something different when something is being placed.
  */
-export function clearSelectedPaletteComponent(state: PaletteComponentsState): PaletteComponentsState {
-    const { selectable } = state.selectedSelectable;
-    const isPendingGhost = isGhostable(selectable) && selectable.isGhost;
+export function setSelectedSelectable(state: PaletteComponentsState, selectedSelectable: SelectedSelectable): PaletteComponentsState {
     return {
         ...state,
         paletteComponentMap: clearPaletteHighlights(state.paletteComponentMap),
         selectedPaletteComponent: null,
-        selectedSelectable: isPendingGhost ? { selectable: null, concreteClassName: "" } : state.selectedSelectable
+        selectedSelectable
     };
 }
 
 /**
- * Clears everything that is selected, whether it is a pending ghost or a component that was already placed.
+ * Cancels the palette selection: the palette is un-highlighted and nothing is waiting to be placed.
+ * A component that was already placed stays selected.
+ */
+export function clearSelectedPaletteComponent(state: PaletteComponentsState): PaletteComponentsState {
+    return {
+        ...state,
+        paletteComponentMap: clearPaletteHighlights(state.paletteComponentMap),
+        selectedPaletteComponent: null
+    };
+}
+
+/**
+ * Clears everything that is selected, whether it is waiting to be placed or was already placed.
  * Unlike clearSelectedPaletteComponent, a placed component is deselected too.
  * Returns the same state object when nothing is selected.
  */
 export function clearSelection(state: PaletteComponentsState): PaletteComponentsState {
-    if (!state.selectedSelectable.selectable && !state.selectedPaletteComponent) return state;
+    if (!state.selectedSelectable && !state.selectedPaletteComponent) return state;
     return {
         ...state,
         paletteComponentMap: clearPaletteHighlights(state.paletteComponentMap),
         selectedPaletteComponent: null,
-        selectedSelectable: { selectable: null, concreteClassName: "" }
+        selectedSelectable: null
     };
 }
 

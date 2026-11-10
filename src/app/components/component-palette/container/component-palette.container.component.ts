@@ -8,7 +8,6 @@ import type { PaletteComponent } from '../../../models/components/PaletteCompone
 import { CommonModule } from '@angular/common';
 import * as actions from '../../../store/components/actions';
 import * as workspaceActions from '../../../store/workspace/actions';
-import { createPlaceable } from '../../../models/components/ComponentFactory';
 import { SelectablePropertiesContainerComponent } from "../../selectable-properties/container/selectable-properties.container.component";
 
 @Component({
@@ -46,20 +45,15 @@ export class ComponentPaletteContainerComponent {
 
         const selected = [...map.values()].flat().find(paletteComponent => paletteComponent.selected);
         if (!selected) {
-            // toggled off: drop the pending ghost, if there is one
+            // toggled off: the workspace drops its preview
             this.store.dispatch(actions.clearSelectedPaletteComponent());
             this.store.dispatch(workspaceActions.updateMouseMode({ mode: 'select' }));
             return;
         }
 
-        // The ghost is placed in a diagram by the workspace, which positions it at the mouse. Until then it has no meaningful position.
-        const selectable = createPlaceable(selected.className, { x: 0, y: 0 });
-        selectable.isGhost = true;
-        this.store.dispatch(actions.selectPaletteComponent({
-            paletteComponent: selected,
-            selectable,
-            concreteClassName: selected.className
-        }));
+        // The palette presenter changes its entries in place, so the store gets its own copy. The workspace previews
+        // the component as a ghost by itself, from the class name, and positions it at the mouse.
+        this.store.dispatch(actions.selectPaletteComponent({ paletteComponent: { ...selected } }));
         this.store.dispatch(workspaceActions.updateMouseMode({ mode: 'place' }));
     }
 }

@@ -15,6 +15,7 @@ import * as componentActions from '../../../../store/components/actions';
 import * as workspaceActions from '../../../../store/workspace/actions';
 import type { SelectedSelectable } from '../../../../store/components/state';
 import { AndGate } from '../../../../models/components/gates';
+import type { PaletteComponent } from '../../../../models/components/PaletteComponent';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { CodeWorkspaceState, DiagramWorkspaceState } from '../../../../store/workspace/state';
 
@@ -26,8 +27,8 @@ class MockDiagramWorkspacePresenterComponent {
     @Input({ required: true }) id!: string;
     @Input({ required: true }) workspaceSettings!: WorkspaceSettingsState | null;
     @Input({ required: true }) workspaceState!: DiagramWorkspaceState | CodeWorkspaceState | null;
+    @Input() selectedPaletteComponent: PaletteComponent | null = null;
     @Input() selectedSelectable: SelectedSelectable | null = null;
-    @Output() componentPlaced = new EventEmitter<void>();
     @Output() selectionCleared = new EventEmitter<void>();
 }
 
@@ -38,7 +39,7 @@ const mockWorkspaceState: DiagramWorkspaceState = {
     mousePosition: { x: 0, y: 0 },
 };
 
-const mockSelectedSelectable: SelectedSelectable = { selectable: null, concreteClassName: '' };
+const mockSelectedSelectable: SelectedSelectable | null = null;
 
 describe('DiagramWorkspaceContainerComponent', () => {
     let component: DiagramWorkspaceContainerComponent;
@@ -225,13 +226,15 @@ describe('DiagramWorkspaceContainerComponent', () => {
         });
     });
     describe('selectedSelectable$', () => {
+        const selection: SelectedSelectable = { workspaceId: 'test-diagram-id', id: 'gate-1', className: AndGate.name };
+        const presenterOf = () => fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
+            .componentInstance as MockDiagramWorkspacePresenterComponent;
+
         it('should emit the value from the selected selectable selector', async () => {
-            expect(await firstValueFrom(component['selectedSelectable$'])).toEqual(mockSelectedSelectable);
+            expect(await firstValueFrom(component['selectedSelectable$'])).toBeNull();
         });
 
         it('should emit the new selection when the store changes', async () => {
-            const gate = new AndGate({ x: 0, y: 0 }, 2);
-            const selection: SelectedSelectable = { selectable: gate, concreteClassName: AndGate.name };
             store.overrideSelector(selectSelectedSelectable, selection);
             store.refreshState();
 
@@ -239,16 +242,45 @@ describe('DiagramWorkspaceContainerComponent', () => {
         });
 
         it('should pass the selection to the presenter', async () => {
-            const gate = new AndGate({ x: 0, y: 0 }, 2);
-            const selection: SelectedSelectable = { selectable: gate, concreteClassName: AndGate.name };
             store.overrideSelector(selectSelectedSelectable, selection);
             store.refreshState();
             fixture.detectChanges();
             await fixture.whenStable();
 
-            const presenter = fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
-                .componentInstance as MockDiagramWorkspacePresenterComponent;
-            expect(presenter.selectedSelectable).toBe(selection);
+            expect(presenterOf().selectedSelectable).toBe(selection);
+        });
+    });
+
+    describe('selectedPaletteComponent$', () => {
+        const paletteComponent: PaletteComponent = { className: AndGate.name, selected: true };
+        const presenterOf = () => fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
+            .componentInstance as MockDiagramWorkspacePresenterComponent;
+
+        it('should emit the value from the selected palette component selector', async () => {
+            expect(await firstValueFrom(component['selectedPaletteComponent$'])).toBeNull();
+        });
+
+        it('should pass the palette component to the presenter, which previews it', async () => {
+            store.overrideSelector(selectSelectedPaletteComponent, paletteComponent);
+            store.refreshState();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(presenterOf().selectedPaletteComponent).toBe(paletteComponent);
+        });
+
+        it('should pass null to the presenter once the palette selection ends', async () => {
+            store.overrideSelector(selectSelectedPaletteComponent, paletteComponent);
+            store.refreshState();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            store.overrideSelector(selectSelectedPaletteComponent, null);
+            store.refreshState();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(presenterOf().selectedPaletteComponent).toBeNull();
         });
     });
 
@@ -261,67 +293,6 @@ describe('DiagramWorkspaceContainerComponent', () => {
             presenter.selectionCleared.emit();
 
             expect(dispatch).toHaveBeenCalledWith(componentActions.clearSelection());
-            expect(dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
-        });
-    });
-
-    describe('componentPlaced', () => {
-        const presenterOf = () => fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
-            .componentInstance as MockDiagramWorkspacePresenterComponent;
-
-        const selectActions = (dispatch: ReturnType<typeof vi.spyOn>) =>
-            dispatch.mock.calls
-                .map(([a]) => a as unknown as ReturnType<typeof componentActions.selectPaletteComponent>)
-                .filter(a => a.type === componentActions.selectPaletteComponent.type);
-
-        it('should select a fresh ghost of the same palette component so it can be placed again', () => {
-            const paletteComponent = { className: AndGate.name, selected: true };
-            store.overrideSelector(selectSelectedPaletteComponent, paletteComponent);
-            store.refreshState();
-            const dispatch = vi.spyOn(store, 'dispatch');
-
-            presenterOf().componentPlaced.emit();
-
-            const [action] = selectActions(dispatch);
-            expect(action.paletteComponent).toBe(paletteComponent);
-            expect(action.concreteClassName).toBe(AndGate.name);
-            expect(action.selectable).toBeInstanceOf(AndGate);
-            expect((action.selectable as unknown as { isGhost: boolean }).isGhost).toBe(true);
-        });
-
-        it('should create a new instance for every placement', () => {
-            store.overrideSelector(selectSelectedPaletteComponent, { className: AndGate.name, selected: true });
-            store.refreshState();
-            const dispatch = vi.spyOn(store, 'dispatch');
-
-            presenterOf().componentPlaced.emit();
-            presenterOf().componentPlaced.emit();
-
-            const actions = selectActions(dispatch);
-            expect(actions).toHaveLength(2);
-            expect(actions[0].selectable).not.toBe(actions[1].selectable);
-        });
-
-        it('should keep the mouse in place mode and not clear the palette selection', () => {
-            store.overrideSelector(selectSelectedPaletteComponent, { className: AndGate.name, selected: true });
-            store.refreshState();
-            const dispatch = vi.spyOn(store, 'dispatch');
-
-            presenterOf().componentPlaced.emit();
-
-            expect(dispatch).not.toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
-            expect(dispatch).not.toHaveBeenCalledWith(componentActions.clearSelection());
-            expect(dispatch).not.toHaveBeenCalledWith(componentActions.clearSelectedPaletteComponent());
-        });
-
-        it('should go back to select mode when no palette component is selected anymore', () => {
-            store.overrideSelector(selectSelectedPaletteComponent, null);
-            store.refreshState();
-            const dispatch = vi.spyOn(store, 'dispatch');
-
-            presenterOf().componentPlaced.emit();
-
-            expect(selectActions(dispatch)).toHaveLength(0);
             expect(dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
         });
     });

@@ -39,10 +39,7 @@ export const initialComponentsState: PaletteComponentsState = {
         ]
     ]),
     selectedPaletteComponent: null,
-    selectedSelectable: {
-        selectable: null,
-        concreteClassName: ""
-    }
+    selectedSelectable: null
 };
 
 export const componentsReducer = createReducer(
@@ -55,8 +52,13 @@ export const componentsReducer = createReducer(
     ),
     on(
         actions.selectPaletteComponent,
-        (state, { paletteComponent, selectable, concreteClassName }): PaletteComponentsState =>
-            functions.setSelectedPaletteComponent(state, paletteComponent, selectable, concreteClassName)
+        (state, { paletteComponent }): PaletteComponentsState =>
+            functions.setSelectedPaletteComponent(state, paletteComponent)
+    ),
+    on(
+        actions.selectSelectable,
+        (state, { selectable }): PaletteComponentsState =>
+            functions.setSelectedSelectable(state, selectable)
     ),
     on(
         actions.clearSelectedPaletteComponent,

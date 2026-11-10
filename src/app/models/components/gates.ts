@@ -15,6 +15,7 @@ const GATE_BOUNDING_BOX: BoundingBox = { x: -20, y: 0, width: 120, height: 80 };
 
 export class AndGate implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -65,6 +66,7 @@ export class AndGate implements Component {
 
 export class OrGate implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -95,6 +97,7 @@ export class OrGate implements Component {
 
 export class XorGate implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -124,6 +127,7 @@ export class XorGate implements Component {
 
 export class NotGate implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -149,6 +153,7 @@ export class NotGate implements Component {
 
 export class Buffer implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -174,6 +179,7 @@ export class Buffer implements Component {
 
 export class NandGate implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -203,6 +209,7 @@ export class NandGate implements Component {
 
 export class NorGate implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -232,6 +239,7 @@ export class NorGate implements Component {
 
 export class XnorGate implements Component {
     position: Point;
+    readonly id: string = crypto.randomUUID();
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;

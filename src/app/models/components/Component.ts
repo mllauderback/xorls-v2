@@ -19,6 +19,11 @@ export class Node implements Selectable {
 }
 
 export interface Component extends Drawable, Selectable, Ghostable, Bounded {
+    /**
+     * Identifies this component for as long as it exists, including while it is still a ghost. The store refers to
+     * a selected component by this id instead of holding the instance, so that its state is plain data.
+     */
+    readonly id: string;
     position: Point;
     inodes: Node[];
     onodes: Node[];
