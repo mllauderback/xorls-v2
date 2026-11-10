@@ -7,11 +7,8 @@ import { CommonModule } from "@angular/common";
 import type { TabChangeEvent, XorlsTabModel } from "../xorls-tabview/xorls-tabview.component";
 import { DraggableTabComponent, XorlsTabviewComponent } from "../xorls-tabview/xorls-tabview.component";
 import { DiagramWorkspaceContainerComponent } from "../workspaces-types/diagram-workspace/container/diagram-workspace.container.component";
-import { ElementPointer, PointerService } from "../../services/pointer/pointer.service";
 import type { Workspace } from "../workspaces-types/workspaceType";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import type { Observable } from "rxjs";
-import { BehaviorSubject, EMPTY, switchMap } from "rxjs";
 
 @Component({
     selector: 'app-workspace-tabs',
@@ -33,27 +30,9 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
     private renderService = inject(RenderService);
     private destroyRef = inject(DestroyRef);
     private cdr = inject(ChangeDetectorRef);
-    private pointerService = inject(PointerService);
-    /** The active tab's viewport. The pointer streams below follow it as it changes. */
-    private viewport$ = new BehaviorSubject<HTMLDivElement | undefined>(undefined);
     protected startIndex = 0;
     protected activeTabIndex = this.startIndex;
     protected tabs: XorlsTabModel<Workspace>[] = [];
-
-    constructor() {
-        // The pointer service delivers events outside the Angular zone, which is what panning on the canvas want.
-        this.onViewportPointer(pointer => pointer.drag$).subscribe(({ event }) => this.onMouseDrag(event));
-        // releasing ends the grab wherever the pointer is, even if the drag left the viewport
-        this.pointerService.up$.pipe(takeUntilDestroyed()).subscribe(() => this.onMouseUp());
-    }
-
-    /** A pointer stream of the active viewport that switches over when the active tab (and so the viewport) changes. */
-    private onViewportPointer<T>(select: (pointer: ElementPointer) => Observable<T>): Observable<T> {
-        return this.viewport$.pipe(
-            switchMap(viewport => viewport ? select(this.pointerService.within(viewport)) : EMPTY),
-            takeUntilDestroyed(this.destroyRef)
-        );
-    }
 
     ngOnInit(): void {
         this.tabs = [ // randomUUID will eventually be replaced with file ids from the DB
@@ -131,15 +110,5 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
 
     private setActiveViewport(newViewport: HTMLDivElement) {
         this.currentViewportEl = newViewport;
-        this.viewport$.next(newViewport);
-    }
-
-    private onMouseDrag(event: MouseEvent) {
-        this.renderService.panActiveDiagram(event.movementX, event.movementY, this.currentViewportEl!.clientWidth, this.currentViewportEl!.clientHeight);
-        this.currentViewportEl!.style.cursor = 'grabbing'; // eventually link mouse mode to a cursor style using the store.  will need to convert to container/presenter
-    }
-
-    private onMouseUp() {
-        if (this.currentViewportEl) this.currentViewportEl.style.cursor = 'default';
     }
 }

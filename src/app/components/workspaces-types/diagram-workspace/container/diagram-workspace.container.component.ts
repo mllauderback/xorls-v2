@@ -27,7 +27,8 @@ import { CommonModule } from "@angular/common";
             (componentPlaced)="onComponentPlaced()"
             (selectionCleared)="onSelectionCleared()"
         ></app-diagram-workspace-presenter>
-    `
+    `,
+    styles: `:host { display: block; width: 100%; height: 100%; }`
 })
 export class DiagramWorkspaceContainerComponent extends AbstractWorkspaceComponent {
     @Input({ required: true }) id!: string;
