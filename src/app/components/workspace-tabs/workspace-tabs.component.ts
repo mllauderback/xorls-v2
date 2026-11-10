@@ -41,8 +41,7 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
     protected tabs: XorlsTabModel<Workspace>[] = [];
 
     constructor() {
-        // The pointer service delivers events outside the Angular zone, which is what panning and clicks on the canvas want.
-        this.onViewportPointer(pointer => pointer.click$).subscribe(({ event }) => this.onMouseClick(event));
+        // The pointer service delivers events outside the Angular zone, which is what panning on the canvas want.
         this.onViewportPointer(pointer => pointer.drag$).subscribe(({ event }) => this.onMouseDrag(event));
         // releasing ends the grab wherever the pointer is, even if the drag left the viewport
         this.pointerService.up$.pipe(takeUntilDestroyed()).subscribe(() => this.onMouseUp());
@@ -137,21 +136,10 @@ export class WorkspaceTabsComponent implements OnInit, AfterViewInit, OnDestroy 
 
     private onMouseDrag(event: MouseEvent) {
         this.renderService.panActiveDiagram(event.movementX, event.movementY, this.currentViewportEl!.clientWidth, this.currentViewportEl!.clientHeight);
-        this.currentViewportEl!.style.cursor = 'grabbing';
+        this.currentViewportEl!.style.cursor = 'grabbing'; // eventually link mouse mode to a cursor style using the store.  will need to convert to container/presenter
     }
 
     private onMouseUp() {
         if (this.currentViewportEl) this.currentViewportEl.style.cursor = 'default';
-    }
-
-    private onMouseClick(event: MouseEvent) {
-        // not sure that this is correct.  this returns the absolute position on the canvas.
-        // the relative position to the original 0,0 might be what i need instead, not sure yet.
-        // const offsetX = event.offsetX - this.renderService.getActiveDiagram()[0].viewportOffset.x;
-        // const offsetY = event.offsetY - this.renderService.getActiveDiagram()[0].viewportOffset.y;
-        // this does the relative position to the original 0,0.
-        const offsetX = event.offsetX - (this.renderService.getActiveDiagram()[0].viewportOffset.x + this.renderService.activeDrawState?.origin.x!);
-        const offsetY = event.offsetY - (this.renderService.getActiveDiagram()[0].viewportOffset.y + this.renderService.activeDrawState?.origin.y!);
-        console.log(`true coords: ${offsetX}, ${offsetY}`);
     }
 }

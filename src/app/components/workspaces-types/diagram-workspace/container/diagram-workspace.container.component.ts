@@ -52,7 +52,7 @@ export class DiagramWorkspaceContainerComponent extends AbstractWorkspaceCompone
     /**
      * The presenter placed the previewed component. The palette component stays selected so it can be placed again:
      * a fresh ghost becomes the selection, which also releases the component that was just placed to its regular layer.
-     * Only Esc (or toggling the palette entry off) ends the palette selection.
+     * Only pressing esc or toggling the palette entry off ends the palette selection.
      */
     protected onComponentPlaced() {
         this.componentsStore.select(selectSelectedPaletteComponent).pipe(take(1)).subscribe(paletteComponent => {

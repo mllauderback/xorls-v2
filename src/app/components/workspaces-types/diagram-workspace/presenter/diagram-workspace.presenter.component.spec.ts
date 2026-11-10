@@ -513,7 +513,7 @@ describe('DiagramWorkspacePresenterComponent', () => {
                 moveTo(200, 100);
 
                 host.dispatchEvent(pointer('pointerdown', 200, 100));
-                host.dispatchEvent(pointer('pointerup', 202, 101));
+                host.dispatchEvent(pointer('pointerup', 201, 101));
 
                 expect(ghost.isGhost).toBe(false);
             });
