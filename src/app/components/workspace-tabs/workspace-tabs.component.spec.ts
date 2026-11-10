@@ -108,7 +108,7 @@ describe('WorkspaceTabsComponent', () => {
         it('should unobserve and re-observe the new viewport element when the active tab changes', () => {
             const firstViewport = component.viewports?.get(0)?.nativeElement;
             const secondViewport = component.viewports?.get(1)?.nativeElement;
-            component['changeActiveWorkspace']({ id: 'some-uuid', index: 1 });
+            component['changeActiveWorkspace']({ id: component['tabs'][1].id, index: 1 });
             expect(observer().unobserve).toHaveBeenCalledWith(firstViewport);
             expect(observer().observe).toHaveBeenCalledWith(secondViewport);
         });

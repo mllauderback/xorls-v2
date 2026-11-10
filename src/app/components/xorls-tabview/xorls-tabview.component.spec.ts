@@ -6,24 +6,31 @@ import { By } from '@angular/platform-browser';
 import type { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { XorlsTabviewComponent, DraggableTabComponent } from './xorls-tabview.component';
 
+/** Owns the tab list the way the real parent does: the tab view only reports a close, the host removes the tab. */
 @Component({
     selector: 'app-test-host',
     imports: [XorlsTabviewComponent, DraggableTabComponent],
     template: `
-        <app-xorls-tab-view>
-            <app-xorls-tab header="Tab One">
-                <p class="tab-one-content">Tab one content</p>
-            </app-xorls-tab>
-            <app-xorls-tab header="Tab Two">
-                <p class="tab-two-content">Tab two content</p>
-            </app-xorls-tab>
-            <app-xorls-tab header="Tab Three">
-                <p class="tab-three-content">Tab three content</p>
-            </app-xorls-tab>
+        <app-xorls-tab-view (tabClose)="closeTab($event)">
+            @for (tab of tabs; track tab.id) {
+                <app-xorls-tab [id]="tab.id" [header]="tab.header">
+                    <p [class]="tab.contentClass">{{ tab.content }}</p>
+                </app-xorls-tab>
+            }
         </app-xorls-tab-view>
     `
 })
-class TestHostComponent { }
+class TestHostComponent {
+    tabs = [
+        { id: 'one', header: 'Tab One', contentClass: 'tab-one-content', content: 'Tab one content' },
+        { id: 'two', header: 'Tab Two', contentClass: 'tab-two-content', content: 'Tab two content' },
+        { id: 'three', header: 'Tab Three', contentClass: 'tab-three-content', content: 'Tab three content' },
+    ];
+
+    closeTab(index: number) {
+        this.tabs.splice(index, 1);
+    }
+}
 
 @Component({
     selector: 'app-empty-host',
@@ -54,10 +61,19 @@ describe('XorlsTabviewComponent', () => {
 
             fixture = TestBed.createComponent(TestHostComponent);
             fixture.detectChanges();
+            // the tab view reads its tabs in a microtask, so wait for that and then render what it found
             await fixture.whenStable();
+            fixture.detectChanges();
         });
 
         afterEach(() => vi.clearAllMocks());
+
+        /** Lets a change the host made reach the tab view (it re-reads its tabs in a microtask) and renders it. */
+        const settle = async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+        };
 
         describe('rendering', () => {
             it('should render a tab header for each tab', () => {
@@ -187,10 +203,10 @@ describe('XorlsTabviewComponent', () => {
                 const closeBtns = fixture.debugElement.queryAll(By.css('.close-btn'));
                 closeBtns[0].nativeElement.click();
                 finishLatestAnimation();
-                await fixture.whenStable();
-                fixture.detectChanges();
+                await settle();
 
                 expect(tabview['tabs']).toHaveLength(2);
+                expect(tabview['tabs'].map(t => t.id)).toEqual(['two', 'three']);
             });
 
             it('should decrement activeIndex when closing a tab before the active one', async () => {
@@ -200,7 +216,7 @@ describe('XorlsTabviewComponent', () => {
                 const closeBtns = fixture.debugElement.queryAll(By.css('.close-btn'));
                 closeBtns[0].nativeElement.click();
                 finishLatestAnimation();
-                await fixture.whenStable();
+                await settle();
 
                 expect(tabview['activeIndex']).toBe(1);
             });
