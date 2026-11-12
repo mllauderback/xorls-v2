@@ -1,11 +1,11 @@
 import type { PaletteComponent } from "../../models/components/PaletteComponent";
-import type { PaletteComponentsState, PaletteComponentCategories, SelectedSelectable } from "./state";
+import type { PaletteComponentsState, PaletteComponentRecord, SelectedSelectable } from "./state";
 
-export function setSelectedPaletteComponentList(state: PaletteComponentsState, paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]>): PaletteComponentsState {
+export function setSelectedPaletteComponentList(state: PaletteComponentsState, paletteComponents: PaletteComponentRecord): PaletteComponentsState {
     // console.log("componentsFeature: ", paletteComponentMap);
     return {
         ...state,
-        paletteComponentMap
+        paletteComponents
     };
 }
 
@@ -28,7 +28,7 @@ export function setSelectedPaletteComponent(state: PaletteComponentsState, palet
 export function setSelectedSelectable(state: PaletteComponentsState, selectedSelectable: SelectedSelectable): PaletteComponentsState {
     return {
         ...state,
-        paletteComponentMap: clearPaletteHighlights(state.paletteComponentMap),
+        paletteComponents: clearPaletteHighlights(state.paletteComponents),
         selectedPaletteComponent: null,
         selectedSelectable
     };
@@ -41,7 +41,7 @@ export function setSelectedSelectable(state: PaletteComponentsState, selectedSel
 export function clearSelectedPaletteComponent(state: PaletteComponentsState): PaletteComponentsState {
     return {
         ...state,
-        paletteComponentMap: clearPaletteHighlights(state.paletteComponentMap),
+        paletteComponents: clearPaletteHighlights(state.paletteComponents),
         selectedPaletteComponent: null
     };
 }
@@ -55,17 +55,22 @@ export function clearSelection(state: PaletteComponentsState): PaletteComponents
     if (!state.selectedSelectable && !state.selectedPaletteComponent) return state;
     return {
         ...state,
-        paletteComponentMap: clearPaletteHighlights(state.paletteComponentMap),
+        paletteComponents: clearPaletteHighlights(state.paletteComponents),
         selectedPaletteComponent: null,
         selectedSelectable: null
     };
 }
 
-function clearPaletteHighlights(map: Map<PaletteComponentCategories, PaletteComponent[]>): Map<PaletteComponentCategories, PaletteComponent[]> {
-    return new Map(
-        [...map.entries()].map(([category, components]) => [
-            category,
-            components.map(c => ({ ...c, selected: false }))
-        ])
-    );
+function clearPaletteHighlights(record: PaletteComponentRecord): PaletteComponentRecord {
+    return mapComponents(record, c => ({ ...c, selected: false }));
+}
+
+/**
+ * Makes a new record with every palette component replaced by what the callback returns. The categories and their
+ * order stay as they were. Object.entries and Object.fromEntries don't keep the key type, hence the cast.
+ */
+export function mapComponents(record: PaletteComponentRecord, callback: (component: PaletteComponent) => PaletteComponent): PaletteComponentRecord {
+    return Object.fromEntries(
+        Object.entries(record).map(([category, components]) => [category, components.map(callback)])
+    ) as PaletteComponentRecord;
 }

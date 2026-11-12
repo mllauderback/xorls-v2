@@ -5,6 +5,7 @@ import { Component, EventEmitter, Input, NO_ERRORS_SCHEMA, Output } from '@angul
 import { By } from '@angular/platform-browser';
 import { ComponentPalettePresenterComponent } from './component-palette.presenter.component';
 import type { PaletteComponent } from '../../../models/components/PaletteComponent';
+import type { PaletteComponentRecord } from '../../../store/components/state';
 import { PaletteComponentCategories } from '../../../store/components/state';
 import { GridSelectionPanelComponent } from '../../grid-selection-panel/grid-selection-panel.component';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -14,9 +15,9 @@ import { Text } from '../../../models/components/decorations';
 
 @Component({ selector: 'app-grid-selection-panel', template: '', standalone: true })
 class MockGridSelectionPanelComponent {
-    @Input() categoryPaletteComponentMap?: Map<PaletteComponentCategories, PaletteComponent[]>;
+    @Input() categoryPaletteComponents?: PaletteComponentRecord;
     @Input() category?: PaletteComponentCategories;
-    @Output() categoryPaletteComponentMapChange = new EventEmitter<Map<PaletteComponentCategories, PaletteComponent[]>>();
+    @Output() categoryPaletteComponentsChange = new EventEmitter<PaletteComponentRecord>();
 }
 
 const GATES_CATEGORY: PaletteComponentCategories = PaletteComponentCategories.gates;
@@ -29,9 +30,10 @@ const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): Palet
     ...overrides,
 });
 
-const buildMap = (
+/** A palette with just the given categories. Rendering only follows the keys there are, so the tests can leave some out. */
+const buildRecord = (
     entries: [PaletteComponentCategories, PaletteComponent[]][]
-): Map<PaletteComponentCategories, PaletteComponent[]> => new Map(entries);
+): PaletteComponentRecord => Object.fromEntries(entries) as PaletteComponentRecord;
 
 describe('ComponentPalettePresenterComponent content projection', () => {
     @Component({
@@ -92,7 +94,7 @@ describe('ComponentPalettePresenterComponent', () => {
 
     describe('rendering', () => {
         it('should render an accordion panel for each category', () => {
-            component.categoryPaletteComponentMap = buildMap([
+            component.categoryPaletteComponents = buildRecord([
                 [GATES_CATEGORY, [buildPaletteComponent()]],
                 [IO_CATEGORY, [buildPaletteComponent({ className: IoInput.name })]],
                 [DECORATIONS_CATEGORY, [buildPaletteComponent({ className: Text.name })]]
@@ -104,7 +106,7 @@ describe('ComponentPalettePresenterComponent', () => {
         });
 
         it('should render the category name in each accordion header', () => {
-            component.categoryPaletteComponentMap = buildMap([
+            component.categoryPaletteComponents = buildRecord([
                 [GATES_CATEGORY, [buildPaletteComponent()]],
                 [IO_CATEGORY, [buildPaletteComponent()]],
                 [DECORATIONS_CATEGORY, [buildPaletteComponent()]]
@@ -118,7 +120,7 @@ describe('ComponentPalettePresenterComponent', () => {
         });
 
         it('should render a grid selection panel for each category', () => {
-            component.categoryPaletteComponentMap = buildMap([
+            component.categoryPaletteComponents = buildRecord([
                 [GATES_CATEGORY, [buildPaletteComponent()]],
                 [IO_CATEGORY, [buildPaletteComponent()]],
                 [DECORATIONS_CATEGORY, [buildPaletteComponent()]]
@@ -130,19 +132,19 @@ describe('ComponentPalettePresenterComponent', () => {
         });
 
         it('should pass the map to each grid selection panel', () => {
-            const map = buildMap([[GATES_CATEGORY, [buildPaletteComponent()]]]);
-            component.categoryPaletteComponentMap = map;
+            const record = buildRecord([[GATES_CATEGORY, [buildPaletteComponent()]]]);
+            component.categoryPaletteComponents = record;
             fixture.detectChanges();
 
             const panel = fixture.debugElement.query(
                 By.directive(MockGridSelectionPanelComponent)
             ).componentInstance as MockGridSelectionPanelComponent;
 
-            expect(panel.categoryPaletteComponentMap).toEqual(map);
+            expect(panel.categoryPaletteComponents).toEqual(record);
         });
 
         it('should pass the correct category to each grid selection panel', () => {
-            component.categoryPaletteComponentMap = buildMap([
+            component.categoryPaletteComponents = buildRecord([
                 [GATES_CATEGORY, [buildPaletteComponent()]],
                 [IO_CATEGORY, [buildPaletteComponent()]],
                 [DECORATIONS_CATEGORY, [buildPaletteComponent()]]
@@ -159,7 +161,7 @@ describe('ComponentPalettePresenterComponent', () => {
         });
 
         it('should render no accordion panels when map is empty', () => {
-            component.categoryPaletteComponentMap = buildMap([]);
+            component.categoryPaletteComponents = buildRecord([]);
             fixture.detectChanges();
 
             const panels = fixture.debugElement.queryAll(By.css('p-accordion-panel'));
@@ -167,7 +169,7 @@ describe('ComponentPalettePresenterComponent', () => {
         });
 
         it('should render no accordion panels when map is undefined', () => {
-            component.categoryPaletteComponentMap = undefined;
+            component.categoryPaletteComponents = undefined;
             fixture.detectChanges();
 
             const panels = fixture.debugElement.queryAll(By.css('p-accordion-panel'));
@@ -177,53 +179,53 @@ describe('ComponentPalettePresenterComponent', () => {
 
     describe('categoryPaletteComponentMapChange', () => {
         it('should emit categoryPaletteComponentMapChange when the grid selection panel emits', () => {
-            const map = buildMap([[GATES_CATEGORY, [buildPaletteComponent()]]]);
-            component.categoryPaletteComponentMap = map;
+            const record = buildRecord([[GATES_CATEGORY, [buildPaletteComponent()]]]);
+            component.categoryPaletteComponents = record;
             fixture.detectChanges();
 
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
 
-            const updatedMap = buildMap([[GATES_CATEGORY, [buildPaletteComponent({ selected: true })]]]);
+            const updatedRecord = buildRecord([[GATES_CATEGORY, [buildPaletteComponent({ selected: true })]]]);
             const panel = fixture.debugElement.query(
                 By.directive(MockGridSelectionPanelComponent)
             ).componentInstance as MockGridSelectionPanelComponent;
 
-            panel.categoryPaletteComponentMapChange.emit(updatedMap);
+            panel.categoryPaletteComponentsChange.emit(updatedRecord);
 
-            expect(emitSpy).toHaveBeenCalledWith(updatedMap);
+            expect(emitSpy).toHaveBeenCalledWith(updatedRecord);
         });
 
         it('should emit exactly once per grid selection panel emission', () => {
-            const map = buildMap([[GATES_CATEGORY, [buildPaletteComponent()]]]);
-            component.categoryPaletteComponentMap = map;
+            const record = buildRecord([[GATES_CATEGORY, [buildPaletteComponent()]]]);
+            component.categoryPaletteComponents = record;
             fixture.detectChanges();
 
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
 
             const panel = fixture.debugElement.query(
                 By.directive(MockGridSelectionPanelComponent)
             ).componentInstance as MockGridSelectionPanelComponent;
 
-            panel.categoryPaletteComponentMapChange.emit(map);
-            panel.categoryPaletteComponentMapChange.emit(map);
+            panel.categoryPaletteComponentsChange.emit(record);
+            panel.categoryPaletteComponentsChange.emit(record);
 
             expect(emitSpy).toHaveBeenCalledTimes(2);
         });
 
         it('should update categoryPaletteComponentMap via two-way binding when grid selection panel emits', () => {
-            const map = buildMap([[GATES_CATEGORY, [buildPaletteComponent()]]]);
-            component.categoryPaletteComponentMap = map;
+            const record = buildRecord([[GATES_CATEGORY, [buildPaletteComponent()]]]);
+            component.categoryPaletteComponents = record;
             fixture.detectChanges();
 
-            const updatedMap = buildMap([[GATES_CATEGORY, [buildPaletteComponent({ selected: true })]]]);
+            const updatedRecord = buildRecord([[GATES_CATEGORY, [buildPaletteComponent({ selected: true })]]]);
             const panel = fixture.debugElement.query(
                 By.directive(MockGridSelectionPanelComponent)
             ).componentInstance as MockGridSelectionPanelComponent;
 
-            panel.categoryPaletteComponentMapChange.emit(updatedMap);
+            panel.categoryPaletteComponentsChange.emit(updatedRecord);
             fixture.detectChanges();
 
-            expect(component.categoryPaletteComponentMap).toEqual(updatedMap);
+            expect(component.categoryPaletteComponents).toEqual(updatedRecord);
         });
     });
 });

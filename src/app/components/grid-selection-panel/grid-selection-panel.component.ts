@@ -1,7 +1,8 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { TooltipModule } from 'primeng/tooltip';
 import type { PaletteComponent } from '../../models/components/PaletteComponent';
-import type { PaletteComponentCategories } from '../../store/components/state';
+import type { PaletteComponentCategories, PaletteComponentRecord } from '../../store/components/state';
+import { mapComponents } from '../../store/components/reducer-functions';
 import { PaletteComponentSvgsComponent } from '../responsive-svgs/palette-component-svgs/palette-component-svgs.component';
 
 @Component({
@@ -14,44 +15,28 @@ import { PaletteComponentSvgsComponent } from '../responsive-svgs/palette-compon
     styleUrl: './grid-selection-panel.component.scss'
 })
 export class GridSelectionPanelComponent {
-    @Input({ required: true }) categoryPaletteComponentMap?: Map<PaletteComponentCategories, PaletteComponent[]>;
+    @Input({ required: true }) categoryPaletteComponents?: PaletteComponentRecord;
     @Input({ required: true }) category?: PaletteComponentCategories;
-    @Output() categoryPaletteComponentMapChange = new EventEmitter<Map<PaletteComponentCategories, PaletteComponent[]>>();
+    @Output() categoryPaletteComponentsChange = new EventEmitter<PaletteComponentRecord>();
 
     select($event: MouseEvent, paletteComponent: PaletteComponent): void {
 
         $event.preventDefault();
-        if (!this.categoryPaletteComponentMap || !this.category) return;
+        if (!this.categoryPaletteComponents || !this.category) return;
         const targetButton = $event.target as HTMLInputElement;
-        const mapCopy = this.cloneCategoryPaletteComponentMap(this.categoryPaletteComponentMap);
+        // a copy with nothing selected: the palette selects one component at a time
+        const recordCopy = mapComponents(this.categoryPaletteComponents, c => ({ ...c, selected: false }));
         if (paletteComponent.selected) {
             targetButton.checked = false;
-            this.clearPaletteSelection(mapCopy);
         }
         else {
-            this.clearPaletteSelection(mapCopy);
-            mapCopy.get(this.category)?.forEach((mapPaletteComponent: PaletteComponent) => {
-                if (mapPaletteComponent.className === paletteComponent.className) {
-                    mapPaletteComponent.selected = true;
+            recordCopy[this.category]?.forEach((pc: PaletteComponent) => {
+                if (pc.className === paletteComponent.className) {
+                    pc.selected = true;
                 }
             });
         }
-        this.categoryPaletteComponentMapChange.emit(mapCopy);
+        this.categoryPaletteComponentsChange.emit(recordCopy);
     }
 
-    private cloneCategoryPaletteComponentMap(map: Map<PaletteComponentCategories, PaletteComponent[]>) {
-        return new Map(
-            [...map.entries()].map(([category, components]) => [
-                category,
-                components.map(c => ({ ...c }))
-            ])
-        );
-    }
-
-    private clearPaletteSelection(mapCopy: Map<PaletteComponentCategories, PaletteComponent[]>): void {
-        for (const category of mapCopy.keys()) {
-            const components = mapCopy.get(category);
-            components?.forEach(component => component.selected = false);
-        }
-    }
 }

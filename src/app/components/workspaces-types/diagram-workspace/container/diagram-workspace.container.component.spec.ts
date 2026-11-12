@@ -4,10 +4,12 @@ import { describe, beforeEach, it, expect, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
 
 import { DiagramWorkspaceContainerComponent } from './diagram-workspace.container.component';
 import { DiagramWorkspacePresenterComponent } from '../presenter/diagram-workspace.presenter.component';
+import { DiagramController } from '../controller/diagram.controller';
+import type { DiagramView } from '../controller/diagram-view';
 import { selectWorkspaceSettings } from '../../../../store/settings/feature';
 import { selectDiagramWorkspaceState } from '../../../../store/workspace/feature';
 import { selectSelectedPaletteComponent, selectSelectedSelectable } from '../../../../store/components/feature';
@@ -27,9 +29,16 @@ class MockDiagramWorkspacePresenterComponent {
     @Input({ required: true }) id!: string;
     @Input({ required: true }) workspaceSettings!: WorkspaceSettingsState | null;
     @Input({ required: true }) workspaceState!: DiagramWorkspaceState | CodeWorkspaceState | null;
-    @Input() selectedPaletteComponent: PaletteComponent | null = null;
-    @Input() selectedSelectable: SelectedSelectable | null = null;
-    @Output() selectionCleared = new EventEmitter<void>();
+    @Output() viewReady = new EventEmitter<DiagramView>();
+}
+
+/** Stands in for the controller, so it is only this container's part that is tested here. */
+class MockDiagramController {
+    attach = vi.fn();
+    setPaletteComponent = vi.fn();
+    setSelectedSelectable = vi.fn();
+    setWorkspaceSettings = vi.fn();
+    selectionCleared$ = new Subject<void>();
 }
 
 const mockSettings: WorkspaceSettingsState = {} as unknown as WorkspaceSettingsState;
@@ -45,6 +54,7 @@ describe('DiagramWorkspaceContainerComponent', () => {
     let component: DiagramWorkspaceContainerComponent;
     let fixture: ComponentFixture<DiagramWorkspaceContainerComponent>;
     let store: MockStore;
+    let controller: MockDiagramController;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -61,8 +71,8 @@ describe('DiagramWorkspaceContainerComponent', () => {
             ],
         })
             .overrideComponent(DiagramWorkspaceContainerComponent, {
-                remove: { imports: [DiagramWorkspacePresenterComponent] },
-                add: { imports: [MockDiagramWorkspacePresenterComponent] },
+                remove: { imports: [DiagramWorkspacePresenterComponent], providers: [DiagramController] },
+                add: { imports: [MockDiagramWorkspacePresenterComponent], providers: [{ provide: DiagramController, useClass: MockDiagramController }] },
             })
             .compileComponents();
 
@@ -70,6 +80,7 @@ describe('DiagramWorkspaceContainerComponent', () => {
         fixture = TestBed.createComponent(DiagramWorkspaceContainerComponent);
         component = fixture.componentInstance;
         component.id = 'test-diagram-id';
+        controller = fixture.debugElement.injector.get(DiagramController) as unknown as MockDiagramController;
         fixture.detectChanges();
     });
 
@@ -225,75 +236,99 @@ describe('DiagramWorkspaceContainerComponent', () => {
             expect(getPresenter(fixture).workspaceSettings).toEqual(updatedSettings);
         });
     });
-    describe('selectedSelectable$', () => {
+
+    describe('controller', () => {
+        const paletteComponent: PaletteComponent = { className: AndGate.name, selected: true };
         const selection: SelectedSelectable = { workspaceId: 'test-diagram-id', id: 'gate-1', className: AndGate.name };
         const presenterOf = () => fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
             .componentInstance as MockDiagramWorkspacePresenterComponent;
 
-        it('should emit the value from the selected selectable selector', async () => {
-            expect(await firstValueFrom(component['selectedSelectable$'])).toBeNull();
+        it('should be provided by the container, so each workspace has its own', () => {
+            expect(controller).toBeInstanceOf(MockDiagramController);
         });
 
-        it('should emit the new selection when the store changes', async () => {
-            store.overrideSelector(selectSelectedSelectable, selection);
-            store.refreshState();
+        it('should attach the controller to the presenter once its view is ready, with the workspace id', () => {
+            const view = {} as DiagramView;
 
-            expect(await firstValueFrom(component['selectedSelectable$'])).toBe(selection);
+            presenterOf().viewReady.emit(view);
+
+            expect(controller.attach).toHaveBeenCalledOnce();
+            expect(controller.attach).toHaveBeenCalledWith(view, 'test-diagram-id');
         });
 
-        it('should pass the selection to the presenter', async () => {
-            store.overrideSelector(selectSelectedSelectable, selection);
-            store.refreshState();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(presenterOf().selectedSelectable).toBe(selection);
-        });
-    });
-
-    describe('selectedPaletteComponent$', () => {
-        const paletteComponent: PaletteComponent = { className: AndGate.name, selected: true };
-        const presenterOf = () => fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
-            .componentInstance as MockDiagramWorkspacePresenterComponent;
-
-        it('should emit the value from the selected palette component selector', async () => {
-            expect(await firstValueFrom(component['selectedPaletteComponent$'])).toBeNull();
+        it('should not attach before the view is ready', () => {
+            expect(controller.attach).not.toHaveBeenCalled();
         });
 
-        it('should pass the palette component to the presenter, which previews it', async () => {
+        it('should tell the controller what the store holds from the start', () => {
+            expect(controller.setPaletteComponent).toHaveBeenCalledWith(null);
+            expect(controller.setSelectedSelectable).toHaveBeenCalledWith(null);
+            expect(controller.setWorkspaceSettings).toHaveBeenCalledWith(mockSettings);
+        });
+
+        it('should tell the controller when the palette selection changes', () => {
             store.overrideSelector(selectSelectedPaletteComponent, paletteComponent);
             store.refreshState();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(presenterOf().selectedPaletteComponent).toBe(paletteComponent);
-        });
-
-        it('should pass null to the presenter once the palette selection ends', async () => {
-            store.overrideSelector(selectSelectedPaletteComponent, paletteComponent);
-            store.refreshState();
-            fixture.detectChanges();
-            await fixture.whenStable();
+            expect(controller.setPaletteComponent).toHaveBeenLastCalledWith(paletteComponent);
 
             store.overrideSelector(selectSelectedPaletteComponent, null);
             store.refreshState();
-            fixture.detectChanges();
-            await fixture.whenStable();
+            expect(controller.setPaletteComponent).toHaveBeenLastCalledWith(null);
+        });
 
-            expect(presenterOf().selectedPaletteComponent).toBeNull();
+        it('should tell the controller when the selected component changes', () => {
+            store.overrideSelector(selectSelectedSelectable, selection);
+            store.refreshState();
+
+            expect(controller.setSelectedSelectable).toHaveBeenLastCalledWith(selection);
+        });
+
+        it('should tell the controller when the workspace settings change, but not when they are null', () => {
+            const updated: WorkspaceSettingsState = { gridSettings: { gridSpacing: 10, gridMode: 'lines' } };
+            store.overrideSelector(selectWorkspaceSettings, updated);
+            store.refreshState();
+            expect(controller.setWorkspaceSettings).toHaveBeenLastCalledWith(updated);
+
+            controller.setWorkspaceSettings.mockClear();
+            store.overrideSelector(selectWorkspaceSettings, null as unknown as WorkspaceSettingsState);
+            store.refreshState();
+            expect(controller.setWorkspaceSettings).not.toHaveBeenCalled();
+        });
+
+        it('should not pass the selection to the presenter, which only shows the diagram', () => {
+            const presenter = presenterOf() as unknown as Record<string, unknown>;
+            expect('selectedPaletteComponent' in presenter).toBe(false);
+            expect('selectedSelectable' in presenter).toBe(false);
+        });
+
+        it('should stop listening to the store once destroyed', () => {
+            fixture.destroy();
+            controller.setPaletteComponent.mockClear();
+
+            store.overrideSelector(selectSelectedPaletteComponent, paletteComponent);
+            store.refreshState();
+
+            expect(controller.setPaletteComponent).not.toHaveBeenCalled();
         });
     });
 
     describe('selectionCleared', () => {
-        it('should clear the whole selection and go back to select mode when the presenter reports Esc', () => {
+        it('should clear the whole selection and go back to select mode when the controller reports Esc', () => {
             const dispatch = vi.spyOn(store, 'dispatch');
-            const presenter = fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
-                .componentInstance as MockDiagramWorkspacePresenterComponent;
 
-            presenter.selectionCleared.emit();
+            controller.selectionCleared$.next();
 
             expect(dispatch).toHaveBeenCalledWith(componentActions.clearSelection());
             expect(dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));
+        });
+
+        it('should stop reacting once destroyed', () => {
+            fixture.destroy();
+            const dispatch = vi.spyOn(store, 'dispatch');
+
+            controller.selectionCleared$.next();
+
+            expect(dispatch).not.toHaveBeenCalled();
         });
     });
 });

@@ -1,16 +1,18 @@
 import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
-import { Component, Input, NgZone, SimpleChange } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 import { DiagramWorkspacePresenterComponent } from './diagram-workspace.presenter.component';
 import { RenderService } from '../../../../services/render/render.service';
 import type { AbstractCanvasLayerComponent } from '../../../canvas-layers/abstract-canvas-layer.component';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { DiagramWorkspaceState, CodeWorkspaceState } from '../../../../store/workspace/state';
-import { AndGate, OrGate } from '../../../../models/components/gates';
+import { AndGate } from '../../../../models/components/gates';
 import { Input as InputComponent } from '../../../../models/components/io';
+import { createPlaceable } from '../../../../models/components/ComponentFactory';
+import type { DiagramView } from '../controller/diagram-view';
 import type { Drawable, DrawState } from '../../../../models/Drawable';
 
 @Component({ selector: 'app-grid-canvas-layer', template: '' })
@@ -291,37 +293,17 @@ describe('DiagramWorkspacePresenterComponent', () => {
             expect(inst.bground).toBe('transparent');
         });
     });
-    describe('placing a component', () => {
+
+
+    describe('as a view', () => {
         let active: FakeLayer;
         let staticComponent: FakeLayer;
         let staticIO: FakeLayer;
-        let host: HTMLElement;
 
-        /** What the container binds when the palette selection changes: the class name of the palette component, or nothing. */
-        const select = (className: string | null) => {
-            const previous = component.selectedPaletteComponent;
-            component.selectedPaletteComponent = className ? { className, selected: true } : null;
-            component.ngOnChanges({
-                selectedPaletteComponent: new SimpleChange(previous, component.selectedPaletteComponent, false)
-            });
-        };
-
-        /** The ghost the workspace is previewing. It makes this itself, from the palette selection. */
-        const ghost = () => component['ghost'];
-
-        const pointer = (type: string, x: number, y: number, init: MouseEventInit = {}) =>
-            new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, ...init });
-
-        const moveTo = (x: number, y: number, target: EventTarget = host) => target.dispatchEvent(pointer('pointermove', x, y));
-
-        const click = (x: number, y: number, init: MouseEventInit = {}) => {
-            host.dispatchEvent(pointer('pointerdown', x, y, init));
-            host.dispatchEvent(pointer('pointerup', x, y, init));
-        };
+        const gate = () => createPlaceable(AndGate.name, { x: 0, y: 0 });
 
         beforeEach(() => {
             fixture.detectChanges();
-            host = fixture.nativeElement as HTMLElement;
             active = new FakeLayer();
             staticComponent = new FakeLayer();
             staticIO = new FakeLayer();
@@ -332,652 +314,204 @@ describe('DiagramWorkspacePresenterComponent', () => {
             });
         });
 
-        describe('previewing', () => {
-            it('should make a ghost of the selected palette component', () => {
-                select(AndGate.name);
+        describe('viewReady', () => {
+            it('should emit the presenter itself once its layers are registered', () => {
+                const fresh = TestBed.createComponent(DiagramWorkspacePresenterComponent);
+                fresh.componentInstance.id = 'workspace-2';
+                fresh.componentInstance.workspaceSettings = WORKSPACE_SETTINGS;
+                fresh.componentInstance.workspaceState = DIAGRAM_WORKSPACE_STATE;
+                const ready = vi.fn(() => {
+                    expect(renderService.add).toHaveBeenCalledWith('workspace-2', expect.any(Array));
+                });
+                fresh.componentInstance.viewReady.subscribe(ready);
 
-                expect(ghost()).toBeInstanceOf(AndGate);
-                expect(ghost()!.isGhost).toBe(true);
+                fresh.detectChanges();
+
+                expect(ready).toHaveBeenCalledOnce();
+                expect(ready).toHaveBeenCalledWith(fresh.componentInstance);
             });
 
-            it('should give the ghost an id of its own', () => {
-                select(AndGate.name);
-                const first = ghost()!.id;
-                select(null);
-                select(AndGate.name);
+            it('should emit only once, however often it is checked', () => {
+                const fresh = TestBed.createComponent(DiagramWorkspacePresenterComponent);
+                Object.assign(fresh.componentInstance, { id: 'workspace-2', workspaceSettings: null, workspaceState: null });
+                const ready = vi.fn();
+                fresh.componentInstance.viewReady.subscribe(ready);
 
-                expect(first).toEqual(expect.any(String));
-                expect(ghost()!.id).not.toBe(first);
+                fresh.detectChanges();
+                fresh.detectChanges();
+
+                expect(ready).toHaveBeenCalledOnce();
+            });
+        });
+
+        describe('element', () => {
+            it('should be the host element, which is what the pointer is followed over', () => {
+                expect(component.element).toBe(fixture.nativeElement);
+            });
+        });
+
+        describe('clientToDiagram', () => {
+            it('should take the position on screen to the position in the diagram', () => {
+                expect(component.clientToDiagram({ x: 200, y: 100 })).toEqual({ x: 200, y: 100 });
             });
 
-            it('should add the ghost to the active component layer once the pointer is over the workspace', () => {
-                select(AndGate.name);
-                expect(active.add).not.toHaveBeenCalled(); // nowhere sensible to draw it yet
-
-                moveTo(100, 100);
-
-                expect(active.add).toHaveBeenCalledWith(ghost());
-                expect(active.redrawAll).toHaveBeenCalled();
-            });
-
-            it('should put the ghost at the last known pointer position when it is selected after the pointer moved', () => {
-                moveTo(200, 120);
-
-                select(AndGate.name);
-
-                expect(active.add).toHaveBeenCalledWith(ghost());
-                expect(ghost()!.position).toEqual({ x: 160, y: 80 });
-            });
-
-            it("should put the middle of the ghost's bounding box under the cursor", () => {
-                select(AndGate.name); // and gate: box -20..100 x 0..80, so its middle is (40, 40) from its position
-
-                moveTo(200, 100);
-
-                expect(ghost()!.position).toEqual({ x: 160, y: 60 });
-            });
-
-            it('should snap the ghost to grid points', () => {
-                select(AndGate.name);
-
-                moveTo(205, 107); // wanted position is (165, 67)
-
-                expect(ghost()!.position).toEqual({ x: 160, y: 60 });
-            });
-
-            it('should snap to the grid spacing from the workspace settings', () => {
-                component.workspaceSettings = { gridSettings: { gridSpacing: 50, gridMode: 'dots' } } as WorkspaceSettingsState;
-                select(AndGate.name);
-
-                moveTo(205, 107);
-
-                expect(ghost()!.position).toEqual({ x: 150, y: 50 });
-            });
-
-            it('should snap to the grid on the canvas, not relative to the diagram origin', () => {
-                // the origin moves in steps of 500 as the layer grows, which isn't a multiple of every spacing
-                renderService.activeDrawState = { origin: { x: 10, y: 10 }, scale: 1 };
-                select(AndGate.name);
-
-                moveTo(200, 100);
-
-                // canvas position of the ghost is a multiple of the spacing, so it lands on a visible grid point
-                expect((ghost()!.position.x + 10) % 20).toBe(0);
-                expect((ghost()!.position.y + 10) % 20).toBe(0);
-            });
-
-            it('should account for where the canvas is on screen and how far it is panned', () => {
+            it('should account for where the canvas is on screen, how far it is panned and the diagram origin', () => {
                 active.clientRect = { left: 300, top: 50 };
                 active.viewportOffset = { x: -40, y: -20 };
-                select(AndGate.name);
+                renderService.activeDrawState = { origin: { x: 10, y: 5 }, scale: 1 };
 
-                moveTo(300 + 200, 50 + 100); // 200,100 on the canvas, so 240,120 in the panned diagram
-
-                expect(ghost()!.position).toEqual({ x: 200, y: 80 });
+                // 200,100 on the canvas is 240,120 in the panned layer, and 230,115 from the diagram origin
+                expect(component.clientToDiagram({ x: 300 + 200, y: 50 + 100 })).toEqual({ x: 230, y: 115 });
             });
 
-            it('should not redraw while the snapped position is unchanged', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                active.redrawAll.mockClear();
+            it('should be null without a canvas on the screen', () => {
+                active.clientRect = null;
 
-                moveTo(201, 101);
-                expect(active.redrawAll).not.toHaveBeenCalled();
-
-                moveTo(260, 100);
-                expect(active.redrawAll).toHaveBeenCalledTimes(1);
+                expect(component.clientToDiagram({ x: 200, y: 100 })).toBeNull();
             });
 
-            it('should make a ghost of any kind of component, such as an input', () => {
-                select(InputComponent.name);
+            it('should be null without a draw state', () => {
+                renderService.activeDrawState = null;
 
-                expect(ghost()).toBeInstanceOf(InputComponent);
-            });
-
-            it('should not make a ghost when this is not the workspace being shown', () => {
-                renderService.activeId = 'another-workspace';
-
-                select(AndGate.name);
-                moveTo(100, 100);
-
-                expect(ghost()).toBeNull();
-                expect(active.add).not.toHaveBeenCalled();
-            });
-
-            it('should make the ghost on the first mouse move after switching to this workspace', () => {
-                renderService.activeId = 'another-workspace';
-                select(AndGate.name);
-                renderService.activeId = 'workspace-1'; // the user switched tabs
-
-                moveTo(100, 100);
-
-                expect(ghost()).toBeInstanceOf(AndGate);
-                expect(active.add).toHaveBeenCalledWith(ghost());
-            });
-
-            it('should ignore mouse movement outside the workspace', () => {
-                select(AndGate.name);
-
-                moveTo(100, 100, document.body);
-
-                expect(active.add).not.toHaveBeenCalled();
-            });
-
-            it('should not make a ghost while nothing is selected in the palette', () => {
-                moveTo(100, 100);
-
-                expect(ghost()).toBeNull();
-                expect(active.add).not.toHaveBeenCalled();
-            });
-
-            it('should replace the ghost when a different palette component is selected, at the same spot', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const first = ghost();
-
-                select(OrGate.name);
-
-                expect(ghost()).toBeInstanceOf(OrGate);
-                expect(active.getDrawableList()).toEqual([ghost()]);
-                expect(active.getDrawableList()).not.toContain(first);
-                expect(ghost()!.position).toEqual({ x: 160, y: 60 });
-            });
-
-            it('should keep the same ghost when the palette selection is reported again unchanged', () => {
-                select(AndGate.name);
-                const first = ghost();
-
-                select(AndGate.name);
-
-                expect(ghost()).toBe(first);
-            });
-
-            it('should discard the ghost when the palette selection is cleared', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const discarded = ghost();
-                expect(active.getDrawableList()).toContain(discarded);
-
-                select(null); // what the store does after the container dispatches clearSelection
-
-                expect(ghost()).toBeNull();
-                expect(active.removeDrawable).toHaveBeenCalledWith(discarded);
-                expect(active.getDrawableList()).not.toContain(discarded);
-                expect(staticComponent.add).not.toHaveBeenCalled();
-                expect(staticIO.add).not.toHaveBeenCalled();
-            });
-
-            it('should stop following the mouse once the ghost is discarded', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const discarded = ghost()!;
-                select(null);
-
-                moveTo(400, 300);
-
-                expect(discarded.position).toEqual({ x: 160, y: 60 });
-                expect(ghost()).toBeNull();
-            });
-
-            it('should discard a ghost that was never drawn without touching the layer', () => {
-                select(AndGate.name); // no pointer yet, so it was never added
-
-                select(null);
-
-                expect(active.removeDrawable).not.toHaveBeenCalled();
-                expect(active.redrawAll).not.toHaveBeenCalled();
-            });
-
-            it('should not touch the canvas when only the selected component changes', () => {
-                component.ngOnChanges({
-                    selectedSelectable: new SimpleChange(null, { workspaceId: 'workspace-1', id: 'some-id', className: AndGate.name }, false)
-                });
-
-                expect(active.add).not.toHaveBeenCalled();
-                expect(active.removeDrawable).not.toHaveBeenCalled();
-                expect(active.redrawAll).not.toHaveBeenCalled();
+                expect(component.clientToDiagram({ x: 200, y: 100 })).toBeNull();
             });
         });
 
-        describe('clicking to place', () => {
-            it('should place the ghost as a regular component on the component layer', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const placed = ghost()!;
+        describe('previews', () => {
+            it('should show a preview on the active component layer and redraw it', () => {
+                const ghost = gate();
 
-                click(200, 100);
+                component.showPreview(ghost);
 
-                expect(placed.isGhost).toBe(false);
-                expect(staticComponent.add).toHaveBeenCalledWith(placed);
-                expect(active.getDrawableList()).not.toContain(placed);
+                expect(active.add).toHaveBeenCalledWith(ghost);
+                expect(active.redrawAll).toHaveBeenCalledOnce();
+                expect(component.isPreviewing(ghost)).toBe(true);
             });
 
-            it('should place an I/O component on the I/O layer', () => {
-                select(InputComponent.name);
-                moveTo(200, 100);
-                const placed = ghost()!;
+            it('should not add a preview twice, but redraw it where it moved', () => {
+                const ghost = gate();
+                component.showPreview(ghost);
 
-                click(200, 100);
+                component.showPreview(ghost);
+
+                expect(active.add).toHaveBeenCalledOnce();
+                expect(active.redrawAll).toHaveBeenCalledTimes(2);
+            });
+
+            it('should not say it is previewing what it was not shown', () => {
+                expect(component.isPreviewing(gate())).toBe(false);
+            });
+
+            it('should hide a preview and redraw', () => {
+                const ghost = gate();
+                component.showPreview(ghost);
+                active.redrawAll.mockClear();
+
+                component.hidePreview(ghost);
+
+                expect(active.removeDrawable).toHaveBeenCalledWith(ghost);
+                expect(active.redrawAll).toHaveBeenCalledOnce();
+                expect(component.isPreviewing(ghost)).toBe(false);
+            });
+
+            it('should leave the layer alone when hiding what was never shown', () => {
+                component.hidePreview(gate());
+
+                expect(active.removeDrawable).not.toHaveBeenCalled();
+                expect(active.redrawAll).not.toHaveBeenCalled();
+            });
+
+            it('should only hide the one it is asked to', () => {
+                const first = gate();
+                const second = gate();
+                component.showPreview(first);
+                component.showPreview(second);
+
+                component.hidePreview(first);
+
+                expect(active.getDrawableList()).toEqual([second]);
+            });
+        });
+
+        describe('place', () => {
+            it('should put a component on the component layer and redraw it', () => {
+                const placed = gate();
+
+                component.place(placed);
+
+                expect(staticComponent.add).toHaveBeenCalledWith(placed);
+                expect(staticComponent.redrawAll).toHaveBeenCalledOnce();
+                expect(staticIO.add).not.toHaveBeenCalled();
+            });
+
+            it('should put an I/O component on the I/O layer and redraw it', () => {
+                const placed = createPlaceable(InputComponent.name, { x: 0, y: 0 });
+
+                component.place(placed);
 
                 expect(staticIO.add).toHaveBeenCalledWith(placed);
+                expect(staticIO.redrawAll).toHaveBeenCalledOnce();
                 expect(staticComponent.add).not.toHaveBeenCalled();
             });
 
-            it('should place the component where the click was, even without a mouse move first', () => {
-                select(AndGate.name);
-                const placed = ghost()!;
+            it('should leave the preview layer alone', () => {
+                component.place(gate());
 
-                click(200, 100);
-
-                expect(placed.position).toEqual({ x: 160, y: 60 });
-                expect(placed.isGhost).toBe(false);
-                expect(staticComponent.add).toHaveBeenCalledWith(placed);
-            });
-
-            it('should keep the id the ghost had, so the component is the same one once placed', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const { id } = ghost()!;
-
-                click(200, 100);
-
-                expect(staticComponent.add).toHaveBeenCalledWith(expect.objectContaining({ id }));
-            });
-
-            it('should redraw both layers so the ghost style is replaced', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                active.redrawAll.mockClear();
-
-                click(200, 100);
-
-                expect(active.redrawAll).toHaveBeenCalled();
-                expect(staticComponent.redrawAll).toHaveBeenCalled();
-            });
-
-            it('should preview the palette component again, so it can be placed again', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const placed = ghost()!;
-
-                click(200, 100);
-
-                expect(ghost()).toBeInstanceOf(AndGate);
-                expect(ghost()).not.toBe(placed);
-                expect(ghost()!.id).not.toBe(placed.id);
-                expect(ghost()!.isGhost).toBe(true);
-                expect(active.getDrawableList()).toEqual([ghost()]);
-                expect(ghost()!.position).toEqual({ x: 160, y: 60 });
-            });
-
-            it('should place n components with n clicks', () => {
-                select(AndGate.name);
-
-                click(100, 100);
-                click(200, 100);
-                click(300, 100);
-
-                expect(staticComponent.add).toHaveBeenCalledTimes(3);
-                const added = staticComponent.add.mock.calls.map(([d]) => d as unknown as { id: string; position: { x: number } });
-                expect(new Set(added.map(d => d.id)).size).toBe(3);
-                expect(added.map(d => d.position.x)).toEqual([60, 160, 260]);
-            });
-
-            it('should keep the palette selection, so that only a cleared selection ends the placement', () => {
-                select(AndGate.name);
-
-                click(200, 100);
-                click(200, 100);
-
-                expect(component.selectedPaletteComponent).toEqual({ className: AndGate.name, selected: true });
-                expect(ghost()).not.toBeNull();
-            });
-
-            it('should follow the mouse with the new ghost, not the one that was placed', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const placed = ghost()!;
-                click(200, 100);
-
-                moveTo(400, 300);
-
-                expect(placed.position).toEqual({ x: 160, y: 60 });
-                expect(ghost()!.position).toEqual({ x: 360, y: 260 });
-            });
-
-            it('should still place when the click wobbles a pixel or two', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const placed = ghost()!;
-
-                host.dispatchEvent(pointer('pointerdown', 200, 100));
-                host.dispatchEvent(pointer('pointerup', 201, 101));
-
-                expect(staticComponent.add).toHaveBeenCalledWith(placed);
-            });
-
-            it('should not place on a click while nothing is selected in the palette', () => {
-                click(200, 100);
-
-                expect(staticComponent.add).not.toHaveBeenCalled();
-                expect(staticIO.add).not.toHaveBeenCalled();
-            });
-
-            it('should only place with the left mouse button', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-
-                click(200, 100, { button: 2 });
-
-                expect(ghost()!.isGhost).toBe(true);
-                expect(staticComponent.add).not.toHaveBeenCalled();
-            });
-
-            it('should not treat a drag as a click', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-
-                host.dispatchEvent(pointer('pointerdown', 200, 100));
-                host.dispatchEvent(pointer('pointerup', 260, 100));
-
-                expect(staticComponent.add).not.toHaveBeenCalled();
-            });
-
-            it('should ignore clicks outside the workspace, such as on the palette', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-
-                document.body.dispatchEvent(pointer('pointerdown', 10, 10));
-                document.body.dispatchEvent(pointer('pointerup', 10, 10));
-
-                expect(staticComponent.add).not.toHaveBeenCalled();
-            });
-
-            it('should not place from a workspace that is not being shown', () => {
-                select(AndGate.name);
-                renderService.activeId = 'another-workspace';
-
-                click(200, 100);
-
-                expect(staticComponent.add).not.toHaveBeenCalled();
+                expect(active.add).not.toHaveBeenCalled();
+                expect(active.redrawAll).not.toHaveBeenCalled();
             });
         });
 
-        describe('pressing Esc', () => {
-            const pressEsc = (target: EventTarget = document.body, init: KeyboardEventInit = {}) => {
-                const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true, ...init });
-                target.dispatchEvent(event);
-                return event;
-            };
+        describe('setCursor', () => {
+            it('should set the cursor of the host element', () => {
+                component.setCursor('grabbing');
 
-            it('should emit selectionCleared when a palette component is selected', () => {
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-                select(AndGate.name);
+                expect((fixture.nativeElement as HTMLElement).style.cursor).toBe('grabbing');
+            });
+        });
 
-                pressEsc();
+        describe('being dumb', () => {
+            it('should be usable as a DiagramView', () => {
+                const view: DiagramView = component;
 
-                expect(cleared).toHaveBeenCalledTimes(1);
+                expect(view.element).toBe(fixture.nativeElement);
             });
 
-            it('should emit selectionCleared when a component that was already placed is selected', () => {
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-                component.selectedSelectable = { workspaceId: 'workspace-1', id: 'some-id', className: AndGate.name };
+            it('should not listen to the mouse or the keyboard itself', () => {
+                const added = vi.spyOn(window, 'addEventListener');
+                const addedToDocument = vi.spyOn(document, 'addEventListener');
+                const fresh = TestBed.createComponent(DiagramWorkspacePresenterComponent);
+                Object.assign(fresh.componentInstance, { id: 'workspace-2', workspaceSettings: null, workspaceState: null });
 
-                pressEsc();
+                fresh.detectChanges();
 
-                expect(cleared).toHaveBeenCalledTimes(1);
+                const types = [...added.mock.calls, ...addedToDocument.mock.calls].map(([type]) => type);
+                expect(types.filter(t => t.startsWith('pointer') || t.startsWith('mouse') || t.startsWith('key'))).toEqual([]);
+                added.mockRestore();
+                addedToDocument.mockRestore();
             });
 
-            it('should clear a placement that was never finished, with focus still on the palette checkbox that was clicked', () => {
-                // palette items are checkboxes, and clicking one leaves focus on it
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                document.body.append(checkbox);
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-                select(AndGate.name);
-                moveTo(200, 100); // moved around, never placed
+            it('should not react to the mouse or Esc', () => {
+                const host = fixture.nativeElement as HTMLElement;
+                document.body.append(host);
 
-                pressEsc(checkbox);
+                host.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }));
+                host.dispatchEvent(new MouseEvent('pointermove', { clientX: 20, clientY: 10, bubbles: true }));
+                document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
-                expect(cleared).toHaveBeenCalledTimes(1);
-                checkbox.remove();
+                expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
+                expect(active.add).not.toHaveBeenCalled();
+                expect(host.style.cursor).toBe('');
+                host.remove();
             });
+        });
 
-            it('should clear the placement even before the ghost exists, such as right after switching tabs', () => {
-                renderService.activeId = 'another-workspace';
-                select(AndGate.name);
-                renderService.activeId = 'workspace-1';
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-
-                pressEsc();
-
-                expect(ghost()).toBeNull();
-                expect(cleared).toHaveBeenCalledTimes(1);
-            });
-
-            it('should use the key, so the browser and lower priority handlers leave it alone', () => {
-                select(AndGate.name);
-
-                expect(pressEsc().defaultPrevented).toBe(true);
-            });
-
-            it('should not use the key when nothing is selected, so something else can', () => {
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-
-                const event = pressEsc();
-
-                expect(cleared).not.toHaveBeenCalled();
-                expect(event.defaultPrevented).toBe(false);
-            });
-
-            it('should emit selectionCleared inside the Angular zone, since it leads to a store update', () => {
-                let inZone: boolean | undefined;
-                component.selectionCleared.subscribe(() => { inZone = NgZone.isInAngularZone(); });
-                select(AndGate.name);
-
-                pressEsc();
-
-                expect(inZone).toBe(true);
-            });
-
-            it('should stop handling Esc once destroyed', () => {
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-                select(AndGate.name);
+        describe('ngOnDestroy', () => {
+            it('should remove the workspace from the render service', () => {
                 fixture.destroy();
 
-                pressEsc();
-
-                expect(cleared).not.toHaveBeenCalled();
+                expect(renderService.remove).toHaveBeenCalledWith('workspace-1');
             });
-
-            it('should ignore other keys', () => {
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-                select(AndGate.name);
-
-                document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-
-                expect(cleared).not.toHaveBeenCalled();
-            });
-
-            it('should ignore Esc when this is not the workspace being shown', () => {
-                select(AndGate.name); // so it is only the rule under test that stops it
-                renderService.activeId = 'another-workspace';
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-
-                pressEsc();
-
-                expect(cleared).not.toHaveBeenCalled();
-            });
-
-            it.each(['input', 'textarea', 'select'])('should ignore Esc typed into a %s', (tag) => {
-                select(AndGate.name); // so it is only the rule under test that stops it
-                const field = document.createElement(tag);
-                document.body.appendChild(field);
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-
-                pressEsc(field);
-
-                expect(cleared).not.toHaveBeenCalled();
-                field.remove();
-            });
-
-            it('should ignore Esc that something else already handled', () => {
-                select(AndGate.name); // so it is only the rule under test that stops it
-                const handler = (e: Event) => e.preventDefault(); // a dialog or menu consuming the key before it bubbles up
-                window.addEventListener('keydown', handler, true);
-                const cleared = vi.fn();
-                component.selectionCleared.subscribe(cleared);
-
-                pressEsc();
-
-                expect(cleared).not.toHaveBeenCalled();
-                window.removeEventListener('keydown', handler, true);
-            });
-
-            it('should make the ghost disappear once the selection is cleared', () => {
-                select(AndGate.name);
-                moveTo(200, 100);
-                const discarded = ghost();
-                expect(active.getDrawableList()).toContain(discarded);
-
-                select(null); // what the store does after the container dispatches clearSelection
-
-                expect(active.getDrawableList()).not.toContain(discarded);
-                expect(staticComponent.add).not.toHaveBeenCalled();
-            });
-
-            it('should leave components that were already placed on the diagram', () => {
-                select(AndGate.name);
-                click(200, 100);
-                const placedCount = staticComponent.drawables.length;
-
-                select(null);
-
-                expect(staticComponent.drawables).toHaveLength(placedCount);
-                expect(staticComponent.removeDrawable).not.toHaveBeenCalled();
-            });
-        });
-    });
-
-    describe('panning', () => {
-        let host: HTMLElement;
-        let outside: HTMLElement;
-
-        const fire = (target: EventTarget, type: string, x = 0, y = 0, init: MouseEventInit = {}) =>
-            target.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, ...init }));
-
-        beforeEach(() => {
-            fixture.detectChanges();
-            host = fixture.nativeElement as HTMLElement;
-            outside = document.createElement('div');
-            document.body.append(host, outside);
-        });
-
-        afterEach(() => {
-            host.remove();
-            outside.remove();
-        });
-
-        it('should pan the diagram when the workspace is dragged', () => {
-            fire(host, 'pointerdown', 10, 10);
-            fire(host, 'pointermove', 20, 10, { movementX: 10, movementY: 0 });
-
-            expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
-            const [dx, dy] = renderService.panActiveDiagram.mock.calls[0];
-            expect(dx).toBe(10);
-            expect(dy).toBe(0);
-        });
-
-        it("should give the pan the workspace's size, for growing the layers", () => {
-            Object.defineProperty(host, 'clientWidth', { value: 640 });
-            Object.defineProperty(host, 'clientHeight', { value: 480 });
-
-            fire(host, 'pointerdown', 10, 10);
-            fire(host, 'pointermove', 20, 10);
-
-            expect(renderService.panActiveDiagram.mock.calls[0].slice(2)).toEqual([640, 480]);
-        });
-
-        it('should keep panning when the drag leaves the workspace', () => {
-            fire(host, 'pointerdown', 10, 10);
-            fire(outside, 'pointermove', 500, 500);
-
-            expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
-        });
-
-        it('should not pan for a drag that starts elsewhere', () => {
-            fire(outside, 'pointerdown', 10, 10);
-            fire(outside, 'pointermove', 20, 10);
-
-            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
-        });
-
-        it('should not pan when moving without a button held', () => {
-            fire(host, 'pointermove', 20, 10);
-
-            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
-        });
-
-        it('should stop panning on release', () => {
-            fire(host, 'pointerdown', 10, 10);
-            fire(host, 'pointerup', 10, 10);
-            fire(host, 'pointermove', 20, 10);
-
-            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
-        });
-
-        it('should not pan when another workspace is the one shown', () => {
-            renderService.activeId = 'workspace-2';
-
-            fire(host, 'pointerdown', 10, 10);
-            fire(host, 'pointermove', 20, 10);
-
-            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
-        });
-
-        it('should show the grabbing cursor while dragging and reset it on release', () => {
-            fire(host, 'pointerdown', 10, 10);
-            fire(host, 'pointermove', 20, 10);
-            expect(host.style.cursor).toBe('grabbing');
-
-            fire(window, 'pointerup', 20, 10);
-            expect(host.style.cursor).toBe('default');
-        });
-
-        it('should reset the cursor when the drag is released outside the workspace', () => {
-            fire(host, 'pointerdown', 10, 10);
-            fire(host, 'pointermove', 20, 10);
-
-            fire(outside, 'pointerup', 500, 500);
-
-            expect(host.style.cursor).toBe('default');
-        });
-
-        it('should leave the cursor alone when nothing was panned', () => {
-            host.style.cursor = 'crosshair';
-
-            fire(host, 'pointerdown', 10, 10);
-            fire(host, 'pointerup', 10, 10);
-
-            expect(host.style.cursor).toBe('crosshair');
-        });
-
-        it('should not react to the pointer once destroyed', () => {
-            fixture.destroy();
-
-            fire(host, 'pointerdown', 10, 10);
-            fire(host, 'pointermove', 20, 10);
-
-            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
         });
     });
 });

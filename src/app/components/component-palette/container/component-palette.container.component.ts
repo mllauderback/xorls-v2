@@ -1,10 +1,9 @@
 import { Component, inject } from '@angular/core';
 import { ComponentPalettePresenterComponent } from "../presenter/component-palette.presenter.component";
 import { Store } from '@ngrx/store';
-import type { PaletteComponentCategories, PaletteComponentsState } from '../../../store/components/state';
+import type { PaletteComponentRecord, PaletteComponentsState } from '../../../store/components/state';
 import type { Observable } from 'rxjs';
-import { selectPaletteComponentMap } from '../../../store/components/feature';
-import type { PaletteComponent } from '../../../models/components/PaletteComponent';
+import { selectPaletteComponents } from '../../../store/components/feature';
 import { CommonModule } from '@angular/common';
 import * as actions from '../../../store/components/actions';
 import * as workspaceActions from '../../../store/workspace/actions';
@@ -18,10 +17,10 @@ import { SelectablePropertiesContainerComponent } from "../../selectable-propert
         SelectablePropertiesContainerComponent
     ],
     template: `
-    @if (categoryPaletteComponentMap$ | async; as map) {
+    @if (categoryPaletteComponents$ | async; as record) {
         <app-component-palette-presenter
-            [categoryPaletteComponentMap]="map"
-            (categoryPaletteComponentMapChange)="updateCategoryPaletteComponentMap($event)"
+            [categoryPaletteComponents]="record"
+            (categoryPaletteComponentsChange)="updateCategoryPaletteComponents($event)"
         >
             <app-selectable-properties-container propertiesPanel />  
         </app-component-palette-presenter>
@@ -34,16 +33,16 @@ import { SelectablePropertiesContainerComponent } from "../../selectable-propert
 export class ComponentPaletteContainerComponent {
     private store = inject<Store<PaletteComponentsState>>(Store);
 
-    protected categoryPaletteComponentMap$: Observable<Map<PaletteComponentCategories, PaletteComponent[]>>;
+    protected categoryPaletteComponents$: Observable<PaletteComponentRecord>;
 
     constructor() {
-        this.categoryPaletteComponentMap$ = this.store.select(selectPaletteComponentMap);
+        this.categoryPaletteComponents$ = this.store.select(selectPaletteComponents);
     }
 
-    updateCategoryPaletteComponentMap(map: Map<PaletteComponentCategories, PaletteComponent[]>) {
-        this.store.dispatch(actions.setPaletteComponentMap({ paletteComponentMap: map }));
+    updateCategoryPaletteComponents(record: PaletteComponentRecord) {
+        this.store.dispatch(actions.setPaletteComponents({ paletteComponents: record }));
 
-        const selected = [...map.values()].flat().find(paletteComponent => paletteComponent.selected);
+        const selected = Object.values(record).flat().find(paletteComponent => paletteComponent.selected);
         if (!selected) {
             // toggled off: the workspace drops its preview
             this.store.dispatch(actions.clearSelectedPaletteComponent());

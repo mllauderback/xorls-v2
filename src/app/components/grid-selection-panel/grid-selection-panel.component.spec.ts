@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { ComponentFixture} from '@angular/core/testing';
+import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
 import { Component, Input } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { GridSelectionPanelComponent } from './grid-selection-panel.component';
 import type { PaletteComponent } from '../../models/components/PaletteComponent';
+import type { PaletteComponentRecord } from '../../store/components/state';
 import { PaletteComponentCategories } from '../../store/components/state';
 import { PaletteComponentSvgsComponent } from '../responsive-svgs/palette-component-svgs/palette-component-svgs.component';
 import { AndGate, OrGate } from '../../models/components/gates';
@@ -20,11 +21,14 @@ const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): Palet
     ...overrides,
 });
 
-const buildMap = (
+/** A palette with the components in one category. The other categories are there but empty. */
+const buildRecord = (
     category: PaletteComponentCategories,
     components: PaletteComponent[]
-): Map<PaletteComponentCategories, PaletteComponent[]> =>
-    new Map([[category, components]]);
+): PaletteComponentRecord => ({
+    ...Object.fromEntries(Object.values(PaletteComponentCategories).map(c => [c, []])),
+    [category]: components,
+} as PaletteComponentRecord);
 
 const CATEGORY: PaletteComponentCategories = PaletteComponentCategories.gates;
 
@@ -53,7 +57,7 @@ describe('GridSelectionPanelComponent', () => {
         components: PaletteComponent[],
         category: PaletteComponentCategories = CATEGORY
     ) => {
-        component.categoryPaletteComponentMap = buildMap(category, components);
+        component.categoryPaletteComponents = buildRecord(category, components);
         component.category = category;
         fixture.detectChanges();
     };
@@ -106,10 +110,10 @@ describe('GridSelectionPanelComponent', () => {
     });
 
     describe('select', () => {
-        it('should emit categoryPaletteComponentMapChange when a component is selected', () => {
+        it('should emit categoryPaletteComponentsChange when a component is selected', () => {
             const components = [buildPaletteComponent({ className: AndGate.name, selected: false })];
             setup(components);
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
 
             const checkbox = fixture.debugElement.query(By.css('.grid-selection-checkbox'));
             checkbox.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -117,19 +121,19 @@ describe('GridSelectionPanelComponent', () => {
             expect(emitSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('should emit a map with the clicked component selected when it was not selected', () => {
+        it('should emit a record with the clicked component selected when it was not selected', () => {
             const components = [
                 buildPaletteComponent({ className: AndGate.name, selected: false }),
                 buildPaletteComponent({ className: OrGate.name, selected: false }),
             ];
             setup(components);
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
 
             const checkboxes = fixture.debugElement.queryAll(By.css('.grid-selection-checkbox'));
             checkboxes[0].nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-            const emittedMap: Map<PaletteComponentCategories, PaletteComponent[]> | undefined = emitSpy.mock.calls[0][0];
-            const emittedComponents = emittedMap?.get(CATEGORY);
+            const emittedRecord: PaletteComponentRecord | undefined = emitSpy.mock.calls[0][0];
+            const emittedComponents = emittedRecord?.[CATEGORY];
             expect(emittedComponents![0].selected).toBe(true);
             expect(emittedComponents![1].selected).toBe(false);
         });
@@ -140,13 +144,13 @@ describe('GridSelectionPanelComponent', () => {
                 buildPaletteComponent({ className: OrGate.name, selected: false }),
             ];
             setup(components);
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
 
             const checkboxes = fixture.debugElement.queryAll(By.css('.grid-selection-checkbox'));
             checkboxes[1].nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-            const emittedMap: Map<PaletteComponentCategories, PaletteComponent[]> | undefined = emitSpy.mock.calls[0][0];
-            const emittedComponents = emittedMap?.get(CATEGORY);
+            const emittedRecord: PaletteComponentRecord | undefined = emitSpy.mock.calls[0][0];
+            const emittedComponents = emittedRecord?.[CATEGORY];
             expect(emittedComponents![0].selected).toBe(false);
             expect(emittedComponents![1].selected).toBe(true);
         });
@@ -157,30 +161,30 @@ describe('GridSelectionPanelComponent', () => {
                 buildPaletteComponent({ className: OrGate.name, selected: false }),
             ];
             setup(components);
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
 
             const checkboxes = fixture.debugElement.queryAll(By.css('.grid-selection-checkbox'));
             checkboxes[0].nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-            const emittedMap: Map<PaletteComponentCategories, PaletteComponent[]> | undefined = emitSpy.mock.calls[0][0];
-            const emittedComponents = emittedMap?.get(CATEGORY);
+            const emittedRecord: PaletteComponentRecord | undefined = emitSpy.mock.calls[0][0];
+            const emittedComponents = emittedRecord?.[CATEGORY];
             expect(emittedComponents![0].selected).toBe(false);
             expect(emittedComponents![1].selected).toBe(false);
         });
 
-        it('should emit a deep copy and not mutate the original map', () => {
+        it('should emit a deep copy and not mutate the original record', () => {
             const components = [buildPaletteComponent({ className: AndGate.name, selected: false })];
-            const originalMap = buildMap(CATEGORY, components);
+            const originalRecord = buildRecord(CATEGORY, components);
             setup(components);
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
-            component.categoryPaletteComponentMap = originalMap;
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
+            component.categoryPaletteComponents = originalRecord;
 
             const checkboxes = fixture.debugElement.queryAll(By.css('.grid-selection-checkbox'));
             checkboxes[0].nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-            const emittedMap = emitSpy.mock.calls[0][0];
-            expect(emittedMap).not.toBe(originalMap);
-            expect(originalMap.get(CATEGORY)![0].selected).toBe(false);
+            const emittedRecord = emitSpy.mock.calls[0][0];
+            expect(emittedRecord).not.toBe(originalRecord);
+            expect(originalRecord[CATEGORY]![0].selected).toBe(false);
         });
 
         it('should prevent the default checkbox toggle behaviour', () => {
@@ -196,10 +200,10 @@ describe('GridSelectionPanelComponent', () => {
             expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('should not emit if categoryPaletteComponentMap is undefined', () => {
+        it('should not emit if categoryPaletteComponents is undefined', () => {
             setup([]);
-            component.categoryPaletteComponentMap = undefined;
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
+            component.categoryPaletteComponents = undefined;
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
             fixture.detectChanges();
 
             component.select(new MouseEvent('click'), buildPaletteComponent());
@@ -210,7 +214,7 @@ describe('GridSelectionPanelComponent', () => {
         it('should not emit if category is undefined', () => {
             setup([]);
             component.category = undefined;
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentMapChange, 'emit');
+            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
             fixture.detectChanges();
 
             component.select(new MouseEvent('click'), buildPaletteComponent());
