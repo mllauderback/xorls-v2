@@ -8,13 +8,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { ButtonModule } from 'primeng/button';
 import { PaletteComponentSvgsComponent } from '../responsive-svgs/palette-component-svgs/palette-component-svgs.component';
 import { startWith } from 'rxjs';
+import { ComponentType } from '../../models/components/Component';
 
 export interface XorlsTabModel<T = unknown> {
     id: string;
     header: string;
     component: Type<T>;
     inputs?: Record<string, unknown>
-
 }
 
 export interface TabChangeEvent {
@@ -53,6 +53,8 @@ export class XorlsTabviewComponent implements AfterContentInit {
 
     private el = inject(ElementRef);
     private readonly untilDestroyed = takeUntilDestroyed();
+
+    protected get componentTypes() { return ComponentType; }
 
     ngAfterContentInit(): void {
         Promise.resolve().then(() => {

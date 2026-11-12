@@ -1,7 +1,7 @@
 import type { BoundingBox } from "../Bounded";
 import type { DrawState } from "../Drawable";
 import type { Point } from "../Point";
-import type { Component, Node } from "./Component";
+import { ComponentType, type Component, type Node } from "./Component";
 
 // Placeholder footprints until each component's draw() is implemented.
 const IO_BOUNDING_BOX: BoundingBox = { x: 0, y: 0, width: 60, height: 40 };
@@ -10,6 +10,7 @@ const SEVEN_SEGMENT_BOUNDING_BOX: BoundingBox = { x: 0, y: 0, width: 80, height:
 export class Input implements Component {
     position: Point;
     readonly id: string = crypto.randomUUID();
+    readonly type: ComponentType = ComponentType.Input;
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -36,6 +37,7 @@ export class Input implements Component {
 export class Output implements Component {
     position: Point;
     readonly id: string = crypto.randomUUID();
+    readonly type: ComponentType = ComponentType.Output;
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
@@ -63,6 +65,7 @@ export class Output implements Component {
 export class SevenSegmentDisplay implements Component {
     position: Point;
     readonly id: string = crypto.randomUUID();
+    readonly type: ComponentType = ComponentType.SevenSeg;
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;

@@ -2,15 +2,15 @@ import { describe, it, expect } from 'vitest';
 import * as functions from './reducer-functions';
 import type { PaletteComponentsState, PaletteComponentRecord, SelectedSelectable } from './state';
 import { PaletteComponentCategories } from './state';
-import { AndGate, OrGate } from '../../models/components/gates';
 import { initialComponentsState } from './feature';
 import { componentsReducer } from './feature';
 import * as actions from './actions';
+import { ComponentType } from '../../models/components/Component';
 
 const buildRecord = (selectedClassName?: string): PaletteComponentRecord => ({
     [PaletteComponentCategories.gates]: [
-        { className: AndGate.name, selected: AndGate.name === selectedClassName },
-        { className: OrGate.name, selected: OrGate.name === selectedClassName },
+        { type: ComponentType.AndGate, selected: ComponentType.AndGate === selectedClassName },
+        { type: ComponentType.OrGate, selected: ComponentType.OrGate === selectedClassName },
     ],
     [PaletteComponentCategories.io]: [],
     [PaletteComponentCategories.decorations]: [],
@@ -22,13 +22,13 @@ const buildState = (overrides: Partial<PaletteComponentsState> = {}): PaletteCom
     ...overrides,
 });
 
-const placedGate = (): SelectedSelectable => ({ workspaceId: 'workspace-1', id: 'gate-1', className: AndGate.name });
+const placedGate = (): SelectedSelectable => ({ workspaceId: 'workspace-1', id: 'gate-1', type: ComponentType.AndGate });
 const anyHighlighted = (state: PaletteComponentsState) => Object.values(state.paletteComponents).flat().some(c => c.selected);
 
 describe('components reducer functions', () => {
     describe('setSelectedPaletteComponent', () => {
         it('should store the palette component', () => {
-            const paletteComponent = { className: AndGate.name, selected: true };
+            const paletteComponent = { type: ComponentType.AndGate, selected: true };
 
             const state = functions.setSelectedPaletteComponent(buildState(), paletteComponent);
 
@@ -36,16 +36,16 @@ describe('components reducer functions', () => {
         });
 
         it('should replace a previous palette selection', () => {
-            const first = functions.setSelectedPaletteComponent(buildState(), { className: AndGate.name, selected: true });
-            const state = functions.setSelectedPaletteComponent(first, { className: OrGate.name, selected: true });
+            const first = functions.setSelectedPaletteComponent(buildState(), { type: ComponentType.AndGate, selected: true });
+            const state = functions.setSelectedPaletteComponent(first, { type: ComponentType.OrGate, selected: true });
 
-            expect(state.selectedPaletteComponent?.className).toBe(OrGate.name);
+            expect(state.selectedPaletteComponent?.type).toBe(ComponentType.OrGate);
         });
 
         it('should deselect a component that was selected in a diagram', () => {
             const state = functions.setSelectedPaletteComponent(
                 buildState({ selectedSelectable: placedGate() }),
-                { className: OrGate.name, selected: true }
+                { type: ComponentType.OrGate, selected: true }
             );
 
             expect(state.selectedSelectable).toBeNull();
@@ -63,8 +63,8 @@ describe('components reducer functions', () => {
 
         it('should end the palette selection, because only one thing is selected at a time', () => {
             const state = functions.setSelectedSelectable(buildState({
-                paletteComponents: buildRecord(AndGate.name),
-                selectedPaletteComponent: { className: AndGate.name, selected: true },
+                paletteComponents: buildRecord(ComponentType.AndGate),
+                selectedPaletteComponent: { type: ComponentType.AndGate, selected: true },
             }), placedGate());
 
             expect(state.selectedPaletteComponent).toBeNull();
@@ -72,7 +72,7 @@ describe('components reducer functions', () => {
         });
 
         it('should replace the previous selection', () => {
-            const next: SelectedSelectable = { workspaceId: 'workspace-1', id: 'gate-2', className: OrGate.name };
+            const next: SelectedSelectable = { workspaceId: 'workspace-1', id: 'gate-2', type: ComponentType.OrGate };
 
             const state = functions.setSelectedSelectable(buildState({ selectedSelectable: placedGate() }), next);
 
@@ -81,8 +81,8 @@ describe('components reducer functions', () => {
 
         it('should not mutate the previous state or its palette map', () => {
             const before = buildState({
-                paletteComponents: buildRecord(AndGate.name),
-                selectedPaletteComponent: { className: AndGate.name, selected: true },
+                paletteComponents: buildRecord(ComponentType.AndGate),
+                selectedPaletteComponent: { type: ComponentType.AndGate, selected: true },
             });
             functions.setSelectedSelectable(before, placedGate());
             expect(anyHighlighted(before)).toBe(true);
@@ -93,8 +93,8 @@ describe('components reducer functions', () => {
     describe('clearSelectedPaletteComponent', () => {
         it('should end the placement and un-highlight the palette', () => {
             const state = functions.clearSelectedPaletteComponent(buildState({
-                paletteComponents: buildRecord(AndGate.name),
-                selectedPaletteComponent: { className: AndGate.name, selected: true },
+                paletteComponents: buildRecord(ComponentType.AndGate),
+                selectedPaletteComponent: { type: ComponentType.AndGate, selected: true },
             }));
 
             expect(state.selectedPaletteComponent).toBeNull();
@@ -119,8 +119,8 @@ describe('components reducer functions', () => {
     describe('clearSelection', () => {
         it('should end the placement and un-highlight the palette', () => {
             const state = functions.clearSelection(buildState({
-                paletteComponents: buildRecord(AndGate.name),
-                selectedPaletteComponent: { className: AndGate.name, selected: true },
+                paletteComponents: buildRecord(ComponentType.AndGate),
+                selectedPaletteComponent: { type: ComponentType.AndGate, selected: true },
             }));
 
             expect(state.selectedPaletteComponent).toBeNull();
@@ -140,8 +140,8 @@ describe('components reducer functions', () => {
 
         it('should not mutate the previous state or its palette map', () => {
             const before = buildState({
-                paletteComponents: buildRecord(AndGate.name),
-                selectedPaletteComponent: { className: AndGate.name, selected: true },
+                paletteComponents: buildRecord(ComponentType.AndGate),
+                selectedPaletteComponent: { type: ComponentType.AndGate, selected: true },
                 selectedSelectable: placedGate(),
             });
             functions.clearSelection(before);
@@ -162,7 +162,7 @@ describe('components reducer functions', () => {
         });
 
         it('should select a palette component with the selectPaletteComponent action', () => {
-            const paletteComponent = { className: AndGate.name, selected: true };
+            const paletteComponent = { type: ComponentType.AndGate, selected: true };
 
             const state = componentsReducer(buildState(), actions.selectPaletteComponent({ paletteComponent }));
 
@@ -174,8 +174,8 @@ describe('components reducer functions', () => {
             const selectable = placedGate();
 
             const state = componentsReducer(buildState({
-                paletteComponents: buildRecord(AndGate.name),
-                selectedPaletteComponent: { className: AndGate.name, selected: true },
+                paletteComponents: buildRecord(ComponentType.AndGate),
+                selectedPaletteComponent: { type: ComponentType.AndGate, selected: true },
             }), actions.selectSelectable({ selectable }));
 
             expect(state.selectedSelectable).toBe(selectable);
@@ -183,19 +183,19 @@ describe('components reducer functions', () => {
         });
 
         it('should keep the palette component selected until the selection is cleared, however many are placed', () => {
-            const paletteComponent = { className: AndGate.name, selected: true };
-            let state = componentsReducer(buildState({ paletteComponents: buildRecord(AndGate.name) }), actions.selectPaletteComponent({ paletteComponent }));
+            const paletteComponent = { type: ComponentType.AndGate, selected: true };
+            let state = componentsReducer(buildState({ paletteComponents: buildRecord(ComponentType.AndGate) }), actions.selectPaletteComponent({ paletteComponent }));
 
             // placing a component changes nothing in the store: the workspace makes the next ghost itself
             state = componentsReducer(state, actions.setPaletteComponents({ paletteComponents: state.paletteComponents }));
 
             expect(state.selectedPaletteComponent).toBe(paletteComponent);
-            expect(Object.values(state.paletteComponents).flat().filter(c => c.selected).map(c => c.className)).toEqual([AndGate.name]);
+            expect(Object.values(state.paletteComponents).flat().filter(c => c.selected).map(c => c.type)).toEqual([ComponentType.AndGate]);
         });
 
         it('should end a placement with clearSelection', () => {
-            const paletteComponent = { className: AndGate.name, selected: true };
-            let state = componentsReducer(buildState({ paletteComponents: buildRecord(AndGate.name) }), actions.selectPaletteComponent({ paletteComponent }));
+            const paletteComponent = { type: ComponentType.AndGate, selected: true };
+            let state = componentsReducer(buildState({ paletteComponents: buildRecord(ComponentType.AndGate) }), actions.selectPaletteComponent({ paletteComponent }));
 
             state = componentsReducer(state, actions.clearSelection());
 
@@ -205,7 +205,7 @@ describe('components reducer functions', () => {
         });
 
         it('should cancel a placement with clearSelectedPaletteComponent', () => {
-            const paletteComponent = { className: AndGate.name, selected: true };
+            const paletteComponent = { type: ComponentType.AndGate, selected: true };
             let state = componentsReducer(buildState(), actions.selectPaletteComponent({ paletteComponent }));
             state = componentsReducer(state, actions.clearSelectedPaletteComponent());
             expect(state.selectedPaletteComponent).toBeNull();
@@ -221,7 +221,7 @@ describe('components reducer functions', () => {
 
     describe('palette components record', () => {
         it('should keep every category, in the same order, when the highlights are cleared', () => {
-            const state = functions.clearSelectedPaletteComponent(buildState({ paletteComponents: buildRecord(AndGate.name) }));
+            const state = functions.clearSelectedPaletteComponent(buildState({ paletteComponents: buildRecord(ComponentType.AndGate) }));
 
             expect(Object.keys(state.paletteComponents)).toEqual(Object.values(PaletteComponentCategories));
             expect(anyHighlighted(state)).toBe(false);
@@ -235,7 +235,7 @@ describe('components reducer functions', () => {
         });
 
         it('should be plain data, so it survives being serialized', () => {
-            const record = buildRecord(AndGate.name);
+            const record = buildRecord(ComponentType.AndGate);
 
             expect(JSON.parse(JSON.stringify(record))).toEqual(record);
         });

@@ -5,6 +5,7 @@ import { DividerModule } from 'primeng/divider';
 import { describe, beforeEach, it, expect } from 'vitest';
 
 import { SelectablePropertiesPresenterComponent } from './selectable-properties.presenter.component';
+import { ComponentType } from '../../../models/components/Component';
 
 /** PrimeNG's scroll panel measures its content to size its scroll bars, which the test DOM can't do (calc(NaN%)). */
 // eslint-disable-next-line @angular-eslint/component-selector -- it has to match the selector of the component it replaces
@@ -41,7 +42,7 @@ describe('SelectablePropertiesComponent', () => {
     });
 
     it('should show the class name of the selected component', () => {
-        component.selectable = { workspaceId: 'workspace-1', id: 'gate-1', className: 'AndGate' };
+        component.selectable = { workspaceId: 'workspace-1', id: 'gate-1', type: ComponentType.AndGate };
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain('AndGate Properties');

@@ -14,7 +14,7 @@ import { PaletteComponentCategories } from '../../../store/components/state';
 import type { PaletteComponent } from '../../../models/components/PaletteComponent';
 import { ComponentPalettePresenterComponent } from '../presenter/component-palette.presenter.component';
 import { SelectablePropertiesContainerComponent } from '../../selectable-properties/container/selectable-properties.container.component';
-import { AndGate, OrGate } from '../../../models/components/gates';
+import { ComponentType } from '../../../models/components/Component';
 
 @Component({ selector: 'app-component-palette-presenter', template: '<ng-content />', standalone: true })
 class MockComponentPalettePresenterComponent {
@@ -32,7 +32,7 @@ const dispatchedActions = (store: MockStore): { type: string }[] =>
     vi.mocked(store.dispatch).mock.calls.map(([action]) => action as unknown as { type: string });
 
 const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): PaletteComponent => ({
-    className: AndGate.name,
+    type: ComponentType.AndGate,
     selected: false,
     ...overrides,
 });
@@ -110,7 +110,7 @@ describe('ComponentPaletteContainerComponent', () => {
         it('should update the presenter when the store emits a new value', async () => {
             await fixture.whenStable();
 
-            const updatedRecord = buildRecord([buildPaletteComponent({ className: OrGate.name })]);
+            const updatedRecord = buildRecord([buildPaletteComponent({ type: ComponentType.OrGate })]);
             mockSelectPaletteComponents.setResult(updatedRecord);
             store.refreshState();
             fixture.detectChanges();
@@ -186,8 +186,8 @@ describe('ComponentPaletteContainerComponent', () => {
 
         describe('when a palette component is selected', () => {
             const selectedRecord = buildRecord([
-                buildPaletteComponent({ className: AndGate.name }),
-                buildPaletteComponent({ className: OrGate.name, selected: true }),
+                buildPaletteComponent({ type: ComponentType.AndGate }),
+                buildPaletteComponent({ type: ComponentType.OrGate, selected: true }),
             ]);
 
             const emitSelectedRecord = async () => {
@@ -205,7 +205,7 @@ describe('ComponentPaletteContainerComponent', () => {
 
             it('should select the palette component', async () => {
                 await emitSelectedRecord();
-                expect(selectAction()?.paletteComponent).toEqual({ className: OrGate.name, selected: true });
+                expect(selectAction()?.paletteComponent).toEqual({ type: ComponentType.OrGate, selected: true });
             });
 
             it('should give the store its own copy of the palette component, because the palette changes its entries in place', async () => {

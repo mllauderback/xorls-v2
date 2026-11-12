@@ -8,15 +8,15 @@ import type { PaletteComponent } from '../../models/components/PaletteComponent'
 import type { PaletteComponentRecord } from '../../store/components/state';
 import { PaletteComponentCategories } from '../../store/components/state';
 import { PaletteComponentSvgsComponent } from '../responsive-svgs/palette-component-svgs/palette-component-svgs.component';
-import { AndGate, OrGate } from '../../models/components/gates';
+import { ComponentType } from '../../models/components/Component';
 
 @Component({ selector: 'app-palette-component-svgs', template: '', standalone: true })
 class MockPaletteComponentSvgsComponent {
-    @Input() className?: string;
+    @Input() type?: string;
 }
 
 const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): PaletteComponent => ({
-    className: AndGate.name,
+    type: ComponentType.AndGate,
     selected: false,
     ...overrides,
 });
@@ -65,8 +65,8 @@ describe('GridSelectionPanelComponent', () => {
     describe('rendering', () => {
         it('should render a checkbox and label for each palette component', () => {
             const components = [
-                buildPaletteComponent({ className: AndGate.name }),
-                buildPaletteComponent({ className: OrGate.name }),
+                buildPaletteComponent({ type: ComponentType.AndGate }),
+                buildPaletteComponent({ type: ComponentType.OrGate }),
             ];
             setup(components);
 
@@ -78,7 +78,7 @@ describe('GridSelectionPanelComponent', () => {
         });
 
         it('should render a checked checkbox for a selected component', () => {
-            const components = [buildPaletteComponent({ className: AndGate.name, selected: true })];
+            const components = [buildPaletteComponent({ type: ComponentType.AndGate, selected: true })];
             setup(components);
 
             const checkbox = fixture.debugElement.query(By.css('.grid-selection-checkbox'));
@@ -86,19 +86,19 @@ describe('GridSelectionPanelComponent', () => {
         });
 
         it('should render an unchecked checkbox for an unselected component', () => {
-            const components = [buildPaletteComponent({ className: AndGate.name, selected: false })];
+            const components = [buildPaletteComponent({ type: ComponentType.AndGate, selected: false })];
             setup(components);
 
             const checkbox = fixture.debugElement.query(By.css('.grid-selection-checkbox'));
             expect(checkbox.nativeElement.checked).toBe(false);
         });
 
-        it('should bind the label for attribute to the component className', () => {
-            const components = [buildPaletteComponent({ className: AndGate.name })];
+        it('should bind the label for attribute to the component type', () => {
+            const components = [buildPaletteComponent({ type: ComponentType.AndGate })];
             setup(components);
 
             const label = fixture.debugElement.query(By.css('.grid-selection-label'));
-            expect(label.nativeElement.getAttribute('for')).toBe(AndGate.name);
+            expect(label.nativeElement.getAttribute('for')).toBe(ComponentType.AndGate);
         });
 
         it('should render nothing when the category has no components', () => {
@@ -111,7 +111,7 @@ describe('GridSelectionPanelComponent', () => {
 
     describe('select', () => {
         it('should emit categoryPaletteComponentsChange when a component is selected', () => {
-            const components = [buildPaletteComponent({ className: AndGate.name, selected: false })];
+            const components = [buildPaletteComponent({ type: ComponentType.AndGate, selected: false })];
             setup(components);
             const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
 
@@ -123,8 +123,8 @@ describe('GridSelectionPanelComponent', () => {
 
         it('should emit a record with the clicked component selected when it was not selected', () => {
             const components = [
-                buildPaletteComponent({ className: AndGate.name, selected: false }),
-                buildPaletteComponent({ className: OrGate.name, selected: false }),
+                buildPaletteComponent({ type: ComponentType.AndGate, selected: false }),
+                buildPaletteComponent({ type: ComponentType.OrGate, selected: false }),
             ];
             setup(components);
             const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
@@ -140,8 +140,8 @@ describe('GridSelectionPanelComponent', () => {
 
         it('should clear all selections before selecting the new component', () => {
             const components = [
-                buildPaletteComponent({ className: AndGate.name, selected: true }),
-                buildPaletteComponent({ className: OrGate.name, selected: false }),
+                buildPaletteComponent({ type: ComponentType.AndGate, selected: true }),
+                buildPaletteComponent({ type: ComponentType.OrGate, selected: false }),
             ];
             setup(components);
             const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
@@ -157,8 +157,8 @@ describe('GridSelectionPanelComponent', () => {
 
         it('should deselect a component and clear all selections when clicking an already selected component', () => {
             const components = [
-                buildPaletteComponent({ className: AndGate.name, selected: true }),
-                buildPaletteComponent({ className: OrGate.name, selected: false }),
+                buildPaletteComponent({ type: ComponentType.AndGate, selected: true }),
+                buildPaletteComponent({ type: ComponentType.OrGate, selected: false }),
             ];
             setup(components);
             const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
@@ -173,7 +173,7 @@ describe('GridSelectionPanelComponent', () => {
         });
 
         it('should emit a deep copy and not mutate the original record', () => {
-            const components = [buildPaletteComponent({ className: AndGate.name, selected: false })];
+            const components = [buildPaletteComponent({ type: ComponentType.AndGate, selected: false })];
             const originalRecord = buildRecord(CATEGORY, components);
             setup(components);
             const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
@@ -188,7 +188,7 @@ describe('GridSelectionPanelComponent', () => {
         });
 
         it('should prevent the default checkbox toggle behaviour', () => {
-            const components = [buildPaletteComponent({ className: AndGate.name, selected: false })];
+            const components = [buildPaletteComponent({ type: ComponentType.AndGate, selected: false })];
             setup(components);
 
             const event = new MouseEvent('click', { bubbles: true, cancelable: true });

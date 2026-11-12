@@ -31,7 +31,7 @@ export class GridSelectionPanelComponent {
         }
         else {
             recordCopy[this.category]?.forEach((pc: PaletteComponent) => {
-                if (pc.className === paletteComponent.className) {
+                if (pc.type === paletteComponent.type) {
                     pc.selected = true;
                 }
             });

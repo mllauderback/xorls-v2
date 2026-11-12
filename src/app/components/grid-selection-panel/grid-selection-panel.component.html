@@ -1,10 +1,10 @@
 <div class="grid-selection-panel">
     @for (paletteComponent of categoryPaletteComponents?.[category!]; track $index) {
-    <input class="grid-selection-checkbox" [id]="paletteComponent.className" type="checkbox"
+    <input class="grid-selection-checkbox" [id]="paletteComponent.type" type="checkbox"
         [checked]="paletteComponent.selected" (click)="select($event, paletteComponent)" />
-    <label class="grid-selection-label" for="{{ paletteComponent.className }}" [pTooltip]="paletteComponent.className"
+    <label class="grid-selection-label" for="{{ paletteComponent.type }}" [pTooltip]="paletteComponent.type"
         showDelay="1000">
-        <app-palette-component-svgs [className]="paletteComponent.className" />
+        <app-palette-component-svgs [type]="paletteComponent.type" />
     </label>
     }
 </div>

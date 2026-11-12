@@ -2,6 +2,7 @@ import type { BoundingBox } from "../Bounded";
 import type { Point } from "../Point";
 import type { Decoration } from "./Decoration";
 import type { DrawState } from "../Drawable";
+import { ComponentType } from "./Component";
 
 // Placeholder footprint until Text.draw() is implemented.
 const TEXT_BOUNDING_BOX: BoundingBox = { x: 0, y: 0, width: 80, height: 20 };
@@ -9,6 +10,7 @@ const TEXT_BOUNDING_BOX: BoundingBox = { x: 0, y: 0, width: 80, height: 20 };
 export class Text implements Decoration {
     position: Point;
     readonly id: string = crypto.randomUUID();
+    readonly type: ComponentType = ComponentType.Text;
     font: string; // type may change to an enum who knows
     size: number;
     isGhost: boolean;

@@ -30,13 +30,15 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
             console.warn('Settings is null or undefined - skipping update.');
             return;
         }
-        this.gridMode = settings.gridMode;
-        this.gridSpacing = settings.gridSpacing;
+        this._gridMode = settings.gridMode ?? 'dots';
+        this._gridSpacing = settings.gridSpacing ?? 20;
+        // both values go to the grid in one step so it is marked, and drawn, once
+        this.applyToGrid(settings.gridMode, settings.gridSpacing);
     }
 
     set gridMode(mode: GridMode | null) {
         this._gridMode = mode ?? 'dots';
-        this.onGridModeChanged(mode);
+        this.applyToGrid(mode, undefined);
     }
 
     get gridMode(): GridMode | undefined {
@@ -49,7 +51,7 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
 
     set gridSpacing(spacing: number | null) {
         this._gridSpacing = spacing ?? 20;
-        this.onGridSpacingChanged(spacing);
+        this.applyToGrid(undefined, spacing);
     }
 
     constructor() {
@@ -91,22 +93,31 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
         }
     }
 
-    private onGridSpacingChanged(gridSpacing?: number | null) {
-        if (!gridSpacing || !this.grid) {
-            console.warn('Cannot update grid spacing - skipping update');
+    /**
+     * Gives the grid new settings and, if anything changed, repaints it once on the next refresh.
+     * `undefined` means "leave this one alone"; `null` or an invalid value is skipped with a warning.
+     */
+    private applyToGrid(gridMode: GridMode | null | undefined, gridSpacing: number | null | undefined) {
+        if (!this.grid) {
+            console.warn('Cannot update grid settings - no grid.');
             return;
         }
-        this.grid.gridSpacing = gridSpacing;
-        this.markForUpdate(this.grid);
-        this.forceClearAll = true;
-    }
-
-    private onGridModeChanged(gridMode?: GridMode | null) {
-        if (!gridMode || !this.grid) {
-            console.warn('Cannot update grid mode - skipping update');
-            return;
+        let changed = false;
+        if (gridMode !== undefined) {
+            if (gridMode) {
+                this.grid.gridMode = gridMode;
+                changed = true;
+            }
+            else console.warn('Cannot update grid mode - skipping update');
         }
-        this.grid.gridMode = gridMode;
+        if (gridSpacing !== undefined) {
+            if (gridSpacing) {
+                this.grid.gridSpacing = gridSpacing;
+                changed = true;
+            }
+            else console.warn('Cannot update grid spacing - skipping update');
+        }
+        if (!changed) return;
         this.markForUpdate(this.grid);
         this.forceClearAll = true;
     }
