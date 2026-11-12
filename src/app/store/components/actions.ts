@@ -1,9 +1,9 @@
 import { createAction, props } from "@ngrx/store";
-import type { PaletteComponentCategories, SelectedSelectable } from "./state";
+import type { PaletteComponentRecord, SelectedSelectable } from "./state";
 import type { PaletteComponent } from "../../models/components/PaletteComponent";
 
 
-export const setPaletteComponentMap = createAction('Update selected palette component list', props<{ paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]> }>());
+export const setPaletteComponents = createAction('Update selected palette component list', props<{ paletteComponents: PaletteComponentRecord }>());
 
 /**
  * A palette component was selected, to be placed in the workspace. The workspace previews it as a ghost, which it

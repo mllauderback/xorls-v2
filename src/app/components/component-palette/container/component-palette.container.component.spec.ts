@@ -6,10 +6,10 @@ import { By } from '@angular/platform-browser';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import type { MemoizedSelector } from '@ngrx/store';
 import { ComponentPaletteContainerComponent } from './component-palette.container.component';
-import { selectPaletteComponentMap } from '../../../store/components/feature';
+import { selectPaletteComponents } from '../../../store/components/feature';
 import * as actions from '../../../store/components/actions';
 import * as workspaceActions from '../../../store/workspace/actions';
-import type { PaletteComponentsState } from '../../../store/components/state';
+import type { PaletteComponentRecord, PaletteComponentsState } from '../../../store/components/state';
 import { PaletteComponentCategories } from '../../../store/components/state';
 import type { PaletteComponent } from '../../../models/components/PaletteComponent';
 import { ComponentPalettePresenterComponent } from '../presenter/component-palette.presenter.component';
@@ -18,12 +18,12 @@ import { AndGate, OrGate } from '../../../models/components/gates';
 
 @Component({ selector: 'app-component-palette-presenter', template: '<ng-content />', standalone: true })
 class MockComponentPalettePresenterComponent {
-    @Input() categoryPaletteComponentMap?: Map<PaletteComponentCategories, PaletteComponent[]>;
-    @Output() categoryPaletteComponentMapChange = new EventEmitter<Map<PaletteComponentCategories, PaletteComponent[]>>();
+    @Input() categoryPaletteComponents?: PaletteComponentRecord;
+    @Output() categoryPaletteComponentsChange = new EventEmitter<PaletteComponentRecord>();
 }
 
 @Component({ selector: 'app-selectable-properties-container', template: '', standalone: true })
-class MockSelectablePropertiesContainerComponent {}
+class MockSelectablePropertiesContainerComponent { }
 
 const CATEGORY: PaletteComponentCategories = PaletteComponentCategories.gates;
 
@@ -37,39 +37,43 @@ const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): Palet
     ...overrides,
 });
 
-const mockMap = new Map<PaletteComponentCategories, PaletteComponent[]>([
-    [CATEGORY, [buildPaletteComponent()]],
-]);
+/** A palette with the given components in one category. The other categories are there but empty. */
+const buildRecord = (components: PaletteComponent[]): PaletteComponentRecord => ({
+    ...Object.fromEntries(Object.values(PaletteComponentCategories).map(category => [category, []])),
+    [CATEGORY]: components,
+} as PaletteComponentRecord);
+
+const mockRecord = buildRecord([buildPaletteComponent()]);
 
 describe('ComponentPaletteContainerComponent', () => {
     let store: MockStore;
     let fixture: ComponentFixture<ComponentPaletteContainerComponent>;
     let component: ComponentPaletteContainerComponent;
-    let mockSelectPaletteComponentMap: MemoizedSelector<PaletteComponentsState, Map<PaletteComponentCategories, PaletteComponent[]>>;
+    let mockSelectPaletteComponents: MemoizedSelector<PaletteComponentsState, PaletteComponentRecord>;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [ComponentPaletteContainerComponent],
             providers: [provideMockStore()],
         })
-        .overrideComponent(ComponentPaletteContainerComponent, {
-            remove: {
-                imports: [
-                    ComponentPalettePresenterComponent,
-                    SelectablePropertiesContainerComponent
-                ]
-            },
-            add: {
-                imports: [
-                    MockComponentPalettePresenterComponent,
-                    MockSelectablePropertiesContainerComponent,
-                ],
-            },
-        })
-        .compileComponents();
+            .overrideComponent(ComponentPaletteContainerComponent, {
+                remove: {
+                    imports: [
+                        ComponentPalettePresenterComponent,
+                        SelectablePropertiesContainerComponent
+                    ]
+                },
+                add: {
+                    imports: [
+                        MockComponentPalettePresenterComponent,
+                        MockSelectablePropertiesContainerComponent,
+                    ],
+                },
+            })
+            .compileComponents();
 
         store = TestBed.inject(MockStore);
-        mockSelectPaletteComponentMap = store.overrideSelector(selectPaletteComponentMap, mockMap);
+        mockSelectPaletteComponents = store.overrideSelector(selectPaletteComponents, mockRecord);
         vi.spyOn(store, 'dispatch');
 
         fixture = TestBed.createComponent(ComponentPaletteContainerComponent);
@@ -84,32 +88,30 @@ describe('ComponentPaletteContainerComponent', () => {
     });
 
     describe('store selection', () => {
-        it('should select categoryPaletteComponentMap$ from the store', () => {
-            let emittedValue: Map<PaletteComponentCategories, PaletteComponent[]> | undefined;
-            component['categoryPaletteComponentMap$'].subscribe((val) => {
+        it('should select categoryPaletteComponents$ from the store', () => {
+            let emittedValue: PaletteComponentRecord | undefined;
+            component['categoryPaletteComponents$'].subscribe((val) => {
                 emittedValue = val;
             });
 
-            expect(emittedValue).toEqual(mockMap);
+            expect(emittedValue).toEqual(mockRecord);
         });
 
-        it('should pass the map to the presenter when the store emits', async () => {
+        it('should pass the record to the presenter when the store emits', async () => {
             await fixture.whenStable();
 
             const presenter = fixture.debugElement.query(
                 By.directive(MockComponentPalettePresenterComponent)
             ).componentInstance as MockComponentPalettePresenterComponent;
 
-            expect(presenter.categoryPaletteComponentMap).toEqual(mockMap);
+            expect(presenter.categoryPaletteComponents).toEqual(mockRecord);
         });
 
         it('should update the presenter when the store emits a new value', async () => {
             await fixture.whenStable();
 
-            const updatedMap = new Map<PaletteComponentCategories, PaletteComponent[]>([
-                [CATEGORY, [buildPaletteComponent({ className: OrGate.name })]],
-            ]);
-            mockSelectPaletteComponentMap.setResult(updatedMap);
+            const updatedRecord = buildRecord([buildPaletteComponent({ className: OrGate.name })]);
+            mockSelectPaletteComponents.setResult(updatedRecord);
             store.refreshState();
             fixture.detectChanges();
             await fixture.whenStable();
@@ -118,12 +120,12 @@ describe('ComponentPaletteContainerComponent', () => {
                 By.directive(MockComponentPalettePresenterComponent)
             ).componentInstance as MockComponentPalettePresenterComponent;
 
-            expect(presenter.categoryPaletteComponentMap).toEqual(updatedMap);
+            expect(presenter.categoryPaletteComponents).toEqual(updatedRecord);
         });
     });
 
     describe('loading state', () => {
-        it('should show the presenter when the store emits a map', async () => {
+        it('should show the presenter when the store emits a record', async () => {
             await fixture.whenStable();
 
             const presenter = fixture.debugElement.query(By.directive(MockComponentPalettePresenterComponent));
@@ -131,7 +133,7 @@ describe('ComponentPaletteContainerComponent', () => {
         });
 
         it('should show the loading message before the store emits', async () => {
-            store.overrideSelector(selectPaletteComponentMap, null as unknown as Map<PaletteComponentCategories, PaletteComponent[]>);
+            store.overrideSelector(selectPaletteComponents, null as unknown as PaletteComponentRecord);
             store.refreshState();
             fixture.detectChanges();
             await fixture.whenStable();
@@ -141,7 +143,7 @@ describe('ComponentPaletteContainerComponent', () => {
         });
 
         it('should not show the presenter before the store emits', async () => {
-            store.overrideSelector(selectPaletteComponentMap, null as unknown as Map<PaletteComponentCategories, PaletteComponent[]>);
+            store.overrideSelector(selectPaletteComponents, null as unknown as PaletteComponentRecord);
             store.refreshState();
             fixture.detectChanges();
             await fixture.whenStable();
@@ -151,18 +153,18 @@ describe('ComponentPaletteContainerComponent', () => {
         });
     });
 
-    describe('updateCategoryPaletteComponentMap', () => {
-        it('should dispatch setPaletteComponentMap with the emitted map', async () => {
+    describe('updateCategoryPaletteComponents', () => {
+        it('should dispatch setPaletteComponents with the emitted map', async () => {
             await fixture.whenStable();
 
             const presenter = fixture.debugElement.query(
                 By.directive(MockComponentPalettePresenterComponent)
             ).componentInstance as MockComponentPalettePresenterComponent;
 
-            presenter.categoryPaletteComponentMapChange.emit(mockMap);
+            presenter.categoryPaletteComponentsChange.emit(mockRecord);
 
             expect(store.dispatch).toHaveBeenCalledWith(
-                actions.setPaletteComponentMap({ paletteComponentMap: mockMap })
+                actions.setPaletteComponents({ paletteComponents: mockRecord })
             );
         });
 
@@ -173,29 +175,27 @@ describe('ComponentPaletteContainerComponent', () => {
                 By.directive(MockComponentPalettePresenterComponent)
             ).componentInstance as MockComponentPalettePresenterComponent;
 
-            presenter.categoryPaletteComponentMapChange.emit(mockMap);
-            presenter.categoryPaletteComponentMapChange.emit(mockMap);
+            presenter.categoryPaletteComponentsChange.emit(mockRecord);
+            presenter.categoryPaletteComponentsChange.emit(mockRecord);
 
-            const mapDispatches = dispatchedActions(store).filter(
-                action => action.type === actions.setPaletteComponentMap.type
+            const recordDispatches = dispatchedActions(store).filter(
+                action => action.type === actions.setPaletteComponents.type
             );
-            expect(mapDispatches).toHaveLength(2);
+            expect(recordDispatches).toHaveLength(2);
         });
 
         describe('when a palette component is selected', () => {
-            const selectedMap = new Map<PaletteComponentCategories, PaletteComponent[]>([
-                [CATEGORY, [
-                    buildPaletteComponent({ className: AndGate.name }),
-                    buildPaletteComponent({ className: OrGate.name, selected: true }),
-                ]],
+            const selectedRecord = buildRecord([
+                buildPaletteComponent({ className: AndGate.name }),
+                buildPaletteComponent({ className: OrGate.name, selected: true }),
             ]);
 
-            const emitSelectedMap = async () => {
+            const emitSelectedRecord = async () => {
                 await fixture.whenStable();
                 const presenter = fixture.debugElement.query(
                     By.directive(MockComponentPalettePresenterComponent)
                 ).componentInstance as MockComponentPalettePresenterComponent;
-                presenter.categoryPaletteComponentMapChange.emit(selectedMap);
+                presenter.categoryPaletteComponentsChange.emit(selectedRecord);
             };
 
             const selectAction = () => {
@@ -204,22 +204,22 @@ describe('ComponentPaletteContainerComponent', () => {
             };
 
             it('should select the palette component', async () => {
-                await emitSelectedMap();
+                await emitSelectedRecord();
                 expect(selectAction()?.paletteComponent).toEqual({ className: OrGate.name, selected: true });
             });
 
             it('should give the store its own copy of the palette component, because the palette changes its entries in place', async () => {
-                await emitSelectedMap();
-                expect(selectAction()?.paletteComponent).not.toBe(selectedMap.get(CATEGORY)![1]);
+                await emitSelectedRecord();
+                expect(selectAction()?.paletteComponent).not.toBe(selectedRecord[CATEGORY]![1]);
             });
 
             it('should not create the component itself: the workspace previews it from the class name', async () => {
-                await emitSelectedMap();
+                await emitSelectedRecord();
                 expect(Object.keys(selectAction()!).sort()).toEqual(['paletteComponent', 'type']);
             });
 
             it('should switch the mouse to place mode', async () => {
-                await emitSelectedMap();
+                await emitSelectedRecord();
                 expect(store.dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'place' }));
             });
         });
@@ -231,7 +231,7 @@ describe('ComponentPaletteContainerComponent', () => {
                     By.directive(MockComponentPalettePresenterComponent)
                 ).componentInstance as MockComponentPalettePresenterComponent;
 
-                presenter.categoryPaletteComponentMapChange.emit(mockMap); // nothing selected in mockMap
+                presenter.categoryPaletteComponentsChange.emit(mockRecord); // nothing selected in mockRecord
 
                 expect(store.dispatch).toHaveBeenCalledWith(actions.clearSelectedPaletteComponent());
                 expect(store.dispatch).toHaveBeenCalledWith(workspaceActions.updateMouseMode({ mode: 'select' }));

@@ -4,8 +4,7 @@ import { SplitterModule } from 'primeng/splitter';
 import { PanelModule } from 'primeng/panel';
 import { ButtonModule } from 'primeng/button';
 import { CommonModule } from '@angular/common';
-import type { PaletteComponent } from '../../../models/components/PaletteComponent';
-import type { PaletteComponentCategories } from '../../../store/components/state';
+import type { PaletteComponentCategories, PaletteComponentRecord } from '../../../store/components/state';
 import { GridSelectionPanelComponent } from '../../grid-selection-panel/grid-selection-panel.component';
 
 @Component({
@@ -22,11 +21,16 @@ import { GridSelectionPanelComponent } from '../../grid-selection-panel/grid-sel
     styleUrl: './component-palette.presenter.component.scss'
 })
 export class ComponentPalettePresenterComponent {
-    @Input() categoryPaletteComponentMap?: Map<PaletteComponentCategories, PaletteComponent[]>;
-    @Output() categoryPaletteComponentMapChange = new EventEmitter<Map<PaletteComponentCategories, PaletteComponent[]>>();
+    @Input() categoryPaletteComponents?: PaletteComponentRecord;
+    @Output() categoryPaletteComponentsChange = new EventEmitter<PaletteComponentRecord>();
 
-    protected onMapChange(map: Map<PaletteComponentCategories, PaletteComponent[]>) {
-        this.categoryPaletteComponentMap = map;
-        this.categoryPaletteComponentMapChange.emit(map);
+    /** The categories to show, in the order they are in the record. */
+    protected get categories(): PaletteComponentCategories[] {
+        return Object.keys(this.categoryPaletteComponents ?? {}) as PaletteComponentCategories[];
+    }
+
+    protected onRecordChange(record: PaletteComponentRecord) {
+        this.categoryPaletteComponents = record;
+        this.categoryPaletteComponentsChange.emit(record);
     }
 }

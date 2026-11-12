@@ -6,12 +6,8 @@ export enum PaletteComponentCategories {
     decorations = "Decorations"
 }
 
-export interface PaletteComponentList { // make this a map
-    "Gates": PaletteComponent[];
-    "I/O": PaletteComponent[];
-    "Decorations": PaletteComponent[];
-    // more categories ...
-}
+/** The palette components of each category. Every category is there, and the order of the keys is the order they are shown in. */
+export type PaletteComponentRecord = Record<PaletteComponentCategories, PaletteComponent[]>;
 
 /**
  * Which component is selected. This is a reference, not the component: the instance stays in the workspace it was
@@ -30,7 +26,7 @@ export interface SelectedSelectable {
 }
 
 export interface PaletteComponentsState {
-    paletteComponentMap: Map<PaletteComponentCategories, PaletteComponent[]>;
+    paletteComponents: PaletteComponentRecord;
     /** The palette entry currently waiting to be placed in the workspace, or null once it has been placed/cancelled. */
     selectedPaletteComponent: PaletteComponent | null;
     /** The selected placed component, or null. A component that is only being previewed is never in here. */

@@ -8,7 +8,7 @@ import { initialComponentsState } from '../../store/components/feature';
 describe('ComponentFactory', () => {
     describe('createPlaceable', () => {
         it('should create every class the palette offers without throwing', () => {
-            const classNames = [...initialComponentsState.paletteComponentMap.values()]
+            const classNames = Object.values(initialComponentsState.paletteComponents)
                 .flat()
                 .map(c => c.className);
             expect(classNames.length).toBeGreaterThan(0);
@@ -25,7 +25,7 @@ describe('ComponentFactory', () => {
         });
 
         it('should give every instance an id, so a component can be referred to without holding it', () => {
-            const classNames = [...initialComponentsState.paletteComponentMap.values()].flat().map(c => c.className);
+            const classNames = Object.values(initialComponentsState.paletteComponents).flat().map(c => c.className);
             for (const className of classNames) {
                 expect(createPlaceable(className, { x: 0, y: 0 }).id, className).toEqual(expect.any(String));
                 expect(createPlaceable(className, { x: 0, y: 0 }).id, className).not.toBe('');
@@ -70,7 +70,7 @@ describe('ComponentFactory', () => {
 
     describe('getBoundingBox', () => {
         it('should give every placeable a non-empty bounding box', () => {
-            const classNames = [...initialComponentsState.paletteComponentMap.values()].flat().map(c => c.className);
+            const classNames = Object.values(initialComponentsState.paletteComponents).flat().map(c => c.className);
             for (const className of classNames) {
                 const box = createPlaceable(className, { x: 0, y: 0 }).getBoundingBox();
                 expect(box.width, className).toBeGreaterThan(0);
