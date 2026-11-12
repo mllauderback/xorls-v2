@@ -86,8 +86,8 @@ export class DiagramController {
      * one can be placed again and again.
      */
     setPaletteComponent(paletteComponent: PaletteComponent | null): void {
-        const previous = this.paletteComponent?.className ?? null;
-        const current = paletteComponent?.className ?? null;
+        const previous = this.paletteComponent?.type ?? null;
+        const current = paletteComponent?.type ?? null;
         this.paletteComponent = paletteComponent;
         // The store hands over a new object for every update. The ghost only changes with the kind of component.
         if (previous === current) return;
@@ -131,7 +131,7 @@ export class DiagramController {
      * @returns The ghost, or null if there shouldn't be one
      */
     private ensureGhost(): Placeable | null {
-        const className = this.paletteComponent?.className;
+        const className = this.paletteComponent?.type;
         if (!this.ghost && className && this.isActive()) {
             // The position is set from the pointer, as soon as there is one. It is shown then.
             this.ghost = createPlaceable(className, { x: 0, y: 0 });
@@ -213,13 +213,13 @@ export class DiagramController {
     }
 
     /**
-     * Snaps a diagram position to the nearest grid point on the canvas. The grid is drawn on the canvas, not relative
-     * to the diagram origin, so snapping happens in canvas coordinates to line up with the grid points the user sees.
+     * Snaps a diagram position to the nearest grid point. The grid is anchored to the diagram origin, so its points are
+     * the multiples of the spacing in diagram coordinates, wherever the origin is on the canvas.
      */
     private snapToGrid(position: Point): Point {
-        const origin = this.renderService.activeDrawState?.origin ?? { x: 0, y: 0 };
         const spacing = this.gridSpacing;
-        const snap = (value: number, offset: number) => Math.round((value + offset) / spacing) * spacing - offset;
-        return { x: snap(position.x, origin.x), y: snap(position.y, origin.y) };
+        // `+ 0` turns -0 (rounding a small negative value) into 0
+        const snap = (value: number) => Math.round(value / spacing) * spacing + 0;
+        return { x: snap(position.x), y: snap(position.y) };
     }
 }

@@ -1,4 +1,6 @@
+import type { ComponentType } from "./Component";
+
 export interface PaletteComponent {
-    className: string;
+    type: ComponentType;
     selected: boolean;
 }

@@ -1,19 +1,15 @@
 import { Component, Input } from '@angular/core';
-import * as gates from '../../../models/components/gates';
-import * as io from '../../../models/components/io';
-import *  as decorations from '../../../models/components/decorations';
+import { ComponentType } from '../../../models/components/Component';
 
 @Component({
-  selector: 'app-palette-component-svgs',
-  imports: [],
-  templateUrl: './palette-component-svgs.component.html'
+    selector: 'app-palette-component-svgs',
+    imports: [],
+    templateUrl: './palette-component-svgs.component.html'
 })
 export class PaletteComponentSvgsComponent {
-  @Input() className = '';
-  @Input() height = '2.4rem';
-  @Input() width = '2.4rem';
+    @Input() type: ComponentType | null = null;
+    @Input() height = '2.4rem';
+    @Input() width = '2.4rem';
 
-  gates = gates;
-  io = io;
-  decorations = decorations;
+    protected get componentTypes() { return ComponentType; }
 }

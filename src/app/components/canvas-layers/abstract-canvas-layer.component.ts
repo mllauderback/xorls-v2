@@ -152,9 +152,7 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
      */
     public add(drawable: Drawable) {
         this.drawableList.push(drawable);
-        if (this.updateDrawableList !== this.drawableList) {
-            this.updateDrawableList.push(drawable);
-        }
+        this.updateDrawableList.push(drawable);
     }
 
     /**
@@ -211,19 +209,22 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
      * @param drawable The Drawable instace to repaint
      */
     public markForUpdate(drawable: Drawable) {
-        if (this.drawableList.find(d => d !== drawable)) {
+        if (!this.drawableList.includes(drawable)) {
             console.warn('Drawable marked for update not found.  Skipping.');
             return;
         }
-        this.updateDrawableList.push(drawable);
+        // a drawable is painted once per refresh no matter how many times it was marked
+        if (!this.updateDrawableList.includes(drawable)) {
+            this.updateDrawableList.push(drawable);
+        }
     }
 
     /**
      * Sets the update drawables list to the list of all drawables which will be updated on the next refresh call.
      */
     public markAllDrawablesForUpdates() {
-        // assigns drawableList reference to updateDrawableList - faster than [...drawableList]
-        this.updateDrawableList = this.drawableList;
+        // a copy, not the same array: otherwise marking or adding a drawable later would push it into drawableList too
+        this.updateDrawableList = [...this.drawableList];
     }
 
     /**

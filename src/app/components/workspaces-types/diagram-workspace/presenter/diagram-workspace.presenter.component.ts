@@ -59,7 +59,7 @@ export class DiagramWorkspacePresenterComponent implements DiagramView, AfterVie
             this.activeWireCanvasLayerComponent
         ];
         this.renderService.add(this.id, layers);
-        console.log(`view inited for ${this.id}`);
+        // console.log(`view inited for ${this.id}`);
         this.viewReady.emit(this);
     }
 

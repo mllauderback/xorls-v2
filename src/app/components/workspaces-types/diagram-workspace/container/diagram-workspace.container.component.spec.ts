@@ -16,10 +16,10 @@ import { selectSelectedPaletteComponent, selectSelectedSelectable } from '../../
 import * as componentActions from '../../../../store/components/actions';
 import * as workspaceActions from '../../../../store/workspace/actions';
 import type { SelectedSelectable } from '../../../../store/components/state';
-import { AndGate } from '../../../../models/components/gates';
 import type { PaletteComponent } from '../../../../models/components/PaletteComponent';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { CodeWorkspaceState, DiagramWorkspaceState } from '../../../../store/workspace/state';
+import { ComponentType } from '../../../../models/components/Component';
 
 @Component({
     selector: 'app-diagram-workspace-presenter',
@@ -238,8 +238,8 @@ describe('DiagramWorkspaceContainerComponent', () => {
     });
 
     describe('controller', () => {
-        const paletteComponent: PaletteComponent = { className: AndGate.name, selected: true };
-        const selection: SelectedSelectable = { workspaceId: 'test-diagram-id', id: 'gate-1', className: AndGate.name };
+        const paletteComponent: PaletteComponent = { type: ComponentType.AndGate, selected: true };
+        const selection: SelectedSelectable = { workspaceId: 'test-diagram-id', id: 'gate-1', type: ComponentType.AndGate };
         const presenterOf = () => fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
             .componentInstance as MockDiagramWorkspacePresenterComponent;
 

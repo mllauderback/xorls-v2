@@ -20,7 +20,7 @@ export interface SelectedSelectable {
     /** The component's id. */
     id: string;
     /** The component's class name, so the UI can show what kind of component it is without looking it up. */
-    className: string;
+    type: string;
 
     // TODO: add serialized object data for each selectable type (component/io/decoration/etc)
 }

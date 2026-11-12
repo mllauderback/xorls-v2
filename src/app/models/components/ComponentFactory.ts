@@ -1,7 +1,7 @@
 import type { Point } from "../Point";
 import type { Selectable } from "../Selectable";
 import { isGhostable } from "../Ghostable";
-import type { Component } from "./Component";
+import { ComponentType, type Component } from "./Component";
 import type { Decoration } from "./Decoration";
 import * as gates from "./gates";
 import * as io from "./io";
@@ -15,18 +15,18 @@ const DEFAULT_INPUT_NODE_COUNT = 2;
 const DEFAULT_BUS_WIDTH = 4;
 
 const factories: Record<string, (position: Point) => Placeable> = {
-    [gates.AndGate.name]: p => new gates.AndGate(p, DEFAULT_INPUT_NODE_COUNT),
-    [gates.OrGate.name]: p => new gates.OrGate(p, DEFAULT_INPUT_NODE_COUNT),
-    [gates.XorGate.name]: p => new gates.XorGate(p, DEFAULT_INPUT_NODE_COUNT),
-    [gates.NotGate.name]: p => new gates.NotGate(p),
-    [gates.Buffer.name]: p => new gates.Buffer(p),
-    [gates.NandGate.name]: p => new gates.NandGate(p, DEFAULT_INPUT_NODE_COUNT),
-    [gates.NorGate.name]: p => new gates.NorGate(p, DEFAULT_INPUT_NODE_COUNT),
-    [gates.XnorGate.name]: p => new gates.XnorGate(p, DEFAULT_INPUT_NODE_COUNT),
-    [io.Input.name]: p => new io.Input(p),
-    [io.Output.name]: p => new io.Output(p),
-    [io.SevenSegmentDisplay.name]: p => new io.SevenSegmentDisplay(p, DEFAULT_BUS_WIDTH),
-    [decorations.Text.name]: p => new decorations.Text(p),
+    [ComponentType.AndGate]: p => new gates.AndGate(p, DEFAULT_INPUT_NODE_COUNT),
+    [ComponentType.OrGate]: p => new gates.OrGate(p, DEFAULT_INPUT_NODE_COUNT),
+    [ComponentType.XorGate]: p => new gates.XorGate(p, DEFAULT_INPUT_NODE_COUNT),
+    [ComponentType.NotGate]: p => new gates.NotGate(p),
+    [ComponentType.Buffer]: p => new gates.Buffer(p),
+    [ComponentType.NandGate]: p => new gates.NandGate(p, DEFAULT_INPUT_NODE_COUNT),
+    [ComponentType.NorGate]: p => new gates.NorGate(p, DEFAULT_INPUT_NODE_COUNT),
+    [ComponentType.XnorGate]: p => new gates.XnorGate(p, DEFAULT_INPUT_NODE_COUNT),
+    [ComponentType.Input]: p => new io.Input(p),
+    [ComponentType.Output]: p => new io.Output(p),
+    [ComponentType.SevenSeg]: p => new io.SevenSegmentDisplay(p, DEFAULT_BUS_WIDTH),
+    [ComponentType.Text]: p => new decorations.Text(p),
 };
 
 /**

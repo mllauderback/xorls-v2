@@ -9,9 +9,7 @@ import type { PaletteComponentRecord } from '../../../store/components/state';
 import { PaletteComponentCategories } from '../../../store/components/state';
 import { GridSelectionPanelComponent } from '../../grid-selection-panel/grid-selection-panel.component';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { AndGate } from '../../../models/components/gates';
-import { Input as IoInput } from '../../../models/components/io';
-import { Text } from '../../../models/components/decorations';
+import { ComponentType } from '../../../models/components/Component';
 
 @Component({ selector: 'app-grid-selection-panel', template: '', standalone: true })
 class MockGridSelectionPanelComponent {
@@ -25,7 +23,7 @@ const IO_CATEGORY: PaletteComponentCategories = PaletteComponentCategories.io;
 const DECORATIONS_CATEGORY: PaletteComponentCategories = PaletteComponentCategories.decorations;
 
 const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): PaletteComponent => ({
-    className: AndGate.name,
+    type: ComponentType.AndGate,
     selected: false,
     ...overrides,
 });
@@ -96,8 +94,8 @@ describe('ComponentPalettePresenterComponent', () => {
         it('should render an accordion panel for each category', () => {
             component.categoryPaletteComponents = buildRecord([
                 [GATES_CATEGORY, [buildPaletteComponent()]],
-                [IO_CATEGORY, [buildPaletteComponent({ className: IoInput.name })]],
-                [DECORATIONS_CATEGORY, [buildPaletteComponent({ className: Text.name })]]
+                [IO_CATEGORY, [buildPaletteComponent({ type: ComponentType.Input })]],
+                [DECORATIONS_CATEGORY, [buildPaletteComponent({ type: ComponentType.Text })]]
             ]);
             fixture.detectChanges();
 

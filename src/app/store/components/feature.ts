@@ -3,29 +3,27 @@ import type { PaletteComponentsState } from "./state";
 import { PaletteComponentCategories } from "./state";
 import * as actions from './actions';
 import * as functions from './reducer-functions';
-import * as gates from "../../models/components/gates";
-import * as io from '../../models/components/io';
-import * as decorations from '../../models/components/decorations';
+import { ComponentType } from "../../models/components/Component";
 
 export const initialComponentsState: PaletteComponentsState = {
     paletteComponents: {
         [PaletteComponentCategories.gates]: [
-            { className: gates.AndGate.name, selected: false },
-            { className: gates.OrGate.name, selected: false },
-            { className: gates.XorGate.name, selected: false },
-            { className: gates.NotGate.name, selected: false },
-            { className: gates.Buffer.name, selected: false },
-            { className: gates.NandGate.name, selected: false },
-            { className: gates.NorGate.name, selected: false },
-            { className: gates.XnorGate.name, selected: false }
+            { type: ComponentType.AndGate, selected: false },
+            { type: ComponentType.OrGate, selected: false },
+            { type: ComponentType.XorGate, selected: false },
+            { type: ComponentType.NotGate, selected: false },
+            { type: ComponentType.Buffer, selected: false },
+            { type: ComponentType.NandGate, selected: false },
+            { type: ComponentType.NorGate, selected: false },
+            { type: ComponentType.XnorGate, selected: false }
         ],
         [PaletteComponentCategories.io]: [
-            { className: io.Input.name, selected: false },
-            { className: io.Output.name, selected: false },
-            { className: io.SevenSegmentDisplay.name, selected: false }
+            { type: ComponentType.Input, selected: false },
+            { type: ComponentType.Output, selected: false },
+            { type: ComponentType.SevenSeg, selected: false }
         ],
         [PaletteComponentCategories.decorations]: [
-            { className: decorations.Text.name, selected: false }
+            { type: ComponentType.Text, selected: false }
         ]
     },
     selectedPaletteComponent: null,

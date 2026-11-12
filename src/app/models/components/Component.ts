@@ -18,12 +18,28 @@ export class Node implements Selectable {
     }
 }
 
+export enum ComponentType {
+    AndGate = "AndGate",
+    OrGate = "OrGate",
+    XorGate = "XorGate",
+    NotGate = "NotGate",
+    NandGate = "NandGate",
+    NorGate = "NorGate",
+    XnorGate = "XnorGate",
+    Buffer = "Buffer",
+    Input = "Input",
+    Output = "Output",
+    SevenSeg = "SevenSegmentDisplay",
+    Text = "Text"
+}
+
 export interface Component extends Drawable, Selectable, Ghostable, Bounded {
     /**
      * Identifies this component for as long as it exists, including while it is still a ghost. The store refers to
      * a selected component by this id instead of holding the instance, so that its state is plain data.
      */
     readonly id: string;
+    readonly type: ComponentType;
     position: Point;
     inodes: Node[];
     onodes: Node[];
