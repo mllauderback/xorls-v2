@@ -1,6 +1,6 @@
-import type { BoundingBox } from "../Bounded";
 import type { DrawState } from "../Drawable";
 import type { Point } from "../Point";
+import type { BoundingBox } from "../Selectable";
 import { ComponentType, type Component, type Node } from "./Component";
 
 // Placeholder footprints until each component's draw() is implemented.

@@ -14,7 +14,7 @@ export type Placeable = Component | Decoration;
 const DEFAULT_INPUT_NODE_COUNT = 2;
 const DEFAULT_BUS_WIDTH = 4;
 
-const factories: Record<string, (position: Point) => Placeable> = {
+const factories: Record<ComponentType, (position: Point) => Placeable> = {
     [ComponentType.AndGate]: p => new gates.AndGate(p, DEFAULT_INPUT_NODE_COUNT),
     [ComponentType.OrGate]: p => new gates.OrGate(p, DEFAULT_INPUT_NODE_COUNT),
     [ComponentType.XorGate]: p => new gates.XorGate(p, DEFAULT_INPUT_NODE_COUNT),
@@ -30,17 +30,17 @@ const factories: Record<string, (position: Point) => Placeable> = {
 };
 
 /**
- * Creates a new, non-ghost component or decoration from a palette class name.
+ * Creates a new, non-ghost component or decoration from a component type.
  * The caller decides whether the new instance is a ghost.
  *
  * @param className The palette component's class name (`SomeClass.name`)
  * @param position The position of the new instance, in diagram coordinates
  * @throws If the class name is not recognized
  */
-export function createPlaceable(className: string, position: Point): Placeable {
-    const create = factories[className];
+export function createPlaceable(type: ComponentType, position: Point): Placeable {
+    const create = factories[type];
     if (!create) {
-        throw new Error(`Component name not recognized: ${className}`);
+        throw new Error(`Component name not recognized: ${type}`);
     }
     return create({ x: position.x, y: position.y });
 }

@@ -2,10 +2,12 @@ import { Injectable } from '@angular/core';
 import type { Drawable, DrawState } from '../../models/Drawable';
 import { isGhostable } from '../../models/Ghostable';
 import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
+import { ViewTransform } from './view-transform';
 
 /**
- * The RenderService tracks shared variables across all layers like the origin and scale.
- * Any layer transformations are done through the RenderService API.
+ * The RenderService tracks shared variables across all layers like the origin and scale, as one ViewTransform per
+ * diagram. Any layer transformations are done through the RenderService API; layers pick up changes to the view
+ * transform by comparing its version when they refresh.
  */
 @Injectable({
     providedIn: 'root'
@@ -27,17 +29,18 @@ export class RenderService {
     private readonly targetFPS: number = 60;
     private animationId: number | null = null;
     private diagramsCanvasLayerMap = new Map<string, AbstractCanvasLayerComponent[]>();
-    private diagramsDrawStateMap = new Map<string, DrawState>();
+    private viewTransforms = new Map<string, ViewTransform>();
     private activeLayers: AbstractCanvasLayerComponent[] = [];
-    private _activeDrawState: DrawState | null = null;
+    private _activeViewTransform: ViewTransform | null = null;
     private _activeId = "";
 
     public getActiveDiagram() {
         return this.diagramsCanvasLayerMap.get(this._activeId)!;
     }
 
-    public get activeDrawState() {
-        return this._activeDrawState;
+    /** The view transform of the active diagram, or null when no registered diagram is active. */
+    public get activeViewTransform(): ViewTransform | null {
+        return this._activeViewTransform;
     }
 
     /**
@@ -45,12 +48,12 @@ export class RenderService {
      */
     public set activeId(id: string) {
         this.activeLayers = (this.diagramsCanvasLayerMap.get(id)) ?? [];
-        this._activeDrawState = this.diagramsDrawStateMap.get(id) ?? null;
+        this._activeViewTransform = this.viewTransforms.get(id) ?? null;
         if (!this.diagramsCanvasLayerMap.has(id)) {
             console.warn(`layer id ${id} not registered in render service.`);
         }
-        if (!this.diagramsDrawStateMap.has(id)) {
-            console.warn(`drawstate id ${id} not registered in render service`);
+        if (!this.viewTransforms.has(id)) {
+            console.warn(`view transform for id ${id} not registered in render service`);
         }
         this._activeId = id;
     }
@@ -90,11 +93,7 @@ export class RenderService {
      */
     public add(id: string, layers: AbstractCanvasLayerComponent[]): RenderService {
         this.diagramsCanvasLayerMap.set(id, layers);
-        const drawState = {
-            origin: { x: 0, y: 0 },
-            scale: 1.0
-        };
-        this.diagramsDrawStateMap.set(id, drawState);
+        this.viewTransforms.set(id, new ViewTransform());
         return this;
     }
 
@@ -106,8 +105,8 @@ export class RenderService {
     public remove(id: string): RenderService {
         let success = this.diagramsCanvasLayerMap.delete(id);
         if (!success) console.warn(`Diagram with id ${id} does not exist.`);
-        success = this.diagramsDrawStateMap.delete(id);
-        if (!success) console.warn(`DrawState with id ${id} does not exist`);
+        success = this.viewTransforms.delete(id);
+        if (!success) console.warn(`View transform with id ${id} does not exist`);
         return this;
     }
 
@@ -156,14 +155,6 @@ export class RenderService {
     public start() {
         if (this.animationId !== null) return;
         const interval = 1000 / this.targetFPS;
-        const dpr = window.devicePixelRatio || 1;
-        this.activeLayers.forEach(layer => {
-            if (layer.context === null || layer.context === undefined) {
-                console.warn('At least 1 layer context is null or undefined.  Skipping.');
-                return;
-            }
-            layer.context.scale(dpr, dpr);
-        });
         const drawLoop = (timestamp: number) => {
             const elapsedTime = timestamp - this.lastTimestamp;
             this.animationId = requestAnimationFrame(drawLoop);
@@ -175,7 +166,7 @@ export class RenderService {
                 // preventing a long queue of potentially very very heavy refreshes.  This would result in 
                 // "jumping" in the animation, but layer will be at the most up-to-date state possible intead of
                 // trying to draw every missed frame which might appear smoother, but will be much laggier.
-                this.activeLayers.forEach(layer => layer.refresh(this._activeDrawState!));
+                this.activeLayers.forEach(layer => layer.refresh(this._activeViewTransform!));
             }
         };
         this.animationId = requestAnimationFrame(drawLoop);
@@ -195,7 +186,7 @@ export class RenderService {
      * Updates the draw state scale by offset which affects all layers
      */
     public scaleActiveDiagram(offset: number) {
-        this._activeDrawState!.scale += offset;
+        this._activeViewTransform!.setScale(this._activeViewTransform!.scale + offset);
     }
 
     /**
@@ -212,10 +203,7 @@ export class RenderService {
         // setting canvas width/height automatically clear the canvas
         // so we need to force a refresh now to prevent flickering
         // due to the canvas being blank until the next draw loop cycle.
-        const dpr = window.devicePixelRatio || 1;
-        layer.context?.scale(dpr, dpr);
-        layer.offscreenContext?.scale(dpr, dpr);
-        layer.refresh(this._activeDrawState!);
+        layer.refresh(this._activeViewTransform!);
     }
 
     public panActiveDiagram(dx: number, dy: number, viewportWidth: number, viewportHeight: number) {
@@ -235,8 +223,8 @@ export class RenderService {
 
         if (!growLeft && !growTop && !growRight && !growBottom) return;
 
-        if (growLeft) this._activeDrawState!.origin.x += growLeft;
-        if (growTop) this._activeDrawState!.origin.y += growTop;
+        // the diagram moves right/down on the grown canvas by as much as it grew left/up
+        this._activeViewTransform!.shiftOrigin(growLeft, growTop);
 
         // apply layer resize, optional offset adjustment, and redraw
         this.activeLayers.forEach(l => {

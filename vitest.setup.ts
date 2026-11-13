@@ -12,6 +12,10 @@ export const resizeObserverInstances: MockResizeObserverInstance[] = [];
 export function buildMockCanvasContext() {
     return {
         scale: vi.fn(),
+        setTransform: vi.fn(),
+        resetTransform: vi.fn(),
+        save: vi.fn(),
+        restore: vi.fn(),
         clearRect: vi.fn(),
         drawImage: vi.fn(),
         beginPath: vi.fn(),

@@ -9,11 +9,10 @@ import { RenderService } from '../../../../services/render/render.service';
 import type { AbstractCanvasLayerComponent } from '../../../canvas-layers/abstract-canvas-layer.component';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { DiagramWorkspaceState, CodeWorkspaceState } from '../../../../store/workspace/state';
-import { AndGate } from '../../../../models/components/gates';
-import { Input as InputComponent } from '../../../../models/components/io';
 import { createPlaceable } from '../../../../models/components/ComponentFactory';
 import type { DiagramView } from '../controller/diagram-view';
 import type { Drawable, DrawState } from '../../../../models/Drawable';
+import { ComponentType } from '../../../../models/components/Component';
 
 @Component({ selector: 'app-grid-canvas-layer', template: '' })
 class MockGridCanvasLayerComponent {
@@ -54,7 +53,7 @@ class MockActiveWireCanvasLayerComponent {
 
 class MockRenderService {
     activeId = 'workspace-1';
-    activeDrawState: DrawState | null = { origin: { x: 0, y: 0 }, scale: 1 };
+    activeViewTransform: DrawState | null = { origin: { x: 0, y: 0 }, scale: 1, version: 0 };
     add = vi.fn();
     remove = vi.fn();
     panActiveDiagram = vi.fn();
@@ -300,7 +299,7 @@ describe('DiagramWorkspacePresenterComponent', () => {
         let staticComponent: FakeLayer;
         let staticIO: FakeLayer;
 
-        const gate = () => createPlaceable(AndGate.name, { x: 0, y: 0 });
+        const gate = () => createPlaceable(ComponentType.AndGate, { x: 0, y: 0 });
 
         beforeEach(() => {
             fixture.detectChanges();
@@ -358,10 +357,19 @@ describe('DiagramWorkspacePresenterComponent', () => {
             it('should account for where the canvas is on screen, how far it is panned and the diagram origin', () => {
                 active.clientRect = { left: 300, top: 50 };
                 active.viewportOffset = { x: -40, y: -20 };
-                renderService.activeDrawState = { origin: { x: 10, y: 5 }, scale: 1 };
+                renderService.activeViewTransform = { origin: { x: 10, y: 5 }, scale: 1, version: 0 };
 
                 // 200,100 on the canvas is 240,120 in the panned layer, and 230,115 from the diagram origin
                 expect(component.clientToDiagram({ x: 300 + 200, y: 50 + 100 })).toEqual({ x: 230, y: 115 });
+            });
+
+            it('should account for the zoom', () => {
+                active.clientRect = { left: 300, top: 50 };
+                active.viewportOffset = { x: -40, y: -20 };
+                renderService.activeViewTransform = { origin: { x: 10, y: 5 }, scale: 2, version: 0 };
+
+                // 240,120 in the panned layer is 230,115 canvas pixels from the origin: 115,57.5 diagram units at 2x
+                expect(component.clientToDiagram({ x: 300 + 200, y: 50 + 100 })).toEqual({ x: 115, y: 57.5 });
             });
 
             it('should be null without a canvas on the screen', () => {
@@ -370,8 +378,8 @@ describe('DiagramWorkspacePresenterComponent', () => {
                 expect(component.clientToDiagram({ x: 200, y: 100 })).toBeNull();
             });
 
-            it('should be null without a draw state', () => {
-                renderService.activeDrawState = null;
+            it('should be null without a view transform', () => {
+                renderService.activeViewTransform = null;
 
                 expect(component.clientToDiagram({ x: 200, y: 100 })).toBeNull();
             });
@@ -445,7 +453,7 @@ describe('DiagramWorkspacePresenterComponent', () => {
             });
 
             it('should put an I/O component on the I/O layer and redraw it', () => {
-                const placed = createPlaceable(InputComponent.name, { x: 0, y: 0 });
+                const placed = createPlaceable(ComponentType.Input, { x: 0, y: 0 });
 
                 component.place(placed);
 

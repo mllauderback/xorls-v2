@@ -1,8 +1,7 @@
-import type { Bounded } from "../Bounded";
 import type { Drawable } from "../Drawable";
 import type { Ghostable } from "../Ghostable";
 import type { Point } from "../Point";
-import type { Selectable } from "../Selectable";
+import type { BoundingBox, Selectable } from "../Selectable";
 
 export class Node implements Selectable {
     public position: Point;
@@ -14,7 +13,12 @@ export class Node implements Selectable {
     }
 
     isSelected(): boolean {
-        throw new Error("Method not implemented.");
+        return this.state
+    }
+
+    getBoundingBox(): BoundingBox {
+        // this will change
+        return { x: this.position.x, y: this.position.y, width: 0, height: 0 };
     }
 }
 
@@ -33,7 +37,7 @@ export enum ComponentType {
     Text = "Text"
 }
 
-export interface Component extends Drawable, Selectable, Ghostable, Bounded {
+export interface Component extends Drawable, Selectable, Ghostable {
     /**
      * Identifies this component for as long as it exists, including while it is still a ghost. The store refers to
      * a selected component by this id instead of holding the instance, so that its state is plain data.

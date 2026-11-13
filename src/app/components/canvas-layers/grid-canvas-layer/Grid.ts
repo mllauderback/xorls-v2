@@ -1,4 +1,5 @@
 import type { Drawable, DrawState } from "../../../models/Drawable";
+import { visibleDiagramRect } from "../../../services/render/view-transform";
 
 export type GridMode = 'lines' | 'dots';
 export class Grid implements Drawable {
@@ -24,56 +25,56 @@ export class Grid implements Drawable {
      * A canvas with no area (hidden tab, mid-resize) has nothing to draw on, so it is skipped rather than treated as
      * an error. The layer marks every drawable for an update when the canvas gets a size again.
      *
-     * The grid is anchored to the diagram origin: its lines sit at diagram positions that are multiples of the spacing,
-     * which on the canvas is origin + k * spacing. So the grid stays put under the components when the origin moves
-     * (the canvas growing left or up), and snapping a diagram position is just rounding it to a multiple of the spacing.
+     * The grid is drawn in diagram coordinates, like every drawable (the layer has set the context's transform): its
+     * lines are at the multiples of the spacing, across the part of the diagram the canvas shows. So it stays put
+     * under the components when the origin moves, and snapping is rounding a diagram position to the spacing.
+     * Line widths and dot sizes are divided by the scale so the grid looks the same at any zoom.
      *
-     * @param ctx The 2D context on which to draw
-     * @param drawState Global draw state information; its origin is where diagram (0, 0) is on the canvas
+     * @param ctx The 2D context on which to draw, set to draw in diagram coordinates
+     * @param drawState The diagram's view transform, used to work out which part of the diagram is visible
      */
     public draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
         this._updateDimensions(ctx);
 
         if (this._width === 0 || this._height === 0) return;
 
-        // the first grid line at or after the canvas edge
-        const firstX = positiveModulo(drawState.origin.x, this.gridSpacing);
-        const firstY = positiveModulo(drawState.origin.y, this.gridSpacing);
+        const spacing = this.gridSpacing;
+        const pixel = 1 / drawState.scale; // one canvas pixel in diagram units
+        const visible = visibleDiagramRect(drawState, this._width, this._height);
+        const right = visible.x + visible.width;
+        const bottom = visible.y + visible.height;
+        // the first grid line at or after the visible area's left and top edges
+        const firstX = Math.ceil(visible.x / spacing) * spacing;
+        const firstY = Math.ceil(visible.y / spacing) * spacing;
 
         ctx.imageSmoothingEnabled = false;
         if (this.gridMode === 'lines') {
             ctx.strokeStyle = "lightgray";
             const lineWidth = 1;
-            ctx.lineWidth = lineWidth;
+            ctx.lineWidth = lineWidth * pixel;
             ctx.setLineDash([]);
-            // starting offset of 0 or 0.5 depending on if pixel center doesn't fall in the middle of a line
-            const startingOffset = 0.5 * (lineWidth % 2);
-            for (let i = firstX + startingOffset; i < this._width; i += this.gridSpacing) {
-                ctx.moveTo(i, 0);
-                ctx.lineTo(i, this._height);
+            // half a pixel across for an odd line width, so the line fills whole pixels instead of blurring over two
+            const crisp = 0.5 * (lineWidth % 2) * pixel;
+            for (let x = firstX; x < right; x += spacing) {
+                ctx.moveTo(x + crisp, visible.y);
+                ctx.lineTo(x + crisp, bottom);
             }
-            for (let i = firstY + startingOffset; i < this._height; i += this.gridSpacing) {
-                ctx.moveTo(0, i);
-                ctx.lineTo(this._width, i);
+            for (let y = firstY; y < bottom; y += spacing) {
+                ctx.moveTo(visible.x, y + crisp);
+                ctx.lineTo(right, y + crisp);
             }
         }
         else if (this.gridMode === 'dots') {
             ctx.strokeStyle = "lightgray";
-            const dotStrokeWidth = 2;
-            ctx.lineWidth = dotStrokeWidth;
+            const dot = 2 * pixel;
+            ctx.lineWidth = dot;
             // each column is a dashed line whose dashes are the dots, one per cell, starting with the first grid row
-            ctx.setLineDash([dotStrokeWidth, this.gridSpacing - dotStrokeWidth]);
-            const startingXOffset = 0.5 * (dotStrokeWidth % 2);
-            const startingY = firstY - dotStrokeWidth / 2; // centres each dot on its grid row
-            for (let i = firstX + startingXOffset; i < this._width; i += this.gridSpacing) {
-                ctx.moveTo(i, startingY);
-                ctx.lineTo(i, this._height);
+            ctx.setLineDash([dot, spacing - dot]);
+            const startingY = firstY - dot / 2; // centres each dot on its grid row
+            for (let x = firstX; x < right; x += spacing) {
+                ctx.moveTo(x, startingY);
+                ctx.lineTo(x, bottom);
             }
         }
     }
-}
-
-/** `value` mod `modulus`, always in [0, modulus), so a negative origin still gives the first line on the canvas. */
-function positiveModulo(value: number, modulus: number): number {
-    return ((value % modulus) + modulus) % modulus;
 }

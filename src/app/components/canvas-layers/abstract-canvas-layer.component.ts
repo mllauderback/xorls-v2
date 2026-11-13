@@ -2,6 +2,7 @@ import type { AfterViewInit, ElementRef } from "@angular/core";
 import { Directive, Input } from "@angular/core";
 import type { Drawable, DrawState } from "../../models/Drawable";
 import type { Point } from "../../models/Point";
+import { applyDrawState } from "../../services/render/view-transform";
 
 @Directive()
 export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
@@ -18,6 +19,8 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     protected forceClearAll: boolean;
     private _forceRepaint: boolean;
     private _viewportOffset: Point;
+    /** The version of the draw state this layer last drew with; null before the first refresh. */
+    private drawnVersion: number | null = null;
 
     private cachedOffscreenImage?: ImageBitmap;
 
@@ -80,8 +83,6 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
         if (this.canvas.width === width) return;
         this.canvas.width = width;
         this.offscreen.width = width;
-        const dpr = window.devicePixelRatio || 1;
-        this.ctx?.scale(dpr, dpr);
         this.markAllDrawablesForUpdates();
     }
 
@@ -252,20 +253,22 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     }
 
     /**
-     * Clears the offscreen canvas and rescales to the device pixel ratio.
+     * Clears the whole offscreen canvas. The context draws in diagram coordinates, so the clear happens with the
+     * transform set aside and then put back.
      */
     protected clearOffscreenCanvas() {
         if (this.offscreenCtx === null) {
             console.warn('offscreen context is null.  skipping clear.');
             return;
         }
+        this.offscreenCtx.save();
+        this.offscreenCtx.resetTransform();
         this.offscreenCtx.clearRect(0, 0, this.width, this.height);
-        const dpr = window.devicePixelRatio || 1;
-        this.offscreenCtx.scale(dpr, dpr);
+        this.offscreenCtx.restore();
     }
 
     /**
-     * Clears the main canvas and rescales to the device pixel ratio.
+     * Clears the main canvas. Its context is never transformed: the cached offscreen image is copied onto it 1:1.
      */
     protected clearCanvas() {
         if (this.ctx === null) {
@@ -273,8 +276,6 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
             return;
         }
         this.ctx.clearRect(0, 0, this.width, this.height);
-        const dpr = window.devicePixelRatio || 1;
-        this.ctx.scale(dpr, dpr);
     }
 
     /**
@@ -296,9 +297,28 @@ export abstract class AbstractCanvasLayerComponent implements AfterViewInit {
     }
 
     /**
-     * Intelligently repaints the canvas layer
-     * @param drawState
+     * Intelligently repaints the canvas layer.
+     *
+     * If the draw state changed since the layer last drew (the origin moved or the zoom changed), everything on the
+     * layer is in the wrong place, so it is all cleared and redrawn. The offscreen context is then set to draw in
+     * diagram coordinates before the layer's own render step.
+     *
+     * @param drawState The diagram's view transform
      */
-    public abstract refresh(drawState: DrawState): void;
+    public refresh(drawState: DrawState): void {
+        if (drawState.version !== this.drawnVersion) {
+            this.drawnVersion = drawState.version;
+            this.redrawAll();
+        }
+        if (this.offscreenCtx) applyDrawState(this.offscreenCtx, drawState);
+        this.render(drawState);
+    }
+
+    /**
+     * The layer's own drawing: clear what needs clearing, draw the drawables marked for update onto the offscreen
+     * canvas, and repaint the main canvas. The offscreen context already draws in diagram coordinates.
+     * @param drawState The diagram's view transform
+     */
+    protected abstract render(drawState: DrawState): void;
     abstract ngAfterViewInit(): void;
 }

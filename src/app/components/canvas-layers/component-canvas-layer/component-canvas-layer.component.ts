@@ -23,7 +23,7 @@ export class ComponentCanvasLayerComponent extends AbstractCanvasLayerComponent 
         this.initCanvas(new OffscreenCanvas(width, height), this.canvasRef);
     }
 
-    override refresh(drawState: DrawState) {
+    protected override render(drawState: DrawState) {
         if (this.offscreenContext === null) {
             console.warn('Component offscreenContext is null: Skipping refresh.');
             this.resetAllDrawablesForUpdates();

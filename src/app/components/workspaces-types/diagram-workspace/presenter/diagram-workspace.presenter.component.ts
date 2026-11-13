@@ -9,6 +9,7 @@ import { WireCanvasLayerComponent } from "../../../canvas-layers/wire-canvas-lay
 import { ActiveComponentCanvasLayerComponent } from "../../../canvas-layers/active-component-canvas-layer/active-component-canvas-layer.component";
 import { ActiveWireCanvasLayerComponent } from "../../../canvas-layers/active-wire-canvas-layer/active-wire-canvas-layer.component";
 import { RenderService } from '../../../../services/render/render.service';
+import { canvasToDiagram } from '../../../../services/render/view-transform';
 import type { AbstractCanvasLayerComponent } from '../../../canvas-layers/abstract-canvas-layer.component';
 import type { Placeable } from '../../../../models/components/ComponentFactory';
 import { isIOComponent } from '../../../../models/components/ComponentFactory';
@@ -68,18 +69,18 @@ export class DiagramWorkspacePresenterComponent implements DiagramView, AfterVie
     }
 
     /**
-     * Undoes how drawables reach the screen: drawable position + draw state origin = position on the offscreen
-     * canvas, and the offscreen canvas is painted at the layer's viewport offset.
+     * Undoes how drawables reach the screen: the view transform maps a diagram position onto the offscreen canvas,
+     * and the offscreen canvas is painted at the layer's viewport offset.
      */
     clientToDiagram(client: Point): Point | null {
         const layer = this.activeComponentCanvasLayerComponent;
         const rect = layer?.getClientRect();
-        const drawState = this.renderService.activeDrawState;
-        if (!rect || !drawState) return null;
-        return {
-            x: client.x - rect.left - layer.viewportOffset.x - drawState.origin.x,
-            y: client.y - rect.top - layer.viewportOffset.y - drawState.origin.y
-        };
+        const viewTransform = this.renderService.activeViewTransform;
+        if (!rect || !viewTransform) return null;
+        return canvasToDiagram(viewTransform, {
+            x: client.x - rect.left - layer.viewportOffset.x,
+            y: client.y - rect.top - layer.viewportOffset.y
+        });
     }
 
     isPreviewing(drawable: Drawable): boolean {

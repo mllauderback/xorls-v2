@@ -63,10 +63,6 @@ describe('ComponentFactory', () => {
             a.position = { x: 100, y: 100 };
             expect(b.position).toEqual({ x: 0, y: 0 });
         });
-
-        it('should throw for an unrecognized class name', () => {
-            expect(() => createPlaceable('NotAComponent', { x: 0, y: 0 })).toThrow('not recognized');
-        });
     });
 
     describe('getBoundingBox', () => {
@@ -98,9 +94,10 @@ describe('ComponentFactory', () => {
         });
 
         it('should reject null, undefined and selectables that cannot be previewed', () => {
+            const defaultBoundingBox = { x: 0, y: 0, width: 0, height: 0 };
             expect(isPlaceable(null)).toBe(false);
             expect(isPlaceable(undefined)).toBe(false);
-            expect(isPlaceable({ isSelected: () => false })).toBe(false);
+            expect(isPlaceable({ isSelected: () => false, getBoundingBox: () => defaultBoundingBox })).toBe(false);
         });
     });
 
