@@ -1,9 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import type { DrawState } from '../../../models/Drawable';
+import type { Point } from '../../../models/Point';
+import { diagramToCanvas } from '../../../services/render/view-transform';
 import { Grid } from './Grid';
 
-const drawState: DrawState = { origin: { x: 0, y: 0 }, scale: 1 };
+const at = (x: number, y: number, scale = 1): DrawState => ({ origin: { x, y }, scale, version: 0 });
+const drawState = at(0, 0);
 
 /** Just enough of a 2D context for Grid: its size plus the calls it makes. */
 const makeContext = (width: number, height: number) => {
@@ -18,6 +21,21 @@ const makeContext = (width: number, height: number) => {
     };
     return { ctx, asContext: ctx as unknown as OffscreenCanvasRenderingContext2D };
 };
+type MockContext = ReturnType<typeof makeContext>['ctx'];
+
+/**
+ * The grid draws in diagram coordinates and the layer's transform puts them on the canvas. These helpers do the same
+ * mapping, so the tests check where the lines land in canvas pixels.
+ */
+const toCanvas = (state: DrawState, [x, y]: number[]): Point => diagramToCanvas(state, { x, y });
+const segments = (ctx: MockContext, state: DrawState) =>
+    ctx.moveTo.mock.calls.map((from, i) => ({ from: toCanvas(state, from), to: toCanvas(state, ctx.lineTo.mock.calls[i]) }));
+const verticalLinesAt = (ctx: MockContext, state: DrawState) =>
+    segments(ctx, state).filter(s => s.from.x === s.to.x).map(s => s.from.x);
+const horizontalLinesAt = (ctx: MockContext, state: DrawState) =>
+    segments(ctx, state).filter(s => s.from.y === s.to.y).map(s => s.from.y);
+const columnStartsAt = (ctx: MockContext, state: DrawState) =>
+    ctx.moveTo.mock.calls.map(call => toCanvas(state, call));
 
 describe('Grid', () => {
     describe('draw', () => {
@@ -62,10 +80,18 @@ describe('Grid', () => {
 
                 new Grid(20, 'lines').draw(asContext, drawState);
 
-                // x = 0.5, 20.5, 40.5, 60.5, 80.5 and y = 0.5, 20.5, 40.5
-                expect(ctx.moveTo).toHaveBeenCalledTimes(8);
-                expect(ctx.moveTo).toHaveBeenCalledWith(20.5, 0);
-                expect(ctx.moveTo).toHaveBeenCalledWith(0, 20.5);
+                expect(verticalLinesAt(ctx, drawState)).toEqual([0.5, 20.5, 40.5, 60.5, 80.5]);
+                expect(horizontalLinesAt(ctx, drawState)).toEqual([0.5, 20.5, 40.5]);
+            });
+
+            it('draws each line across the whole canvas', () => {
+                const { ctx, asContext } = makeContext(100, 60);
+
+                new Grid(20, 'lines').draw(asContext, drawState);
+
+                const [vertical] = segments(ctx, drawState);
+                expect(vertical.from.y).toBe(0);
+                expect(vertical.to.y).toBe(60);
             });
 
             it('draws fewer lines when the spacing is wider', () => {
@@ -73,8 +99,16 @@ describe('Grid', () => {
 
                 new Grid(50, 'lines').draw(asContext, drawState);
 
-                // x = 0.5, 50.5 and y = 0.5, 50.5
-                expect(ctx.moveTo).toHaveBeenCalledTimes(4);
+                expect(verticalLinesAt(ctx, drawState)).toEqual([0.5, 50.5]);
+                expect(horizontalLinesAt(ctx, drawState)).toEqual([0.5, 50.5]);
+            });
+
+            it('uses 1px lines', () => {
+                const { ctx, asContext } = makeContext(100, 60);
+
+                new Grid(20, 'lines').draw(asContext, drawState);
+
+                expect(ctx.lineWidth).toBe(1);
             });
         });
 
@@ -85,51 +119,60 @@ describe('Grid', () => {
                 new Grid(20, 'dots').draw(asContext, drawState);
 
                 expect(ctx.setLineDash).toHaveBeenCalledWith([2, 18]);
-                expect(ctx.moveTo).toHaveBeenCalledTimes(5); // x = 0, 20, 40, 60, 80
+                expect(columnStartsAt(ctx, drawState).map(p => p.x)).toEqual([0, 20, 40, 60, 80]);
             });
         });
 
         describe('anchored to the diagram origin', () => {
-            const at = (x: number, y: number): DrawState => ({ origin: { x, y }, scale: 1 });
-            const verticalLinesAt = (ctx: ReturnType<typeof makeContext>['ctx']) =>
-                ctx.moveTo.mock.calls.filter(([, y]) => y === 0).map(([x]) => x);
-            const horizontalLinesAt = (ctx: ReturnType<typeof makeContext>['ctx']) =>
-                ctx.moveTo.mock.calls.filter(([x]) => x === 0).map(([, y]) => y);
-
             it('starts at the first grid line after the canvas edge when the origin is not a multiple of the spacing', () => {
                 const { ctx, asContext } = makeContext(100, 100);
+                const state = at(500, 500); // 500 = 16 * 30 + 20
 
-                new Grid(30, 'lines').draw(asContext, at(500, 500)); // 500 = 16 * 30 + 20
+                new Grid(30, 'lines').draw(asContext, state);
 
-                expect(verticalLinesAt(ctx)).toEqual([20.5, 50.5, 80.5]);
-                expect(horizontalLinesAt(ctx)).toEqual([20.5, 50.5, 80.5]);
+                expect(verticalLinesAt(ctx, state)).toEqual([20.5, 50.5, 80.5]);
+                expect(horizontalLinesAt(ctx, state)).toEqual([20.5, 50.5, 80.5]);
             });
 
             it('starts at the canvas edge when the origin is a multiple of the spacing', () => {
                 const { ctx, asContext } = makeContext(100, 60);
+                const state = at(500, 40);
 
-                new Grid(20, 'lines').draw(asContext, at(500, 40));
+                new Grid(20, 'lines').draw(asContext, state);
 
-                expect(verticalLinesAt(ctx)).toEqual([0.5, 20.5, 40.5, 60.5, 80.5]);
-                expect(horizontalLinesAt(ctx)).toEqual([0.5, 20.5, 40.5]);
+                expect(verticalLinesAt(ctx, state)).toEqual([0.5, 20.5, 40.5, 60.5, 80.5]);
+                expect(horizontalLinesAt(ctx, state)).toEqual([0.5, 20.5, 40.5]);
             });
 
             it('handles an origin left of or above the canvas', () => {
                 const { ctx, asContext } = makeContext(60, 60);
+                const state = at(-25, -40); // diagram x = 40 is at canvas x = 15
 
-                new Grid(20, 'lines').draw(asContext, at(-25, -40)); // diagram x = 40 is at canvas x = 15
+                new Grid(20, 'lines').draw(asContext, state);
 
-                expect(verticalLinesAt(ctx)).toEqual([15.5, 35.5, 55.5]);
-                expect(horizontalLinesAt(ctx)).toEqual([0.5, 20.5, 40.5]);
+                expect(verticalLinesAt(ctx, state)).toEqual([15.5, 35.5, 55.5]);
+                expect(horizontalLinesAt(ctx, state)).toEqual([0.5, 20.5, 40.5]);
+            });
+
+            it('draws its lines at multiples of the spacing in diagram coordinates', () => {
+                const { ctx, asContext } = makeContext(100, 100);
+
+                new Grid(30, 'lines').draw(asContext, at(500, 500));
+
+                // what the grid itself draws, before the layer's transform: x = -480, -450, -420 (+ half a pixel)
+                const xs = ctx.moveTo.mock.calls.filter(([, y]) => y === -500).map(([x]) => x - 0.5);
+                expect(xs).toEqual([-480, -450, -420]);
+                xs.forEach(x => expect(Math.abs(x % 30)).toBe(0));
             });
 
             it('puts the dots on the anchored grid points', () => {
                 const { ctx, asContext } = makeContext(100, 100);
+                const state = at(500, 500);
 
-                new Grid(30, 'dots').draw(asContext, at(500, 500));
+                new Grid(30, 'dots').draw(asContext, state);
 
                 // one dotted column per grid line, each dash pattern starting on the first grid row (y = 20)
-                expect(ctx.moveTo.mock.calls).toEqual([[20, 19], [50, 19], [80, 19]]);
+                expect(columnStartsAt(ctx, state)).toEqual([{ x: 20, y: 19 }, { x: 50, y: 19 }, { x: 80, y: 19 }]);
             });
 
             it('keeps a component on a grid line after the canvas grows 500px to the left', () => {
@@ -138,12 +181,43 @@ describe('Grid', () => {
                 const componentX = 30; // diagram position, on a grid line
                 const before = makeContext(600, 60);
                 const after = makeContext(1100, 60);
+                const beforeState = at(0, 0);
+                const afterState = at(500, 0); // what panActiveDiagram does when it grows the canvas left
 
-                grid.draw(before.asContext, at(0, 0));
-                grid.draw(after.asContext, at(500, 0)); // what panActiveDiagram does when it grows the canvas left
+                grid.draw(before.asContext, beforeState);
+                grid.draw(after.asContext, afterState);
 
-                expect(verticalLinesAt(before.ctx)).toContain(0 + componentX + 0.5);
-                expect(verticalLinesAt(after.ctx)).toContain(500 + componentX + 0.5);
+                expect(verticalLinesAt(before.ctx, beforeState)).toContain(0 + componentX + 0.5);
+                expect(verticalLinesAt(after.ctx, afterState)).toContain(500 + componentX + 0.5);
+            });
+        });
+
+        describe('zoomed', () => {
+            it('spaces the lines by the spacing times the zoom on the canvas', () => {
+                const { ctx, asContext } = makeContext(100, 60);
+                const state = at(0, 0, 2); // the canvas shows 50 x 30 of the diagram
+
+                new Grid(20, 'lines').draw(asContext, state);
+
+                expect(verticalLinesAt(ctx, state)).toEqual([0.5, 40.5, 80.5]);
+                expect(horizontalLinesAt(ctx, state)).toEqual([0.5, 40.5]);
+            });
+
+            it('keeps the lines 1px wide on the canvas', () => {
+                const { ctx, asContext } = makeContext(100, 60);
+
+                new Grid(20, 'lines').draw(asContext, at(0, 0, 2));
+
+                expect(ctx.lineWidth).toBe(0.5); // half a diagram unit = 1 canvas pixel at 2x
+            });
+
+            it('keeps the dots 2px on the canvas', () => {
+                const { ctx, asContext } = makeContext(100, 60);
+
+                new Grid(20, 'dots').draw(asContext, at(0, 0, 2));
+
+                expect(ctx.lineWidth).toBe(1); // 1 diagram unit = 2 canvas pixels at 2x
+                expect(ctx.setLineDash).toHaveBeenCalledWith([1, 19]);
             });
         });
 
@@ -156,7 +230,7 @@ describe('Grid', () => {
             grid.draw(asContext, drawState);
 
             expect(ctx.setLineDash).toHaveBeenCalledWith([2, 48]);
-            expect(ctx.moveTo).toHaveBeenCalledTimes(2); // x = 0, 50
+            expect(columnStartsAt(ctx, drawState).map(p => p.x)).toEqual([0, 50]);
         });
     });
 });

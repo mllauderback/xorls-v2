@@ -23,7 +23,7 @@ export class IOCanvasLayerComponent extends AbstractCanvasLayerComponent {
         this.initCanvas(new OffscreenCanvas(width, height), this.canvasRef);
     }
 
-    override refresh(drawState: DrawState) {
+    protected override render(drawState: DrawState) {
         if (this.offscreenContext === null) {
             console.warn('IO context is null: Skipping refresh.');
             this.resetAllDrawablesForUpdates();
@@ -31,11 +31,8 @@ export class IOCanvasLayerComponent extends AbstractCanvasLayerComponent {
         }
         const updateDrawables: Drawable[] = this.getUpdateDrawablesList();
         if (this.forceClearAll) {
-            this.offscreenContext.clearRect(0, 0, this.width, this.height);
-            this.context?.clearRect(0, 0, this.width, this.height);
-            const dpr = window.devicePixelRatio || 1;
-            this.offscreenContext.scale(dpr, dpr);
-            this.context?.scale(dpr, dpr);
+            this.clearOffscreenCanvas();
+            this.clearCanvas();
         }
         if (updateDrawables.length > 0) {
             this.offscreenContext.strokeStyle = 'black';

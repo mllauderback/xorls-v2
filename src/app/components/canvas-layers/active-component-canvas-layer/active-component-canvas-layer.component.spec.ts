@@ -6,7 +6,7 @@ import { ActiveComponentCanvasLayerComponent } from './active-component-canvas-l
 import { RenderService } from '../../../services/render/render.service';
 import type { Drawable, DrawState } from '../../../models/Drawable';
 
-const DRAW_STATE: DrawState = { origin: { x: 0, y: 0 }, scale: 1 };
+const DRAW_STATE: DrawState = { origin: { x: 0, y: 0 }, scale: 1, version: 0 };
 
 const buildDrawable = (isGhost?: boolean): Drawable => ({
     draw: vi.fn(),

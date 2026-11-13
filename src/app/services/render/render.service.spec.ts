@@ -171,7 +171,7 @@ describe('RenderService', () => {
     });
 
     describe('drawDrawables', () => {
-        const drawState: DrawState = { origin: { x: 0, y: 0 }, scale: 1 };
+        const drawState: DrawState = { origin: { x: 0, y: 0 }, scale: 1, version: 0 };
         const LAYER_STYLE = { strokeStyle: 'blue', lineWidth: 4 };
 
         /** Records the stroke style, alpha and width that were active when each drawable drew. */
@@ -262,48 +262,24 @@ describe('RenderService', () => {
             expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
         });
 
-        it('should scale all active layer contexts by the device pixel ratio', () => {
-            const dpr = window.devicePixelRatio || 1;
+        it('should leave the layer contexts alone: layers set their own transform each time they draw', () => {
             const layerA = buildMockLayer();
             const layerB = buildMockLayer();
             service.add('diagramA', [layerA, layerB]);
             service.activeId = 'diagramA';
             service.start();
 
-            expect(layerA.context!.scale).toHaveBeenCalledWith(dpr, dpr);
-            expect(layerB.context!.scale).toHaveBeenCalledWith(dpr, dpr);
+            expect(layerA.context!.scale).not.toHaveBeenCalled();
+            expect(layerB.context!.scale).not.toHaveBeenCalled();
         });
 
-        it('should warn and skip layers with a null context', () => {
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
+        it('should start even when a layer has no context yet', () => {
             const nullLayer = buildMockLayer({ context: null });
             service.add('diagramA', [nullLayer]);
             service.activeId = 'diagramA';
-            service.start();
 
-            expect(warnSpy).toHaveBeenCalledTimes(1);
-            expect(nullLayer.context).toBeNull();
-        });
-
-        it('should warn and skip layers with an undefined context', () => {
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
-            const undefinedLayer = buildMockLayer({ context: undefined });
-            service.add('diagramA', [undefinedLayer]);
-            service.activeId = 'diagramA';
-            service.start();
-
-            expect(warnSpy).toHaveBeenCalledTimes(1);
-        });
-
-        it('should not scale layers from inactive diagrams', () => {
-            const inactiveLayer = buildMockLayer();
-            const activeLayer = buildMockLayer();
-            service.add('diagramA', [inactiveLayer]);
-            service.add('diagramB', [activeLayer]);
-            service.activeId = 'diagramB';
-            service.start();
-
-            expect(inactiveLayer.context!.scale).not.toHaveBeenCalled();
+            expect(() => service.start()).not.toThrow();
+            expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
         });
     });
 
@@ -346,7 +322,7 @@ describe('RenderService', () => {
             expect(() => service.scaleActiveDiagram(0.1)).toThrow();
         });
 
-        it('should affect the drawState passed to layers on the next resize+refresh', () => {
+        it('should affect the view transform passed to layers on the next resize+refresh', () => {
             const layer = buildMockLayer();
             service.add('diagramA', [layer]);
             service.activeId = 'diagramA';
@@ -370,16 +346,15 @@ describe('RenderService', () => {
             expect(layerB.resize).toHaveBeenCalledWith(1024, 768);
         });
 
-        it('should scale the context of each active layer by the device pixel ratio', () => {
-            const dpr = window.devicePixelRatio || 1;
+        it('should not scale the layer contexts (scaling on every resize would compound)', () => {
             const layerA = buildMockLayer();
             const layerB = buildMockLayer();
             service.add('diagramA', [layerA, layerB]);
             service.activeId = 'diagramA';
             service.resizeActiveDiagram(1024, 768);
 
-            expect(layerA.context!.scale).toHaveBeenCalledWith(dpr, dpr);
-            expect(layerB.context!.scale).toHaveBeenCalledWith(dpr, dpr);
+            expect(layerA.context!.scale).not.toHaveBeenCalled();
+            expect(layerB.context!.scale).not.toHaveBeenCalled();
         });
 
         it('should call refresh on all active layers after resize to prevent flickering', () => {
@@ -393,19 +368,26 @@ describe('RenderService', () => {
             expect(layerB.refresh).toHaveBeenCalledTimes(1);
         });
 
-        it('should call resize, then scale the context, then refresh, in that order', () => {
+        it('should call resize, then refresh, in that order', () => {
             const callOrder: string[] = [];
             const layer = buildMockLayer({
                 resize: vi.fn(() => callOrder.push('resize')),
                 refresh: vi.fn(() => callOrder.push('refresh')),
             });
-            (layer.context as unknown as { scale: ReturnType<typeof vi.fn> }).scale =
-                vi.fn(() => callOrder.push('scale'));
             service.add('diagramA', [layer]);
             service.activeId = 'diagramA';
             service.resizeActiveDiagram(800, 600);
 
-            expect(callOrder).toEqual(['resize', 'scale', 'refresh']);
+            expect(callOrder).toEqual(['resize', 'refresh']);
+        });
+
+        it('should refresh with the active diagram\'s view transform', () => {
+            const layer = buildMockLayer();
+            service.add('diagramA', [layer]);
+            service.activeId = 'diagramA';
+            service.resizeActiveDiagram(800, 600);
+
+            expect(layer.refresh).toHaveBeenCalledWith(service.activeViewTransform);
         });
 
         it('should not throw when a layer context is null during resize', () => {
@@ -427,6 +409,95 @@ describe('RenderService', () => {
             expect(inactiveLayer.resize).not.toHaveBeenCalled();
             expect(inactiveLayer.refresh).not.toHaveBeenCalled();
             expect(inactiveLayer.context!.scale).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('view transform', () => {
+        /** A layer the size of the given viewport plus 100px all round, panned so the viewport is in its middle. */
+        const buildPannableLayer = (offset = { x: -100, y: -100 }) => {
+            const layer = buildMockLayer({ width: 800, height: 600, viewportOffset: { ...offset } });
+            const mock = layer as unknown as { viewportOffset: { x: number, y: number }, width: number, height: number };
+            Object.assign(layer, {
+                shiftViewportOffsetBy: vi.fn((dx: number, dy: number) => {
+                    mock.viewportOffset.x += dx;
+                    mock.viewportOffset.y += dy;
+                }),
+                resize: vi.fn((w: number, h: number) => { mock.width = w; mock.height = h; }),
+            });
+            return layer;
+        };
+        const VIEWPORT = { width: 600, height: 400 };
+
+        it('should give each diagram its own view transform at the origin with no zoom', () => {
+            service.add('diagramA', [buildMockLayer()]).add('diagramB', [buildMockLayer()]);
+            service.activeId = 'diagramA';
+            const a = service.activeViewTransform!;
+            service.activeId = 'diagramB';
+            const b = service.activeViewTransform!;
+
+            expect(a).not.toBe(b);
+            expect(a.origin).toEqual({ x: 0, y: 0 });
+            expect(a.scale).toBe(1);
+        });
+
+        it('should leave the view transform alone when panning within the canvas, so panning stays cheap', () => {
+            const layer = buildPannableLayer();
+            service.add('diagramA', [layer]);
+            service.activeId = 'diagramA';
+            const before = service.activeViewTransform!.version;
+
+            service.panActiveDiagram(10, 10, VIEWPORT.width, VIEWPORT.height);
+
+            expect(service.activeViewTransform!.version).toBe(before);
+            expect(service.activeViewTransform!.origin).toEqual({ x: 0, y: 0 });
+            expect(layer.resize).not.toHaveBeenCalled();
+        });
+
+        it('should move the origin, and bump the version, when the layers grow to the left', () => {
+            const layer = buildPannableLayer({ x: -5, y: -100 });
+            service.add('diagramA', [layer]);
+            service.activeId = 'diagramA';
+            const before = service.activeViewTransform!.version;
+
+            service.panActiveDiagram(10, 0, VIEWPORT.width, VIEWPORT.height); // the canvas's left edge comes into view
+
+            expect(service.activeViewTransform!.origin).toEqual({ x: 500, y: 0 });
+            expect(service.activeViewTransform!.version).toBe(before + 1);
+            expect(layer.resize).toHaveBeenCalledWith(1300, 600);
+            expect(layer.refresh).toHaveBeenCalledWith(service.activeViewTransform);
+        });
+
+        it('should bump the version once when the layers grow left and up together', () => {
+            service.add('diagramA', [buildPannableLayer({ x: -5, y: -5 })]);
+            service.activeId = 'diagramA';
+            const before = service.activeViewTransform!.version;
+
+            service.panActiveDiagram(10, 10, VIEWPORT.width, VIEWPORT.height);
+
+            expect(service.activeViewTransform!.origin).toEqual({ x: 500, y: 500 });
+            expect(service.activeViewTransform!.version).toBe(before + 1);
+        });
+
+        it('should not move the origin when the layers only grow to the right or down', () => {
+            service.add('diagramA', [buildPannableLayer({ x: -195, y: -195 })]);
+            service.activeId = 'diagramA';
+            const before = service.activeViewTransform!.version;
+
+            service.panActiveDiagram(-10, -10, VIEWPORT.width, VIEWPORT.height); // right and bottom edges come into view
+
+            expect(service.activeViewTransform!.origin).toEqual({ x: 0, y: 0 });
+            expect(service.activeViewTransform!.version).toBe(before);
+        });
+
+        it('should bump the version when zooming', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
+            const before = service.activeViewTransform!.version;
+
+            service.scaleActiveDiagram(0.5);
+
+            expect(service.activeViewTransform!.scale).toBe(1.5);
+            expect(service.activeViewTransform!.version).toBe(before + 1);
         });
     });
 });

@@ -68,7 +68,7 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
         this.initCanvas(new OffscreenCanvas(width, height), this.canvasRef);
     }
 
-    override refresh(drawState: DrawState) {
+    protected override render(drawState: DrawState) {
         if (this.offscreenContext === null) {
             console.warn('Grid offscreenContext is null: Skipping refresh.');
             this.resetAllDrawablesForUpdates();

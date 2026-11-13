@@ -131,10 +131,10 @@ export class DiagramController {
      * @returns The ghost, or null if there shouldn't be one
      */
     private ensureGhost(): Placeable | null {
-        const className = this.paletteComponent?.type;
-        if (!this.ghost && className && this.isActive()) {
+        const type = this.paletteComponent?.type;
+        if (!this.ghost && type && this.isActive()) {
             // The position is set from the pointer, as soon as there is one. It is shown then.
-            this.ghost = createPlaceable(className, { x: 0, y: 0 });
+            this.ghost = createPlaceable(type, { x: 0, y: 0 });
             this.ghost.isGhost = true;
         }
         return this.ghost;

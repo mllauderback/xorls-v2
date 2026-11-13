@@ -22,7 +22,7 @@ class HostComponent { }
 
 class MockRenderService {
     activeId = 'workspace-1';
-    activeDrawState: { origin: Point; scale: number } | null = { origin: { x: 0, y: 0 }, scale: 1 };
+    activeViewTransform: { origin: Point; scale: number } | null = { origin: { x: 0, y: 0 }, scale: 1 };
     panActiveDiagram = vi.fn();
 }
 
@@ -187,11 +187,11 @@ describe('DiagramController', () => {
             controller.setWorkspaceSettings({ gridSettings: { gridSpacing: 30, gridMode: 'lines' } } as WorkspaceSettingsState);
             select(ComponentType.AndGate);
 
-            renderService.activeDrawState = { origin: { x: 0, y: 0 }, scale: 1 };
+            renderService.activeViewTransform = { origin: { x: 0, y: 0 }, scale: 1 };
             moveTo(200, 100); // wanted position is (160, 60)
             const atStart = { ...ghost()!.position };
 
-            renderService.activeDrawState = { origin: { x: 500, y: -30 }, scale: 1 };
+            renderService.activeViewTransform = { origin: { x: 500, y: -30 }, scale: 1 };
             moveTo(201, 100);
             moveTo(200, 100);
 

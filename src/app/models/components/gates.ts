@@ -1,11 +1,9 @@
 
-import type { BoundingBox } from "../Bounded";
 import type { DrawState } from "../Drawable";
 import type { Point } from "../Point";
+import type { BoundingBox } from "../Selectable";
 import type { Component, Node } from "./Component";
 import { ComponentType, createInputNodes } from "./Component";
-
-// TODO: Apply drawState.origin adjustments to all other gates/components
 
 /**
  * Footprint of AndGate.draw(): an 80x80 body with 20px pins on the left (inputs) and right (output).
@@ -28,11 +26,10 @@ export class AndGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
-        // console.log('And gate drawn', this.position.x, ', ', this.position.y);
+    /** Draws in diagram coordinates: the layer's context transform puts it in the right place on the canvas. */
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         // body
-        const x = this.position.x + drawState.origin.x;
-        const y = this.position.y + drawState.origin.y;
+        const { x, y } = this.position;
         ctx.moveTo(x + 40, y);
         ctx.lineTo(x, y);
         ctx.lineTo(x, y + 80);
