@@ -14,7 +14,7 @@
 
 .grid-selection-checkbox {
     position: absolute;
-    clip: rect(0,0,0,0);
+    clip-path: inset(50%);
     pointer-events: none;
 }
 
@@ -22,8 +22,8 @@
     border-radius: var(--p-content-border-radius);
     background: var(--p-content-background);
     color: var(--p-text-muted-color);
-    border:none;
-    transition: background var(--p-transition-duration),color var(--p-transition-duration),border-color var(--p-transition-duration),outline-color var(--p-transition-duration),box-shadow var(--p-transition-duration);
+    border: none;
+    transition: background var(--p-transition-duration), color var(--p-transition-duration), border-color var(--p-transition-duration), outline-color var(--p-transition-duration), box-shadow var(--p-transition-duration);
     padding: 8px
 }
 
@@ -33,7 +33,7 @@
     cursor: pointer;
 }
 
-.grid-selection-checkbox:checked + .grid-selection-label {
+.grid-selection-checkbox:checked+.grid-selection-label {
     color: var(--p-primary-contrast-color);
     background: var(--p-primary-active-color);
 }
