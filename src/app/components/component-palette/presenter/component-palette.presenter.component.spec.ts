@@ -103,6 +103,19 @@ describe('ComponentPalettePresenterComponent', () => {
             expect(panels).toHaveLength(3);
         });
 
+        it('should give each accordion panel a data-testid made from its category', () => {
+            component.categoryPaletteComponents = buildRecord([
+                [GATES_CATEGORY, [buildPaletteComponent()]],
+                [IO_CATEGORY, [buildPaletteComponent({ type: ComponentType.Input })]],
+                [DECORATIONS_CATEGORY, [buildPaletteComponent({ type: ComponentType.Text })]]
+            ]);
+            fixture.detectChanges();
+
+            const ids = fixture.debugElement.queryAll(By.css('p-accordion-panel'))
+                .map(panel => (panel.nativeElement as HTMLElement).getAttribute('data-testid'));
+            expect(ids).toEqual(['paletteCategory-gates', 'paletteCategory-i-o', 'paletteCategory-decorations']);
+        });
+
         it('should render the category name in each accordion header', () => {
             component.categoryPaletteComponents = buildRecord([
                 [GATES_CATEGORY, [buildPaletteComponent()]],

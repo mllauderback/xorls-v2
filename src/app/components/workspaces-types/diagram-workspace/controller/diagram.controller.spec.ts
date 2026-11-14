@@ -345,6 +345,127 @@ describe('DiagramController', () => {
         });
     });
 
+    describe('while a mouse button is held', () => {
+        let outside: HTMLElement;
+
+        const press = (x: number, y: number, target: EventTarget = view.element) => target.dispatchEvent(pointer('pointerdown', x, y));
+        const release = (x: number, y: number, target: EventTarget = view.element) => target.dispatchEvent(pointer('pointerup', x, y));
+
+        beforeEach(() => {
+            attach();
+            outside = document.createElement('div');
+            document.body.append(outside);
+            select(ComponentType.AndGate);
+            moveTo(200, 100);
+        });
+
+        afterEach(() => outside.remove());
+
+        it('should not move the ghost when the mouse moves', () => {
+            press(200, 100);
+
+            moveTo(214, 109);
+            moveTo(337, 191);
+
+            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(view.showPreview).toHaveBeenCalledOnce();
+        });
+
+        it('should not move the ghost on the first move of a drag, before the diagram follows the mouse', () => {
+            press(200, 100);
+
+            // far enough to snap to the next grid point
+            moveTo(214, 109);
+
+            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+        });
+
+        it('should still pan the diagram', () => {
+            press(200, 100);
+
+            view.element.dispatchEvent(pointer('pointermove', 260, 100, { movementX: 60, movementY: 0 }));
+
+            expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
+            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+        });
+
+        it('should follow the mouse again once the button is released', () => {
+            press(200, 100);
+            moveTo(260, 140);
+            release(260, 140);
+
+            moveTo(400, 300);
+
+            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+        });
+
+        it('should follow the mouse again when the button is released outside the workspace', () => {
+            press(200, 100);
+            release(900, 900, outside);
+
+            moveTo(400, 300);
+
+            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+        });
+
+        it('should follow the mouse again when the browser cancels the pointer', () => {
+            press(200, 100);
+            window.dispatchEvent(pointer('pointercancel', 200, 100));
+
+            moveTo(400, 300);
+
+            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+        });
+
+        it('should reset the cursor when the browser cancels the pointer during a pan', () => {
+            press(200, 100);
+            moveTo(260, 100);
+
+            window.dispatchEvent(pointer('pointercancel', 260, 100));
+
+            expect(view.setCursor).toHaveBeenLastCalledWith('default');
+        });
+
+        it('should not place the component when the mouse moved further than a click allows before release', () => {
+            press(200, 100);
+            moveTo(260, 100);
+            release(260, 100);
+
+            expect(view.place).not.toHaveBeenCalled();
+            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+        });
+
+        it('should place the component where the button is released when the mouse only wobbled', () => {
+            const placed = ghost()!;
+            press(209, 100);
+            moveTo(211, 100);
+            release(211, 100);
+
+            // 211 snaps one grid point further than where the ghost was
+            expect(view.place).toHaveBeenCalledWith(placed);
+            expect(placed.position).toEqual({ x: 180, y: 60 });
+        });
+
+        it('should keep following the mouse while a button pressed outside the workspace is held', () => {
+            press(10, 10, outside);
+
+            moveTo(400, 300);
+
+            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+        });
+
+        it('should know where the pointer is after the release, for a ghost that is made then', () => {
+            press(200, 100);
+            moveTo(400, 300);
+            release(400, 300);
+
+            select(ComponentType.OrGate);
+
+            expect(ghost()).toBeInstanceOf(OrGate);
+            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+        });
+    });
+
     describe('clicking to place', () => {
         beforeEach(attach);
 

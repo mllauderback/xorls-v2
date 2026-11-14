@@ -16,7 +16,7 @@
             @else { <p-inputNumber [(ngModel)]="settings.leftPanelWidth" inputId="leftPanelWidth" suffix="px" /> }
         </div>
     </p-fieldset> -->
-    <p-fieldset legend="Grid Settings" [toggleable]="true" [collapsed]="true">
+    <p-fieldset data-testid="gridSettings" legend="Grid Settings" [toggleable]="true" [collapsed]="true">
         <div class="pt-2 pb-2 flex-auto">
             <label for="gridSpacing" class="ml-2" pTooltip="Width and height of a grid cell in pixels"
                 showDelay="1000">Cell size</label>
@@ -27,7 +27,7 @@
         <div class="pt-2 pb-2 flex-auto">
             <label for="gridMode" class="ml-2" pTooltip="Choose how to display the grid" showDelay="1000">Display
                 mode</label>
-            <p-selectbutton [options]="this.gridModes" [ngModel]="this.settings.workspaceSettings.gridSettings.gridMode"
+            <p-selectbutton id="gridMode" [options]="this.gridModes" [ngModel]="this.settings.workspaceSettings.gridSettings.gridMode"
                 (ngModelChange)="gridMode.emit($event)"></p-selectbutton>
         </div>
     </p-fieldset>

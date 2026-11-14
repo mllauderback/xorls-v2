@@ -66,34 +66,34 @@ describe('AppComponent', () => {
 
     describe('Tab icons', () => {
         it('should render the Explorer tab with pi-copy icon', () => {
-            const icon = fixture.debugElement.query(By.css('#explorerTab i'));
+            const icon = fixture.debugElement.query(By.css('[data-testid="explorerTab"] i'));
             expect(icon?.nativeElement.classList).toContain('pi-copy');
         });
 
         it('should render the Components tab with pi-box icon', () => {
-            const icon = fixture.debugElement.query(By.css('#componentsTab i'));
+            const icon = fixture.debugElement.query(By.css('[data-testid="componentsTab"] i'));
             expect(icon?.nativeElement.classList).toContain('pi-box');
         });
 
         it('should render the Settings tab with pi-cog icon', () => {
-            const icon = fixture.debugElement.query(By.css('#settingsTab i'));
+            const icon = fixture.debugElement.query(By.css('[data-testid="settingsTab"] i'));
             expect(icon?.nativeElement.classList).toContain('pi-cog');
         });
     });
 
     describe('Tab tooltips', () => {
         it('should have correct tooltip on Explorer tab', () => {
-            const tab = fixture.debugElement.query(By.css('#explorerTab'));
+            const tab = fixture.debugElement.query(By.css('[data-testid="explorerTab"]'));
             expect(tab.nativeElement.getAttribute('pTooltip')).toBe('Explorer');
         });
 
         it('should have correct tooltip on Components tab', () => {
-            const tab = fixture.debugElement.query(By.css('#componentsTab'));
+            const tab = fixture.debugElement.query(By.css('[data-testid="componentsTab"]'));
             expect(tab.nativeElement.getAttribute('pTooltip')).toBe('Components');
         });
 
         it('should have correct tooltip on Settings tab', () => {
-            const tab = fixture.debugElement.query(By.css('#settingsTab'));
+            const tab = fixture.debugElement.query(By.css('[data-testid="settingsTab"]'));
             expect(tab.nativeElement.getAttribute('pTooltip')).toBe('Settings');
         });
 
@@ -107,52 +107,52 @@ describe('AppComponent', () => {
 
     describe('Tab panel content', () => {
         it('should have Explorer panel (idk yet, this just passes for now)', () => {
-            const panel = fixture.debugElement.query(By.css('#explorerTabPanel'));
+            const panel = fixture.debugElement.query(By.css('[data-testid="explorerTabPanel"]'));
             expect(panel).toBeTruthy();
         });
 
         it('should have Components panel', () => {
-            const palette = fixture.debugElement.query(By.css('#componentsTabPanel'));
+            const palette = fixture.debugElement.query(By.css('[data-testid="componentsTabPanel"]'));
             expect(palette).toBeTruthy();
         });
 
         it('should have Settings panel', () => {
-            const settings = fixture.debugElement.query(By.css('#settingsTabPanel'));
+            const settings = fixture.debugElement.query(By.css('[data-testid="settingsTabPanel"]'));
             expect(settings).toBeTruthy();
         });
 
         it('should give Explorer tab and panel the same value attribute', () => {
-            const tabEl = fixture.debugElement.query(By.css('#explorerTab')).nativeElement;
-            const panelEl = fixture.debugElement.query(By.css('#explorerTabPanel')).nativeElement;
+            const tabEl = fixture.debugElement.query(By.css('[data-testid="explorerTab"]')).nativeElement;
+            const panelEl = fixture.debugElement.query(By.css('[data-testid="explorerTabPanel"]')).nativeElement;
             expect(tabEl.getAttribute('value')).toBe(panelEl.getAttribute('value'));
         });
 
         it('should give Components tab and panel the same value attribute', () => {
-            const tabEl = fixture.debugElement.query(By.css('#componentsTab')).nativeElement;
-            const panelEl = fixture.debugElement.query(By.css('#componentsTabPanel')).nativeElement;
+            const tabEl = fixture.debugElement.query(By.css('[data-testid="componentsTab"]')).nativeElement;
+            const panelEl = fixture.debugElement.query(By.css('[data-testid="componentsTabPanel"]')).nativeElement;
             expect(tabEl.getAttribute('value')).toBe(panelEl.getAttribute('value'));
         });
 
         it('should give Settings tab and panel the same value attribute', () => {
-            const tabEl = fixture.debugElement.query(By.css('#settingsTab')).nativeElement;
-            const panelEl = fixture.debugElement.query(By.css('#settingsTabPanel')).nativeElement;
+            const tabEl = fixture.debugElement.query(By.css('[data-testid="settingsTab"]')).nativeElement;
+            const panelEl = fixture.debugElement.query(By.css('[data-testid="settingsTabPanel"]')).nativeElement;
             expect(tabEl.getAttribute('value')).toBe(panelEl.getAttribute('value'));
         });
     });
 
     describe('Tab default state', () => {
         it('should make Explorer tab the default (value=0)', () => {
-            const explorerTab = fixture.debugElement.query(By.css('#explorerTab'));
+            const explorerTab = fixture.debugElement.query(By.css('[data-testid="explorerTab"]'));
             expect(explorerTab.nativeElement.getAttribute('value')).toBe('0');
         });
 
         it('should make Components tab value=1', () => {
-            const tabEl = fixture.debugElement.query(By.css('#componentsTab')).nativeElement;
+            const tabEl = fixture.debugElement.query(By.css('[data-testid="componentsTab"]')).nativeElement;
             expect(tabEl.getAttribute('value')).toBe('1');
         });
 
         it('should make Settings tab value=2', () => {
-            const tabEl = fixture.debugElement.query(By.css('#settingsTab')).nativeElement;
+            const tabEl = fixture.debugElement.query(By.css('[data-testid="settingsTab"]')).nativeElement;
             expect(tabEl.getAttribute('value')).toBe('2');
         });
     });
@@ -164,7 +164,7 @@ describe('AppComponent', () => {
         });
 
         it('should have flex, flex-grow, and hide overflow on main content', () => {
-            const mainContent = fixture.debugElement.query(By.css('#mainContent.flex.flex-grow.overflow-hidden'));
+            const mainContent = fixture.debugElement.query(By.css('[data-testid="mainContent"].flex.flex-grow.overflow-hidden'));
             expect(mainContent).toBeTruthy();
         });
 

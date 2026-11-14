@@ -29,6 +29,14 @@ export class ComponentPalettePresenterComponent {
         return Object.keys(this.categoryPaletteComponents ?? {}) as PaletteComponentCategories[];
     }
 
+    /**
+     * The data-testid of a category's accordion panel, for tests to find it by: its name in lower case, with anything
+     * that isn't a letter or a digit turned into a dash. "I/O" becomes paletteCategory-i-o.
+     */
+    protected categoryTestId(category: PaletteComponentCategories): string {
+        return `paletteCategory-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    }
+
     protected onRecordChange(record: PaletteComponentRecord) {
         this.categoryPaletteComponents = record;
         this.categoryPaletteComponentsChange.emit(record);
