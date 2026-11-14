@@ -32,13 +32,30 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    /* The few things every other test builds on. The browser projects depend on it: if it fails, they are not run. */
+    {
+      name: 'smoke-chromium',
+      testMatch: /smoke\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
+    {
+      name: 'smoke-firefox',
+      testMatch: /smoke\.spec\.ts/,
+      use: { ...devices['Desktop Firefox'] },
+    },
+
     {
       name: 'chromium',
+      testIgnore: /smoke\.spec\.ts/,
+      dependencies: ['smoke-chromium', 'smoke-firefox'],
       use: { ...devices['Desktop Chrome'] },
     },
 
     {
       name: 'firefox',
+      testIgnore: /smoke\.spec\.ts/,
+      dependencies: ['smoke-chromium', 'smoke-firefox'],
       use: { ...devices['Desktop Firefox'] },
     },
 
