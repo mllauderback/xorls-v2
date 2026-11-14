@@ -18,7 +18,7 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env['CI'] ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env['CI'] ? 1 : undefined,
+  workers: process.env['CI'] ? 1 : 6,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -32,13 +32,30 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    /* The few things every other test builds on. The browser projects depend on it: if it fails, they are not run. */
+    {
+      name: 'smoke-chromium',
+      testMatch: /smoke\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
+    {
+      name: 'smoke-firefox',
+      testMatch: /smoke\.spec\.ts/,
+      use: { ...devices['Desktop Firefox'] },
+    },
+
     {
       name: 'chromium',
+      testIgnore: /smoke\.spec\.ts/,
+      dependencies: ['smoke-chromium', 'smoke-firefox'],
       use: { ...devices['Desktop Chrome'] },
     },
 
     {
       name: 'firefox',
+      testIgnore: /smoke\.spec\.ts/,
+      dependencies: ['smoke-chromium', 'smoke-firefox'],
       use: { ...devices['Desktop Firefox'] },
     },
 
