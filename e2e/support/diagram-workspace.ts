@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { ComponentPalette } from './component-palette';
+import { settle } from './draw-helpers';
 
 /** The canvas layers of a diagram workspace, bottom to top, by what they hold. */
 export const LAYERS = {
@@ -18,9 +19,10 @@ export const DEFAULT_GRID_SPACING = 20;
 
 /**
  * Where something is drawn on a layer: how many pixels, the box around them in client (page) coordinates, and
- * their average colour. A layer's canvas is shown at its own size, so a canvas pixel is a CSS pixel.
+ * their average color. A layer's canvas is shown at its own size, so a canvas pixel is a CSS pixel.
  */
 export interface Drawn {
+    /** Number of pixels drawn on a canvas layer */
     count: number;
     left: number;
     top: number;
@@ -82,7 +84,7 @@ export class DiagramWorkspace {
     }
 
     /** A point relative to the middle of the workspace, in client coordinates. */
-    async at(offset: Point = { x: 0, y: 0 }): Promise<Point> {
+    async atCenter(offset: Point = { x: 0, y: 0 }): Promise<Point> {
         const center = await this.center();
         return { x: center.x + offset.x, y: center.y + offset.y };
     }
@@ -90,15 +92,15 @@ export class DiagramWorkspace {
     /**
      * Moves the mouse to a point relative to the middle of the workspace, in steps, so the workspace sees moves over it.
      */
-    async moveTo(offset: Point = { x: 0, y: 0 }): Promise<Point> {
-        const point = await this.at(offset);
+    async moveFromCenterTo(offset: Point = { x: 0, y: 0 }): Promise<Point> {
+        const point = await this.atCenter(offset);
         await this.page.mouse.move(point.x, point.y, { steps: 4 });
-        await this.settle();
+        await settle(this.page);
         return point;
     }
 
     /** Picks a component in the palette, so that it is waiting to be placed. */
-    async pick(type = 'AndGate', category: 'Gates' | 'I/O' | 'Decorations' = 'Gates'): Promise<void> {
+    async pickPaletteComponent(type = 'AndGate', category: 'Gates' | 'I/O' | 'Decorations' = 'Gates'): Promise<void> {
         if (!(await this.palette.tabPanel.isVisible())) await this.palette.componentsTab.click();
         await this.palette.expand(category);
         await this.palette.clickTile(type);
@@ -106,10 +108,10 @@ export class DiagramWorkspace {
     }
 
     /** Clicks at a point relative to the middle of the workspace, after moving the mouse there. */
-    async clickAt(offset: Point = { x: 0, y: 0 }, button: 'left' | 'right' | 'middle' = 'left'): Promise<Point> {
-        const point = await this.moveTo(offset);
+    async clickFromCenterAt(offset: Point = { x: 0, y: 0 }, button: 'left' | 'right' | 'middle' = 'left'): Promise<Point> {
+        const point = await this.moveFromCenterTo(offset);
         await this.page.mouse.click(point.x, point.y, { button });
-        await this.settle();
+        await settle(this.page);
         return point;
     }
 
@@ -118,23 +120,23 @@ export class DiagramWorkspace {
      * nothing is left following the mouse.
      */
     async place(offset: Point = { x: 0, y: 0 }, type = 'AndGate'): Promise<void> {
-        await this.pick(type);
+        await this.pickPaletteComponent(type);
         // come in from the side, so the ghost is shown before the click
-        await this.moveTo({ x: offset.x - 30, y: offset.y - 30 });
-        await this.clickAt(offset);
+        await this.moveFromCenterTo({ x: offset.x - 30, y: offset.y - 30 });
+        await this.clickFromCenterAt(offset);
         await this.page.keyboard.press('Escape');
         await expect(this.palette.checkedCheckboxes).toHaveCount(0);
-        await this.settle();
+        await settle(this.page);
     }
 
     /** Drags on the workspace from a point relative to its middle, by dx, dy. Without releasing if `release` is false. */
     async drag(from: Point, by: Point, release = true): Promise<void> {
-        const start = await this.at(from);
+        const start = await this.atCenter(from);
         await this.page.mouse.move(start.x, start.y);
         await this.page.mouse.down();
         await this.page.mouse.move(start.x + by.x, start.y + by.y, { steps: 10 });
         if (release) await this.page.mouse.up();
-        await this.settle();
+        await settle(this.page);
     }
 
     /** The mouse cursor the workspace sets over the diagram. */
@@ -142,12 +144,21 @@ export class DiagramWorkspace {
         return this.presenter.evaluate(el => el.style.cursor);
     }
 
-    /** Waits for the render loop to draw what just changed. */
-    async settle(): Promise<void> {
-        await this.page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    }
-
-    /** What is drawn on one layer, or null if nothing is. */
+    /**
+     * Calculates information about what is drawn on a canvas layer.
+     * Returns Drawn object or null of drawn pixel count is 0.
+     * 
+     * @param layer The canvas layer to analyze.
+     * @returns count: The number of pixels with alpha > 0,
+     *          left: layer x position of left-most drawn pixel,
+     *          right: layer x position of right-most drawn pixel,
+     *          top: layer y position of top-most drawn pixel,
+     *          bottom: layer y position of bottom-most drawn pixel,
+     *          color: The average color of all counted pixels,
+     *          alpha: average alpha of all counted pixels.
+     * 
+     *          or null if count === 0
+     */
     async drawn(layer: Layer): Promise<Drawn | null> {
         return this.canvas(layer).evaluate((canvas: HTMLCanvasElement) => {
             const rect = canvas.getBoundingClientRect();
@@ -180,30 +191,5 @@ export class DiagramWorkspace {
     async drawnCenter(layer: Layer): Promise<Point | null> {
         const drawn = await this.drawn(layer);
         return drawn && { x: (drawn.left + drawn.right) / 2, y: (drawn.top + drawn.bottom) / 2 };
-    }
-
-    /** Opens the settings in the sidebar and the grid settings in it. */
-    async openGridSettings(): Promise<void> {
-        await this.page.locator('p-tab[value="2"]').click();
-        // the collapsed fieldset still lays out its fields, so whether it is open is read from its toggle
-        const toggle = this.page.getByRole('button', { name: 'Grid Settings' });
-        await expect(toggle).toBeVisible();
-        if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-        await expect(this.page.locator('p-fieldset').filter({ has: toggle })).not.toHaveClass(/p-fieldset-collapsed/);
-    }
-
-    /** Sets the grid's cell size in the settings. The settings have to be open. */
-    async setGridSpacing(spacing: number): Promise<void> {
-        const input = this.page.locator('#gridSpacing');
-        await input.fill(String(spacing));
-        await input.press('Tab');
-        await this.settle();
-    }
-
-    /** Sets the grid's display mode in the settings. The settings have to be open. */
-    async setGridMode(mode: 'lines' | 'dots'): Promise<void> {
-        await this.page.locator('p-selectbutton').getByText(mode, { exact: true }).click();
-        await this.settle();
     }
 }

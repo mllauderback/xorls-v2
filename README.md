@@ -36,10 +36,10 @@ npm run build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
-## Testing (Coming soon)
+## Testing
 All components and services should have their own separate files for unit tests.
 Each store should have its own separate files for unit testing mock selectors and reducers, and a file for integration tests.
-End-to-end tests should be added to an appropriate categorized directory in `app/e2e`.  For component e2e tests, that directory should be the name of the component.
+End-to-end tests should be added to an appropriate categorized directory in `/e2e`.  Component e2e tests should have the component name in the file name.  All helper functions/classes should be appropriately named in the `/e2e/support` directory.
 
 ### Running unit tests
 
@@ -51,7 +51,7 @@ npm run test
 
 ### Running end-to-end tests
 
-End-to-end tests are written using playwright.  To install configured browsers, run `npx playwright install`.  To run e2e tests, use the following command:
+End-to-end tests are written using Playwright.  To install configured browsers, run `npx playwright install`, or if your OS is not supported, find a playwright build for your OS.  To run e2e tests, use the following command:
 
 ```bash
 npm run e2e

@@ -2,6 +2,8 @@ import { test } from '@playwright/test';
 import type { Layer } from './support/diagram-workspace';
 import { DEFAULT_GRID_SPACING, DiagramWorkspace, LAYERS } from './support/diagram-workspace';
 import { expect } from './support/draw-matchers';
+import { settle } from './support/draw-helpers';
+import { SettingsPanel } from './support/settings-panel';
 
 /**
  * The diagram workspace shows one diagram on a stack of canvas layers (the presenter) and handles what the user does
@@ -13,6 +15,7 @@ import { expect } from './support/draw-matchers';
  */
 test.describe('Diagram workspace', () => {
     let diagram: DiagramWorkspace;
+    let settingsPanel: SettingsPanel;
 
     test.beforeEach(async ({ page }) => {
         diagram = new DiagramWorkspace(page);
@@ -46,7 +49,7 @@ test.describe('Diagram workspace', () => {
             expect(sizes[0].height).toBeGreaterThanOrEqual(Math.floor(box.height));
         });
 
-        test('lays the layers on top of each other', async () => {
+        test('places each layer at the same top-left position', async () => {
             const boxes = await diagram.canvases.evaluateAll((canvases: HTMLCanvasElement[]) =>
                 canvases.map(c => { const r = c.getBoundingClientRect(); return `${r.left},${r.top}`; })
             );
@@ -74,24 +77,25 @@ test.describe('Diagram workspace', () => {
 
     test.describe('ghost', () => {
         test('shows no ghost until a component is picked', async () => {
-            await diagram.moveTo({ x: -40, y: 0 });
-            await diagram.moveTo();
+            await diagram.moveFromCenterTo({ x: -40, y: 0 });
+            await diagram.moveFromCenterTo();
 
             expect(await diagram.drawn('activeComponent')).toBeNull();
         });
 
         test('shows the picked component as a ghost under the mouse', async () => {
-            await diagram.pick();
-            const pointer = await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            const pointer = await diagram.moveFromCenterTo();
 
             expect(await diagram.drawnCenter('activeComponent')).toBeCenteredOn(pointer);
             expect(await diagram.drawn('component')).toBeNull();
         });
 
+        // should also test ghost alpha > placed alpha
         test('draws the ghost fainter than a placed component', async () => {
-            await diagram.pick();
-            await diagram.clickAt({ x: -150, y: 0 });
-            await diagram.moveTo({ x: 150, y: 0 });
+            await diagram.pickPaletteComponent();
+            await diagram.clickFromCenterAt({ x: -150, y: 0 });
+            await diagram.moveFromCenterTo({ x: 150, y: 0 });
 
             const ghost = (await diagram.drawn('activeComponent'))!;
             const placed = (await diagram.drawn('component'))!;
@@ -101,12 +105,12 @@ test.describe('Diagram workspace', () => {
         });
 
         test('follows the mouse in whole grid cells', async () => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             const from = (await diagram.drawn('activeComponent'))!;
 
             for (const move of [{ x: 7, y: 0 }, { x: 33, y: 0 }, { x: 0, y: 47 }, { x: -61, y: -18 }, { x: 100, y: 100 }]) {
-                const pointer = await diagram.moveTo(move);
+                const pointer = await diagram.moveFromCenterTo(move);
                 const to = (await diagram.drawn('activeComponent'))!;
 
                 expect(to.left - from.left).toBeWholeCells();
@@ -116,38 +120,38 @@ test.describe('Diagram workspace', () => {
         });
 
         test('keeps the ghost the same while the mouse stays in the same grid cell', async () => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             const before = await diagram.drawn('activeComponent');
 
             // a pixel is never enough to reach the next snap point from both sides: try both directions
-            await diagram.moveTo({ x: 1, y: 1 });
+            await diagram.moveFromCenterTo({ x: 1, y: 1 });
             const right = await diagram.drawn('activeComponent');
-            await diagram.moveTo({ x: -1, y: -1 });
+            await diagram.moveFromCenterTo({ x: -1, y: -1 });
             const left = await diagram.drawn('activeComponent');
 
             expect([right, left]).toContainEqual(before);
         });
 
         test('removes the ghost when the component is unpicked in the palette', async () => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             await expect.poll(() => diagram.drawn('activeComponent')).not.toBeNull();
 
             await diagram.palette.clickTile('AndGate');
-            await diagram.settle();
+            await settle(diagram.page);
 
             expect(await diagram.drawn('activeComponent')).toBeNull();
         });
 
         test('shows the ghost again as soon as the mouse comes back after it was unpicked and picked', async () => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             await diagram.palette.clickTile('AndGate');
-            await diagram.settle();
+            await settle(diagram.page);
 
-            await diagram.pick();
-            await diagram.moveTo({ x: 40, y: 40 });
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo({ x: 40, y: 40 });
 
             await expect.poll(() => diagram.drawn('activeComponent')).not.toBeNull();
         });
@@ -155,41 +159,41 @@ test.describe('Diagram workspace', () => {
 
     test.describe('placing', () => {
         test('places the picked component where its ghost is when the diagram is clicked', async () => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             const ghost = (await diagram.drawn('activeComponent'))!;
 
-            await diagram.clickAt();
+            await diagram.clickFromCenterAt();
 
             expect(await diagram.drawn('component')).toCoverSameBoxAs(ghost);
         });
 
         test('places a component without the mouse having moved over the diagram first', async ({ page }) => {
-            await diagram.pick();
-            const point = await diagram.at({ x: 60, y: 20 });
+            await diagram.pickPaletteComponent();
+            const point = await diagram.atCenter({ x: 60, y: 20 });
 
             // a single jump and a click, like a tap
             await page.mouse.move(point.x, point.y);
             await page.mouse.click(point.x, point.y);
-            await diagram.settle();
+            await settle(diagram.page);
 
             expect(await diagram.drawnCenter('component')).toBeCenteredOn(point);
         });
 
         test('keeps the component picked after placing it, with a new ghost under the mouse', async () => {
-            await diagram.pick();
-            await diagram.clickAt();
+            await diagram.pickPaletteComponent();
+            await diagram.clickFromCenterAt();
 
             await expect(diagram.palette.checkbox('AndGate')).toBeChecked();
             expect(await diagram.drawn('activeComponent')).not.toBeNull();
         });
 
         test('places the component again with every click', async () => {
-            await diagram.pick();
-            await diagram.clickAt({ x: -200, y: -100 });
+            await diagram.pickPaletteComponent();
+            await diagram.clickFromCenterAt({ x: -200, y: -100 });
             const one = (await diagram.drawn('component'))!;
 
-            await diagram.clickAt({ x: 200, y: 100 });
+            await diagram.clickFromCenterAt({ x: 200, y: 100 });
             const two = (await diagram.drawn('component'))!;
 
             expect(two.count).toBeGreaterThan(one.count);
@@ -197,16 +201,16 @@ test.describe('Diagram workspace', () => {
             expect(two.bottom - two.top).toBeGreaterThan(one.bottom - one.top);
         });
 
-        test('places components on the grid', async () => {
-            await diagram.pick();
-            await diagram.clickAt();
+        test('places components on the grid with pointer off grid lines', async () => {
+            await diagram.pickPaletteComponent();
+            await diagram.clickFromCenterAt();
             const first = (await diagram.drawn('component'))!;
             await diagram.page.keyboard.press('Escape');
-            await diagram.settle();
+            await settle(diagram.page);
 
             // a second one, far enough not to overlap, at an offset that is not a whole number of cells
-            await diagram.pick();
-            await diagram.clickAt({ x: 0, y: 167 });
+            await diagram.pickPaletteComponent();
+            await diagram.clickFromCenterAt({ x: 0, y: 167 });
             const both = (await diagram.drawn('component'))!;
 
             expect(both.left).toBe(first.left);
@@ -214,7 +218,7 @@ test.describe('Diagram workspace', () => {
         });
 
         test('does not place anything without a picked component', async () => {
-            await diagram.clickAt();
+            await diagram.clickFromCenterAt();
 
             expect(await diagram.drawn('component')).toBeNull();
             expect(await diagram.drawn('activeComponent')).toBeNull();
@@ -222,8 +226,8 @@ test.describe('Diagram workspace', () => {
 
         for (const button of ['right', 'middle'] as const) {
             test(`does not place anything with a ${button} click`, async () => {
-                await diagram.pick();
-                await diagram.clickAt({ x: 0, y: 0 }, button);
+                await diagram.pickPaletteComponent();
+                await diagram.clickFromCenterAt({ x: 0, y: 0 }, button);
 
                 expect(await diagram.drawn('component')).toBeNull();
                 expect(await diagram.drawn('activeComponent')).not.toBeNull();
@@ -231,8 +235,8 @@ test.describe('Diagram workspace', () => {
         }
 
         test('does not place anything when the mouse moves more than a couple of pixels while pressed', async () => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
 
             await diagram.drag({ x: 0, y: 0 }, { x: 30, y: 0 });
 
@@ -240,8 +244,8 @@ test.describe('Diagram workspace', () => {
         });
 
         test('places a component when the mouse moves only a pixel or two while pressed', async () => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
 
             await diagram.drag({ x: 0, y: 0 }, { x: 1, y: 1 });
 
@@ -251,59 +255,61 @@ test.describe('Diagram workspace', () => {
 
     test.describe('Escape', () => {
         test('cancels the placement: the ghost goes and the palette is unpicked', async ({ page }) => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             await expect.poll(() => diagram.drawn('activeComponent')).not.toBeNull();
 
             await page.keyboard.press('Escape');
-            await diagram.settle();
+            await settle(diagram.page);
 
             expect(await diagram.drawn('activeComponent')).toBeNull();
             await expect(diagram.palette.checkedCheckboxes).toHaveCount(0);
         });
 
         test('keeps the components that were placed', async ({ page }) => {
-            await diagram.pick();
-            await diagram.clickAt();
+            await diagram.pickPaletteComponent();
+            await diagram.clickFromCenterAt();
             const placed = await diagram.drawn('component');
 
             await page.keyboard.press('Escape');
-            await diagram.settle();
+            await settle(diagram.page);
 
             expect(await diagram.drawn('component')).toEqual(placed);
         });
 
         test('stops placing: clicking afterwards places nothing', async ({ page }) => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             await page.keyboard.press('Escape');
 
-            await diagram.clickAt({ x: 80, y: 80 });
+            await diagram.clickFromCenterAt({ x: 80, y: 80 });
 
             expect(await diagram.drawn('component')).toBeNull();
             expect(await diagram.drawn('activeComponent')).toBeNull();
         });
 
         test('cancels while the mouse is outside the diagram too', async ({ page }) => {
-            await diagram.pick();
-            await diagram.moveTo();
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             await page.mouse.move(5, 5);
 
             await page.keyboard.press('Escape');
-            await diagram.settle();
+            await settle(diagram.page);
 
             await expect(diagram.palette.checkedCheckboxes).toHaveCount(0);
             expect(await diagram.drawn('activeComponent')).toBeNull();
         });
 
         test('is left alone while typing in a field', async ({ page }) => {
-            await diagram.pick();
-            await diagram.moveTo();
-            await diagram.openGridSettings();
+            let settingsPanel = new SettingsPanel(page);
+
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
+            await settingsPanel.openGridSettings();
             await page.locator('#gridSpacing').focus();
 
             await page.keyboard.press('Escape');
-            await diagram.settle();
+            await settle(diagram.page);
 
             await expect(diagram.palette.checkbox('AndGate')).toBeChecked();
             expect(await diagram.drawn('activeComponent')).not.toBeNull();
@@ -368,15 +374,16 @@ test.describe('Diagram workspace', () => {
             const after = await diagram.drawn('component');
 
             // moving over the diagram again doesn't pan it
-            await diagram.moveTo({ x: 100, y: 100 });
-            await diagram.moveTo({ x: -100, y: -100 });
+            await diagram.moveFromCenterTo({ x: 100, y: 100 });
+            await diagram.moveFromCenterTo({ x: -100, y: -100 });
             expect(await diagram.drawn('component')).toEqual(after);
         });
 
+        // this test might change later - im not sure i like this behavior.
         test('pans instead of placing when dragging with a picked component', async () => {
             await diagram.place();
             const before = (await diagram.drawn('component'))!;
-            await diagram.pick();
+            await diagram.pickPaletteComponent();
 
             await diagram.drag({ x: 250, y: 0 }, { x: -40, y: 0 });
 
@@ -410,9 +417,9 @@ test.describe('Diagram workspace', () => {
 
         test('places components under the mouse after panning', async () => {
             await diagram.drag({ x: 0, y: 0 }, { x: 137, y: -64 });
-            await diagram.pick();
+            await diagram.pickPaletteComponent();
 
-            const point = await diagram.clickAt({ x: -50, y: 30 });
+            const point = await diagram.clickFromCenterAt({ x: -50, y: 30 });
 
             expect(await diagram.drawnCenter('component')).toBeCenteredOn(point);
         });
@@ -433,22 +440,27 @@ test.describe('Diagram workspace', () => {
     });
 
     test.describe('grid settings', () => {
+        test.beforeEach(async ({ page }) => {
+            settingsPanel = new SettingsPanel(page);
+        });
+        // perhaps better under grid canvas layer tests
         test('redraws the grid when its display mode changes', async () => {
             const dots = (await diagram.drawn('grid'))!;
 
-            await diagram.openGridSettings();
-            await diagram.setGridMode('lines');
+            await settingsPanel.openGridSettings();
+            await settingsPanel.setGridMode('lines');
             await expect.poll(async () => (await diagram.drawn('grid'))!.count).toBeGreaterThan(dots.count);
 
-            await diagram.setGridMode('dots');
+            await settingsPanel.setGridMode('dots');
             await expect.poll(async () => (await diagram.drawn('grid'))!.count).toBe(dots.count);
         });
 
+        // perhaps better under grid canvas layer tests
         test('redraws the grid when its cell size changes', async () => {
             const before = (await diagram.drawn('grid'))!;
 
-            await diagram.openGridSettings();
-            await diagram.setGridSpacing(DEFAULT_GRID_SPACING * 2);
+            await settingsPanel.openGridSettings();
+            await settingsPanel.setGridSpacing(DEFAULT_GRID_SPACING * 2);
 
             // twice the spacing: a quarter of the dots
             await expect.poll(async () => (await diagram.drawn('grid'))!.count).toBeLessThan(before.count / 2);
@@ -456,14 +468,14 @@ test.describe('Diagram workspace', () => {
 
         test('snaps the ghost to the new cell size', async () => {
             const spacing = 50;
-            await diagram.openGridSettings();
-            await diagram.setGridSpacing(spacing);
-            await diagram.pick();
-            await diagram.moveTo();
+            await settingsPanel.openGridSettings();
+            await settingsPanel.setGridSpacing(spacing);
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo();
             const from = (await diagram.drawn('activeComponent'))!;
 
             for (const move of [{ x: 13, y: 0 }, { x: 0, y: 37 }, { x: 71, y: -88 }, { x: -140, y: 26 }]) {
-                const pointer = await diagram.moveTo(move);
+                const pointer = await diagram.moveFromCenterTo(move);
                 const to = (await diagram.drawn('activeComponent'))!;
 
                 expect(to.left - from.left).toBeWholeCells(spacing);
