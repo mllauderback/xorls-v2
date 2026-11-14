@@ -13,9 +13,15 @@ import { settingsFeature } from './store/settings/feature';
 import { workspaceFeature } from './store/workspace/feature';
 import { componentsFeature } from './store/components/feature';
 
+/**
+ * The e2e tests turn animations off, unless a test is about one, by setting this flag on the window before the app
+ * loads. See e2e/support/test.ts.
+ */
+const animationsDisabled = (globalThis as { __e2eNoAnimations?: boolean }).__e2eNoAnimations === true;
+
 export const appConfig: ApplicationConfig = {
     providers: [
-        provideAnimationsAsync(),
+        provideAnimationsAsync(animationsDisabled ? 'noop' : 'animations'),
         providePrimeNG({
             theme: {
                 preset: Aura

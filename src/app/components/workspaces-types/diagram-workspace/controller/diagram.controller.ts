@@ -18,7 +18,8 @@ const DEFAULT_GRID_SPACING = 20;
 /**
  * Handles what the user does in one diagram workspace: it follows the mouse and the keyboard, and decides what that
  * means. Moving the mouse previews the palette component that is waiting to be placed, a click places it, a drag pans
- * the diagram, and Esc cancels.
+ * the diagram, and Esc cancels. While a mouse button is held on the workspace the preview stays where it is on the
+ * diagram, so a drag carries it along with the diagram instead of moving it over the diagram.
  *
  * It sits between the container and the presenter. The container tells it what the store holds (which palette
  * component is selected, the workspace settings) and acts on what it reports (the user cleared the selection). The
@@ -52,6 +53,8 @@ export class DiagramController {
     private ghost: Placeable | null = null;
     /** The last pointer position (client coordinates) seen over the workspace. */
     private lastPointer: Point | null = null;
+    /** Whether a mouse button that was pressed on the workspace is still held. The ghost stays put meanwhile. */
+    private mousePressed = false;
     private panning = false;
 
     /**
@@ -68,11 +71,14 @@ export class DiagramController {
 
         // Only the pointer over this workspace counts.
         const pointer = this.pointerService.within(view.element);
+        pointer.down$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.onMouseDown());
         pointer.move$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseMove(event));
         pointer.click$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseClick(event));
         pointer.drag$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseDrag(event));
-        // releasing ends the grab wherever the pointer is, even if the drag left the workspace
+        // releasing ends the grab wherever the pointer is, even if the drag left the workspace. So does the browser
+        // taking the pointer away.
         this.pointerService.up$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.onMouseUp());
+        this.pointerService.cancel$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.onMouseUp());
 
         // Every open workspace registers this, but only the one being shown handles it.
         this.keyboardService.on('Escape', () => this.onEscape(), { enabled: () => this.isActive(), destroyRef: this.destroyRef });
@@ -147,10 +153,21 @@ export class DiagramController {
         if (ghost) this.view?.hidePreview(ghost);
     }
 
-    /** The ghost follows the pointer, snapped to the grid. */
+    /** A button went down on the workspace: from here to its release, moving the mouse doesn't move the ghost. */
+    private onMouseDown() {
+        this.mousePressed = true;
+    }
+
+    /**
+     * The ghost follows the pointer, snapped to the grid, unless a button is held on the workspace. A held button is
+     * a click or a drag in the making. Following the mouse then would move the ghost over the diagram before a drag
+     * starts moving the diagram with the mouse, leaving it a grid cell off the pointer. It stays where it is on the
+     * diagram instead, so a drag carries it along and it is still under the pointer on release.
+     */
     private onMouseMove(event: MouseEvent) {
         if (!this.isActive()) return;
         this.lastPointer = { x: event.clientX, y: event.clientY };
+        if (this.mousePressed) return;
         if (this.ensureGhost()) this.moveGhostTo(this.lastPointer);
     }
 
@@ -183,8 +200,9 @@ export class DiagramController {
         this.view!.setCursor('grabbing');
     }
 
-    /** Ends a pan. */
+    /** Lets the ghost follow the mouse again, and ends a pan. */
     private onMouseUp() {
+        this.mousePressed = false;
         if (!this.panning) return;
         this.panning = false;
         this.view?.setCursor('default');

@@ -81,7 +81,10 @@
             "tsConfig": "tsconfig.spec.json",
             "buildTarget": "xorls:build:development",
             "runner": "vitest",
-            "setupFiles": ["vitest.setup.ts"]
+            "setupFiles": [
+              "vitest.setup.ts"
+            ],
+            "codeCoverage": false
           }
         },
         "lint": {
@@ -96,7 +99,8 @@
         "e2e": {
           "builder": "playwright-ng-schematics:playwright",
           "options": {
-            "devServerTarget": "xorls:serve"
+            "devServerTarget": "xorls:serve",
+            "codeCoverage": false
           },
           "configurations": {
             "production": {
