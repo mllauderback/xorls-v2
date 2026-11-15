@@ -1,5 +1,6 @@
 import type { DestroyRef } from "@angular/core";
 import { inject, Injectable, NgZone } from "@angular/core";
+import { isEditableTarget } from "../service-helpers";
 
 /**
  * Handler for a key press.  Returns true to process the key, otherwise leave the key for the next handler
@@ -95,19 +96,6 @@ export function matchesKeyCombo(combo: KeyCombo, event: KeyboardEvent): boolean 
     return modifierMatches && event.shiftKey === combo.shift && event.altKey === combo.alt;
 }
 
-const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'range', 'color', 'file']);
-
-/**
- * Returns true if the keyboard event target is content-editable.
- * @param target 
- * @returns 
- */
-export function isEditableTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    if (target.isContentEditable) return true;
-    if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type);
-    return ['TEXTAREA', 'SELECT'].includes(target.tagName);
-}
 
 interface Binding {
     combo: KeyCombo;

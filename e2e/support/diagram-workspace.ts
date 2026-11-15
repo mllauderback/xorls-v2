@@ -6,6 +6,19 @@ import { ComponentPalette } from './component-palette';
 import type { Size } from './draw-helpers';
 import { growWindow, Point, settle } from './draw-helpers';
 
+export type MouseButton = 'left' | 'right' | 'middle';
+export type PanButton = 'right' | 'middle';
+export const PAN_BUTTONS: readonly PanButton[] = ['right', 'middle'];
+
+export interface DragOptions {
+    /** The button to drag with. */
+    button?: MouseButton;
+    /** False to keep the button held when the drag is done. True by default. */
+    release?: boolean;
+}
+
+export type PanOptions = DragOptions & { button?: PanButton };
+
 /** The grid spacing the app starts with. Mirrors the settings store's initial state. */
 export const DEFAULT_GRID_SPACING = 20;
 
@@ -78,7 +91,7 @@ export class DiagramWorkspace {
     }
 
     /** Clicks at a point relative to the middle of the workspace, after moving the mouse there. */
-    async clickFromCenterAt(offset: Point = { x: 0, y: 0 }, button: 'left' | 'right' | 'middle' = 'left'): Promise<Point> {
+    async clickFromCenterAt(offset: Point = { x: 0, y: 0 }, button: MouseButton = 'left'): Promise<Point> {
         const point = await this.moveFromCenterTo(offset);
         await this.page.mouse.click(point.x, point.y, { button });
         await settle(this.page);
@@ -99,13 +112,27 @@ export class DiagramWorkspace {
         await settle(this.page);
     }
 
-    /** Drags on the workspace from a point relative to its middle, by dx, dy. Without releasing if `release` is false. */
-    async drag(from: Point, by: Point, release = true): Promise<void> {
+    /** Drags on the workspace from a point relative to its middle, by dx, dy. With the left button by default. */
+    async drag(from: Point, by: Point, { button = 'left', release = true }: DragOptions = {}): Promise<void> {
         const start = await this.atCenter(from);
         await this.page.mouse.move(start.x, start.y);
-        await this.page.mouse.down();
+        await this.page.mouse.down({ button });
         await this.page.mouse.move(start.x + by.x, start.y + by.y, { steps: 10 });
-        if (release) await this.page.mouse.up();
+        if (release) await this.page.mouse.up({ button });
+        await settle(this.page);
+    }
+
+    /**
+     * Pans the diagram: drags with a pan button (right by default, or middle) from a point relative to the middle of
+     * the workspace, by dx, dy. A pan that isn't released is ended with releasePan().
+     */
+    async pan(from: Point, by: Point, { button = 'right', release = true }: PanOptions = {}): Promise<void> {
+        await this.drag(from, by, { button, release });
+    }
+
+    /** Releases the button of a pan that was started with `release: false`. */
+    async releasePan(button: PanButton = 'right'): Promise<void> {
+        await this.page.mouse.up({ button });
         await settle(this.page);
     }
 

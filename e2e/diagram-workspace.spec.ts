@@ -1,6 +1,7 @@
+import type { Locator } from '@playwright/test';
 import type { Layer } from './support/canvas-layer';
 import { LAYERS } from './support/canvas-layer';
-import { DiagramWorkspace } from './support/diagram-workspace';
+import { DiagramWorkspace, PAN_BUTTONS } from './support/diagram-workspace';
 import { expect } from './support/draw-matchers';
 import { settle } from './support/draw-helpers';
 import { SettingsPanel } from './support/settings-panel';
@@ -9,7 +10,7 @@ import { test } from './support/test';
 /**
  * The diagram workspace shows one diagram on a stack of canvas layers (the presenter) and handles what the user does
  * in it (the container and its controller): a picked palette component follows the mouse as a ghost, snapped to the
- * grid, a click places it, a drag pans the diagram, and Escape cancels. The grid follows the workspace settings.
+ * grid, a left click places it, a right or middle drag pans the diagram, and Escape cancels. The grid follows the workspace settings.
  *
  * Only AndGate has a draw() so far, so the tests place AndGates. An AndGate is 120x80 with its pins, and is placed
  * centered on the pointer.
@@ -305,45 +306,72 @@ test.describe('Diagram workspace', () => {
     });
 
     test.describe('panning', () => {
-        test('moves the diagram with a drag', async () => {
+        for (const button of PAN_BUTTONS) {
+            test(`moves the diagram with a ${button} drag`, async () => {
+                await diagram.place();
+                const before = (await diagram.layer('component').drawn())!;
+
+                await diagram.pan({ x: 200, y: 150 }, { x: -73, y: 41 }, { button });
+
+                const after = (await diagram.layer('component').drawn())!;
+                expect(after.left - before.left).toBe(-73);
+                expect(after.top - before.top).toBe(41);
+                expect(after.count).toBe(before.count);
+            });
+        }
+
+        test("does not let a middle press start the browser's autoscroll, except in a field", async ({ page }) => {
+            /** Whether a middle mousedown on the element is cancelled, which is what keeps autoscroll from starting. */
+            const middlePressCancelled = (target: Locator) => target.evaluate(el => {
+                const event = new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true });
+                return !el.dispatchEvent(event);
+            });
+
+            expect(await middlePressCancelled(diagram.layer('activeWire').canvas)).toBe(true);
+            expect(await middlePressCancelled(page.locator('body'))).toBe(true);
+
+            // a middle press in a field is left alone, for middle-click paste
+            await new SettingsPanel(page).openGridSettings();
+            expect(await middlePressCancelled(page.locator('#gridSpacing'))).toBe(false);
+        });
+
+        test('does not move the diagram with a left drag, which places and selects', async () => {
             await diagram.place();
             const before = (await diagram.layer('component').drawn())!;
 
             await diagram.drag({ x: 200, y: 150 }, { x: -73, y: 41 });
 
-            const after = (await diagram.layer('component').drawn())!;
-            expect(after.left - before.left).toBe(-73);
-            expect(after.top - before.top).toBe(41);
-            expect(after.count).toBe(before.count);
+            expect(await diagram.layer('component').drawn()).toEqual(before);
+            expect(await diagram.cursor()).not.toBe('grabbing');
         });
 
         test('moves the diagram in steps that add up', async () => {
             await diagram.place();
             const before = (await diagram.layer('component').drawn())!;
 
-            await diagram.drag({ x: 200, y: 150 }, { x: 50, y: 0 });
-            await diagram.drag({ x: 200, y: 150 }, { x: 0, y: -30 });
-            await diagram.drag({ x: 200, y: 150 }, { x: -20, y: 10 });
+            await diagram.pan({ x: 200, y: 150 }, { x: 50, y: 0 });
+            await diagram.pan({ x: 200, y: 150 }, { x: 0, y: -30 });
+            await diagram.pan({ x: 200, y: 150 }, { x: -20, y: 10 });
 
             const after = (await diagram.layer('component').drawn())!;
             expect(after.left - before.left).toBe(30);
             expect(after.top - before.top).toBe(-20);
         });
 
-        test('shows the grabbing cursor while dragging, and the default one after', async ({ page }) => {
-            await diagram.drag({ x: 0, y: 0 }, { x: 40, y: 0 }, false);
+        test('shows the grabbing cursor while dragging, and the default one after', async () => {
+            await diagram.pan({ x: 0, y: 0 }, { x: 40, y: 0 }, { release: false });
             expect(await diagram.cursor()).toBe('grabbing');
 
-            await page.mouse.up();
+            await diagram.releasePan();
             expect(await diagram.cursor()).toBe('default');
         });
 
         test('ends the pan when the mouse is released outside the diagram', async ({ page }) => {
             await diagram.place();
-            await diagram.drag({ x: 0, y: 0 }, { x: 40, y: 0 }, false);
+            await diagram.pan({ x: 0, y: 0 }, { x: 40, y: 0 }, { release: false });
 
             await page.mouse.move(5, 5, { steps: 5 });
-            await page.mouse.up();
+            await diagram.releasePan();
             expect(await diagram.cursor()).toBe('default');
             const after = await diagram.layer('component').drawn();
 
@@ -353,17 +381,33 @@ test.describe('Diagram workspace', () => {
             expect(await diagram.layer('component').drawn()).toEqual(after);
         });
 
-        // this test might change later - im not sure i like this behavior.
-        test('pans instead of placing when dragging with a picked component', async () => {
+        test('pans instead of placing when right dragging with a picked component, carrying the ghost along', async () => {
             await diagram.place();
             const before = (await diagram.layer('component').drawn())!;
             await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo({ x: 250, y: 0 });
+            const ghostBefore = (await diagram.layer('activeComponent').drawn())!;
 
-            await diagram.drag({ x: 250, y: 0 }, { x: -40, y: 0 });
+            await diagram.pan({ x: 250, y: 0 }, { x: -40, y: 0 });
 
             const after = (await diagram.layer('component').drawn())!;
             expect(after.left - before.left).toBe(-40);
             expect(after.count).toBe(before.count);
+            const ghostAfter = (await diagram.layer('activeComponent').drawn())!;
+            expect(ghostAfter.left - ghostBefore.left).toBe(-40);
+        });
+
+        test('neither pans nor places when left dragging with a picked component', async () => {
+            await diagram.place();
+            const before = (await diagram.layer('component').drawn())!;
+            await diagram.pickPaletteComponent();
+            await diagram.moveFromCenterTo({ x: 250, y: 0 });
+
+            await diagram.drag({ x: 250, y: 0 }, { x: -40, y: 0 });
+
+            expect(await diagram.layer('component').drawn()).toEqual(before);
+            // the ghost kept following the mouse instead
+            expect(await diagram.layer('activeComponent').drawnCenter()).toBeCenteredOn(await diagram.atCenter({ x: 210, y: 0 }));
         });
 
         test('grows the canvases when panning brings an edge into view, keeping the diagram where it was', async () => {
@@ -373,7 +417,7 @@ test.describe('Diagram workspace', () => {
             const before = (await diagram.layer('component').drawn())!;
 
             // dragging right and down brings the left and top edges into view
-            await diagram.drag({ x: -200, y: -150 }, { x: 120, y: 90 });
+            await diagram.pan({ x: -200, y: -150 }, { x: 120, y: 90 });
 
             const sizesAfter = await sizeOf();
             expect(new Set(sizesAfter).size).toBe(1);
@@ -390,7 +434,7 @@ test.describe('Diagram workspace', () => {
         });
 
         test('places components under the mouse after panning', async () => {
-            await diagram.drag({ x: 0, y: 0 }, { x: 137, y: -64 });
+            await diagram.pan({ x: 0, y: 0 }, { x: 137, y: -64 });
             await diagram.pickPaletteComponent();
 
             const point = await diagram.clickFromCenterAt({ x: -50, y: 30 });
@@ -402,7 +446,7 @@ test.describe('Diagram workspace', () => {
             await diagram.place();
             const first = (await diagram.layer('component').drawn())!;
 
-            await diagram.drag({ x: 200, y: 200 }, { x: 7, y: 0 });
+            await diagram.pan({ x: 200, y: 200 }, { x: 7, y: 0 });
             const panned = (await diagram.layer('component').drawn())!;
             await diagram.place({ x: 0, y: 160 });
             const both = (await diagram.layer('component').drawn())!;

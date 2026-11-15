@@ -503,8 +503,10 @@ describe('DiagramWorkspacePresenterComponent', () => {
                 const host = fixture.nativeElement as HTMLElement;
                 document.body.append(host);
 
-                host.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }));
-                host.dispatchEvent(new MouseEvent('pointermove', { clientX: 20, clientY: 10, bubbles: true }));
+                // a right drag, which would pan the workspace being shown
+                host.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, button: 2, buttons: 2, bubbles: true }));
+                host.dispatchEvent(new MouseEvent('pointermove', { clientX: 20, clientY: 10, buttons: 2, bubbles: true }));
+                host.dispatchEvent(new MouseEvent('pointerup', { clientX: 20, clientY: 10, button: 2, bubbles: true }));
                 document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
                 expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
