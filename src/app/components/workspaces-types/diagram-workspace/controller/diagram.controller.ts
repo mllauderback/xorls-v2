@@ -4,7 +4,7 @@ import { Subject } from 'rxjs';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { SelectedSelectable } from '../../../../store/components/state';
 import { RenderService } from '../../../../services/render/render.service';
-import { PointerService } from '../../../../services/pointer/pointer.service';
+import { MouseButton, PointerService } from '../../../../services/pointer/pointer.service';
 import { KeyboardService } from '../../../../services/keyboard/keyboard.service';
 import type { Placeable } from '../../../../models/components/ComponentFactory';
 import { createPlaceable } from '../../../../models/components/ComponentFactory';
@@ -16,10 +16,16 @@ import type { DiagramView } from './diagram-view';
 const DEFAULT_GRID_SPACING = 20;
 
 /**
+ * The buttons that pan the diagram when dragged. The left button is kept for placing and selecting components, so a
+ * left drag never pans.
+ */
+const PAN_BUTTONS: readonly number[] = [MouseButton.Middle, MouseButton.Right];
+
+/**
  * Handles what the user does in one diagram workspace: it follows the mouse and the keyboard, and decides what that
- * means. Moving the mouse previews the palette component that is waiting to be placed, a click places it, a drag pans
- * the diagram, and Esc cancels. While a mouse button is held on the workspace the preview stays where it is on the
- * diagram, so a drag carries it along with the diagram instead of moving it over the diagram.
+ * means. Moving the mouse previews the palette component that is waiting to be placed, a left click places it, a
+ * right or middle drag pans the diagram, and Esc cancels. While a pan button is held on the workspace the preview
+ * stays where it is on the diagram, so a drag carries it along with the diagram instead of moving it over the diagram.
  *
  * It sits between the container and the presenter. The container tells it what the store holds (which palette
  * component is selected, the workspace settings) and acts on what it reports (the user cleared the selection). The
@@ -53,8 +59,11 @@ export class DiagramController {
     private ghost: Placeable | null = null;
     /** The last pointer position (client coordinates) seen over the workspace. */
     private lastPointer: Point | null = null;
-    /** Whether a mouse button that was pressed on the workspace is still held. The ghost stays put meanwhile. */
-    private mousePressed = false;
+    /**
+     * Whether a pan button (right or middle) that was pressed on the workspace is still held. Dragging pans the diagram
+     * then, and the ghost stays put on it.
+     */
+    private panPressed = false;
     private panning = false;
 
     /**
@@ -71,7 +80,7 @@ export class DiagramController {
 
         // Only the pointer over this workspace counts.
         const pointer = this.pointerService.within(view.element);
-        pointer.down$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.onMouseDown());
+        pointer.down$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseDown(event));
         pointer.move$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseMove(event));
         pointer.click$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseClick(event));
         pointer.drag$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseDrag(event));
@@ -153,21 +162,27 @@ export class DiagramController {
         if (ghost) this.view?.hidePreview(ghost);
     }
 
-    /** A button went down on the workspace: from here to its release, moving the mouse doesn't move the ghost. */
-    private onMouseDown() {
-        this.mousePressed = true;
+    /**
+     * A button went down on the workspace. A pan button starts a pan: from here to its release, dragging moves the
+     * diagram and moving the mouse doesn't move the ghost. Other buttons leave the ghost following the mouse.
+     *
+     * Only the first button of a press counts: the browser reports further buttons pressed while one is held as moves,
+     * not as new presses.
+     */
+    private onMouseDown(event: MouseEvent) {
+        this.panPressed = PAN_BUTTONS.includes(event.button);
     }
 
     /**
-     * The ghost follows the pointer, snapped to the grid, unless a button is held on the workspace. A held button is
-     * a click or a drag in the making. Following the mouse then would move the ghost over the diagram before a drag
-     * starts moving the diagram with the mouse, leaving it a grid cell off the pointer. It stays where it is on the
-     * diagram instead, so a drag carries it along and it is still under the pointer on release.
+     * The ghost follows the pointer, snapped to the grid, unless a pan button is held on the workspace. Following the
+     * mouse then would move the ghost over the diagram before a drag starts moving the diagram with the mouse, leaving
+     * it a grid cell off the pointer. It stays where it is on the diagram instead, so a pan carries it along and it is
+     * still under the pointer on release.
      */
     private onMouseMove(event: MouseEvent) {
         if (!this.isActive()) return;
         this.lastPointer = { x: event.clientX, y: event.clientY };
-        if (this.mousePressed) return;
+        if (this.panPressed) return;
         if (this.ensureGhost()) this.moveGhostTo(this.lastPointer);
     }
 
@@ -176,7 +191,7 @@ export class DiagramController {
      * diagram. The palette component stays selected, so a new ghost takes its place.
      */
     private onMouseClick(event: MouseEvent) {
-        if (event.button !== 0 || !this.isActive() || !this.ensureGhost()) return;
+        if (event.button !== MouseButton.Left || !this.isActive() || !this.ensureGhost()) return;
         const pointer = { x: event.clientX, y: event.clientY };
         // a click without a preceding move (touch, for example) still needs to land where it was clicked
         this.moveGhostTo(pointer);
@@ -190,11 +205,12 @@ export class DiagramController {
         if (this.ensureGhost()) this.moveGhostTo(pointer);
     }
 
-    /** Dragging pans the diagram. */
+    /** Dragging with a pan button (right or middle) pans the diagram. A left drag doesn't. */
     private onMouseDrag(event: MouseEvent) {
-        if (!this.isActive()) return;
+        if (!this.panPressed || !this.isActive()) return;
         const element = this.view!.element;
         this.renderService.panActiveDiagram(event.movementX, event.movementY, element.clientWidth, element.clientHeight);
+        if (this.panning) return;
         // eventually link mouse mode to a cursor style using the store
         this.panning = true;
         this.view!.setCursor('grabbing');
@@ -202,7 +218,7 @@ export class DiagramController {
 
     /** Lets the ghost follow the mouse again, and ends a pan. */
     private onMouseUp() {
-        this.mousePressed = false;
+        this.panPressed = false;
         if (!this.panning) return;
         this.panning = false;
         this.view?.setCursor('default');

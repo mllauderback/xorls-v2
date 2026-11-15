@@ -239,7 +239,7 @@ test.describe('Grid canvas layer', () => {
                     if (mode === 'lines') await setMode('lines');
                     const before = await readMarks(mode);
 
-                    await diagram.drag({ x: 0, y: 0 }, by);
+                    await diagram.pan({ x: 0, y: 0 }, by);
 
                     const after = await readMarks(mode);
                     // the grid moved by the drag: a grid position is a whole number of cells from where one went
@@ -254,7 +254,7 @@ test.describe('Grid canvas layer', () => {
             // the canvases grow with every edge that comes into view, which slows the page down
             test.slow();
             for (const { by } of drags) {
-                await diagram.drag({ x: 0, y: 0 }, by);
+                await diagram.pan({ x: 0, y: 0 }, by);
 
                 expectCoversWorkspace(await readMarks('dots'), DEFAULT_GRID_SPACING);
             }
@@ -263,9 +263,9 @@ test.describe('Grid canvas layer', () => {
         test('draws the same grid again when the diagram is dragged back', async () => {
             const before = await grid.fingerprint();
 
-            await diagram.drag({ x: 0, y: 0 }, { x: 47, y: 33 });
+            await diagram.pan({ x: 0, y: 0 }, { x: 47, y: 33 });
             expect(await grid.fingerprint()).not.toBe(before);
-            await diagram.drag({ x: 0, y: 0 }, { x: -47, y: -33 });
+            await diagram.pan({ x: 0, y: 0 }, { x: -47, y: -33 });
 
             expect(await grid.fingerprint()).toBe(before);
         });
@@ -319,7 +319,7 @@ test.describe('Grid canvas layer', () => {
             expect(marks.x).toContain(first.left);
 
             // dragging right and down brings the canvas's left and top edges into view, so it grows that way
-            await diagram.drag({ x: 200, y: 150 }, { x: 137, y: 91 });
+            await diagram.pan({ x: 200, y: 150 }, { x: 137, y: 91 });
             marks = await readMarks('lines');
             const moved = (await component.drawn())!;
             expect(moved.left).toBe(first.left + 137);

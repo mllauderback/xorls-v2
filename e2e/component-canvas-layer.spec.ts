@@ -180,21 +180,21 @@ test.describe('Component canvas layer', () => {
                 const fingerprint = await layer.fingerprint(region);
                 const count = (await layer.drawn())!.count;
 
-                await diagram.drag({ x: 200, y: 150 }, by);
+                await diagram.pan({ x: 200, y: 150 }, by);
 
                 expect(await layer.fingerprint(shifted(region, by.x, by.y))).toBe(fingerprint);
                 expect((await layer.drawn())!.count).toBe(count);
             });
         }
 
-        test('moves the components while the diagram is being dragged, before it is released', async ({ page }) => {
+        test('moves the components while the diagram is being dragged, before it is released', async () => {
             const region = await placeAt();
             const fingerprint = await layer.fingerprint(region);
 
-            await diagram.drag({ x: 200, y: 150 }, { x: 80, y: -30 }, false);
+            await diagram.pan({ x: 200, y: 150 }, { x: 80, y: -30 }, { release: false });
             expect(await layer.fingerprint(shifted(region, 80, -30))).toBe(fingerprint);
 
-            await page.mouse.up();
+            await diagram.releasePan();
         });
 
         test('draws a component again after it was dragged out of view and back', async () => {
@@ -204,11 +204,11 @@ test.describe('Component canvas layer', () => {
 
             // far enough to the left that it leaves the workspace
             const steps = Math.ceil((visible.width / 2 + AND_GATE.width) / 300);
-            for (let i = 0; i < steps; i++) await diagram.drag({ x: 150, y: 150 }, { x: -300, y: 0 });
+            for (let i = 0; i < steps; i++) await diagram.pan({ x: 150, y: 150 }, { x: -300, y: 0 });
             const { columns } = await layer.profile();
             expect(columns.every(count => count === 0)).toBe(true);
 
-            for (let i = 0; i < steps; i++) await diagram.drag({ x: -150, y: 150 }, { x: 300, y: 0 });
+            for (let i = 0; i < steps; i++) await diagram.pan({ x: -150, y: 150 }, { x: 300, y: 0 });
 
             expect(await layer.fingerprint(region)).toBe(fingerprint);
         });
@@ -219,7 +219,7 @@ test.describe('Component canvas layer', () => {
             const before = (await layer.drawn())!;
 
             for (const by of [{ x: 91, y: 0 }, { x: 0, y: -67 }, { x: -140, y: 120 }]) {
-                await diagram.drag({ x: 0, y: 200 }, by);
+                await diagram.pan({ x: 0, y: 200 }, by);
             }
 
             const after = (await layer.drawn())!;

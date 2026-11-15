@@ -2,7 +2,8 @@ import type { DestroyRef } from '@angular/core';
 import { NgZone } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isEditableTarget, KeyboardService, matchesKeyCombo, parseKeyCombo } from './keyboard.service';
+import { KeyboardService, matchesKeyCombo, parseKeyCombo } from './keyboard.service';
+import { isEditableTarget } from '../service-helpers';
 
 const keyEvent = (key: string, init: KeyboardEventInit = {}) =>
     new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });

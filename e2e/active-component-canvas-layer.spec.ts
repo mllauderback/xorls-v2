@@ -166,10 +166,10 @@ test.describe('Active component canvas layer', () => {
                 await settle(page);
 
                 // while it is dragged, and after
-                await diagram.drag({ x: 0, y: 0 }, { x: 80, y: 50 }, false);
+                await diagram.pan({ x: 0, y: 0 }, { x: 80, y: 50 }, { release: false });
                 expect(await layer.drawn()).toBeNull();
-                await page.mouse.up();
-                await diagram.drag({ x: 0, y: 0 }, { x: -200, y: -120 });
+                await diagram.releasePan();
+                await diagram.pan({ x: 0, y: 0 }, { x: -200, y: -120 });
 
                 expect(await layer.drawn()).toBeNull();
             });
@@ -199,7 +199,7 @@ test.describe('Active component canvas layer', () => {
 
     test.describe('panning', () => {
         for (const by of [{ x: 80, y: -30 }, { x: -47, y: 33 }, { x: 137, y: 91 }]) {
-            test(`moves the ghost with the diagram, unchanged, while it is dragged by ${by.x}, ${by.y}`, async ({ page }) => {
+            test(`moves the ghost with the diagram, unchanged, while it is dragged by ${by.x}, ${by.y}`, async () => {
                 const region = await showGhost();
                 const fingerprint = await layer.fingerprint(region);
                 const before = (await layer.drawn())!;
@@ -215,11 +215,10 @@ test.describe('Active component canvas layer', () => {
                     expect(drawn.count).toBe(before.count);
                 };
 
-                await diagram.drag({ x: 0, y: 0 }, by, false);
+                await diagram.pan({ x: 0, y: 0 }, by, { release: false });
                 await expectMovedWithDiagram();
 
-                await page.mouse.up();
-                await settle(page);
+                await diagram.releasePan();
                 await expectMovedWithDiagram();
             });
         }
@@ -233,7 +232,7 @@ test.describe('Active component canvas layer', () => {
             };
             const before = await size();
 
-            await diagram.drag({ x: 0, y: 0 }, { x: -47, y: 33 });
+            await diagram.pan({ x: 0, y: 0 }, { x: -47, y: 33 });
             for (const offset of [{ x: 100, y: 60 }, { x: -120, y: -80 }]) {
                 await diagram.moveFromCenterTo(offset);
 

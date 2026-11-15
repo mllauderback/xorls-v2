@@ -4,6 +4,7 @@ import { Component, NgZone } from '@angular/core';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { DiagramController } from './diagram.controller';
+import { MouseButton } from '../../../../services/pointer/pointer.service';
 import type { DiagramView } from './diagram-view';
 import { RenderService } from '../../../../services/render/render.service';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
@@ -59,6 +60,13 @@ describe('DiagramController', () => {
         view.element.dispatchEvent(pointer('pointerdown', x, y, init));
         view.element.dispatchEvent(pointer('pointerup', x, y, init));
     };
+    /** The bit of MouseEvent.buttons that says a button is held, by its MouseEvent.button. */
+    const HELD = { [MouseButton.Left]: 1, [MouseButton.Middle]: 4, [MouseButton.Right]: 2 } as const;
+    type Button = keyof typeof HELD;
+    const pressButton = (button: Button, x: number, y: number, target: EventTarget = view.element) =>
+        target.dispatchEvent(pointer('pointerdown', x, y, { button, buttons: HELD[button] }));
+    const releaseButton = (button: Button, x: number, y: number, target: EventTarget = view.element) =>
+        target.dispatchEvent(pointer('pointerup', x, y, { button }));
     const pressEsc = (target: EventTarget = document.body) => {
         const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
         target.dispatchEvent(event);
@@ -345,11 +353,12 @@ describe('DiagramController', () => {
         });
     });
 
-    describe('while a mouse button is held', () => {
+    describe('while a pan button is held', () => {
         let outside: HTMLElement;
 
-        const press = (x: number, y: number, target: EventTarget = view.element) => target.dispatchEvent(pointer('pointerdown', x, y));
-        const release = (x: number, y: number, target: EventTarget = view.element) => target.dispatchEvent(pointer('pointerup', x, y));
+        // the right button pans; the middle one does the same and is covered under 'panning'
+        const press = (x: number, y: number, target?: EventTarget) => pressButton(MouseButton.Right, x, y, target);
+        const release = (x: number, y: number, target?: EventTarget) => releaseButton(MouseButton.Right, x, y, target);
 
         beforeEach(() => {
             attach();
@@ -389,6 +398,14 @@ describe('DiagramController', () => {
             expect(ghost()!.position).toEqual({ x: 160, y: 60 });
         });
 
+        it('should not place the component on release', () => {
+            press(200, 100);
+            release(200, 100);
+
+            expect(view.place).not.toHaveBeenCalled();
+            expect(ghost()!.isGhost).toBe(true);
+        });
+
         it('should follow the mouse again once the button is released', () => {
             press(200, 100);
             moveTo(260, 140);
@@ -426,26 +443,6 @@ describe('DiagramController', () => {
             expect(view.setCursor).toHaveBeenLastCalledWith('default');
         });
 
-        it('should not place the component when the mouse moved further than a click allows before release', () => {
-            press(200, 100);
-            moveTo(260, 100);
-            release(260, 100);
-
-            expect(view.place).not.toHaveBeenCalled();
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
-        });
-
-        it('should place the component where the button is released when the mouse only wobbled', () => {
-            const placed = ghost()!;
-            press(209, 100);
-            moveTo(211, 100);
-            release(211, 100);
-
-            // 211 snaps one grid point further than where the ghost was
-            expect(view.place).toHaveBeenCalledWith(placed);
-            expect(placed.position).toEqual({ x: 180, y: 60 });
-        });
-
         it('should keep following the mouse while a button pressed outside the workspace is held', () => {
             press(10, 10, outside);
 
@@ -463,6 +460,54 @@ describe('DiagramController', () => {
 
             expect(ghost()).toBeInstanceOf(OrGate);
             expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+        });
+    });
+
+    describe('while the left button is held', () => {
+        const press = (x: number, y: number) => pressButton(MouseButton.Left, x, y);
+        const release = (x: number, y: number) => releaseButton(MouseButton.Left, x, y);
+
+        beforeEach(() => {
+            attach();
+            select(ComponentType.AndGate);
+            moveTo(200, 100);
+        });
+
+        it('should keep the ghost following the mouse', () => {
+            press(200, 100);
+
+            moveTo(400, 300);
+
+            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+        });
+
+        it('should not pan the diagram', () => {
+            press(200, 100);
+
+            view.element.dispatchEvent(pointer('pointermove', 260, 100, { movementX: 60, movementY: 0, buttons: 1 }));
+
+            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
+            expect(view.setCursor).not.toHaveBeenCalled();
+        });
+
+        it('should not place the component when the mouse moved further than a click allows before release', () => {
+            press(200, 100);
+            moveTo(260, 100);
+            release(260, 100);
+
+            expect(view.place).not.toHaveBeenCalled();
+            expect(ghost()!.isGhost).toBe(true);
+        });
+
+        it('should place the component where the button is released when the mouse only wobbled', () => {
+            const placed = ghost()!;
+            press(209, 100);
+            moveTo(211, 100);
+            release(211, 100);
+
+            // 211 snaps one grid point further than where the ghost was
+            expect(view.place).toHaveBeenCalledWith(placed);
+            expect(placed.position).toEqual({ x: 180, y: 60 });
         });
     });
 
@@ -597,7 +642,7 @@ describe('DiagramController', () => {
             select(ComponentType.AndGate);
             moveTo(200, 100);
 
-            click(200, 100, { button: 2 });
+            click(200, 100, { button: MouseButton.Right });
 
             expect(ghost()!.isGhost).toBe(true);
             expect(view.place).not.toHaveBeenCalled();
@@ -784,6 +829,8 @@ describe('DiagramController', () => {
 
         const fire = (target: EventTarget, type: string, x = 0, y = 0, init: MouseEventInit = {}) =>
             target.dispatchEvent(pointer(type, x, y, init));
+        /** Presses the right button, which pans. */
+        const pressPan = (target: EventTarget, x: number, y: number) => pressButton(MouseButton.Right, x, y, target);
 
         beforeEach(() => {
             attach();
@@ -793,35 +840,54 @@ describe('DiagramController', () => {
 
         afterEach(() => outside.remove());
 
-        it('should pan the diagram when the workspace is dragged', () => {
-            fire(view.element, 'pointerdown', 10, 10);
-            fire(view.element, 'pointermove', 20, 10, { movementX: 10, movementY: 0 });
+        for (const [name, button] of [['right', MouseButton.Right], ['middle', MouseButton.Middle]] as const) {
+            it(`should pan the diagram when the workspace is dragged with the ${name} button`, () => {
+                pressButton(button, 10, 10);
+                fire(view.element, 'pointermove', 20, 10, { movementX: 10, movementY: 0, buttons: HELD[button] });
 
-            expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
-            const [dx, dy] = renderService.panActiveDiagram.mock.calls[0];
-            expect(dx).toBe(10);
-            expect(dy).toBe(0);
+                expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
+                const [dx, dy] = renderService.panActiveDiagram.mock.calls[0];
+                expect(dx).toBe(10);
+                expect(dy).toBe(0);
+            });
+        }
+
+        it('should not pan when the workspace is dragged with the left button, which places and selects', () => {
+            pressButton(MouseButton.Left, 10, 10);
+            fire(view.element, 'pointermove', 20, 10, { movementX: 10, movementY: 0, buttons: 1 });
+
+            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
+            expect(view.setCursor).not.toHaveBeenCalled();
+        });
+
+        it('should not pan with a left drag that follows a pan', () => {
+            pressPan(view.element, 10, 10);
+            releaseButton(MouseButton.Right, 10, 10, window);
+            pressButton(MouseButton.Left, 10, 10);
+            fire(view.element, 'pointermove', 20, 10, { movementX: 10, buttons: 1 });
+
+            expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
         });
 
         it("should give the pan the view's size, for growing the layers", () => {
             Object.defineProperty(view.element, 'clientWidth', { value: 640 });
             Object.defineProperty(view.element, 'clientHeight', { value: 480 });
 
-            fire(view.element, 'pointerdown', 10, 10);
+            pressPan(view.element, 10, 10);
             fire(view.element, 'pointermove', 20, 10);
 
             expect(renderService.panActiveDiagram.mock.calls[0].slice(2)).toEqual([640, 480]);
         });
 
         it('should keep panning when the drag leaves the workspace', () => {
-            fire(view.element, 'pointerdown', 10, 10);
+            pressPan(view.element, 10, 10);
             fire(outside, 'pointermove', 500, 500);
 
             expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
         });
 
         it('should not pan for a drag that starts elsewhere', () => {
-            fire(outside, 'pointerdown', 10, 10);
+            pressPan(outside, 10, 10);
             fire(outside, 'pointermove', 20, 10);
 
             expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
@@ -834,7 +900,7 @@ describe('DiagramController', () => {
         });
 
         it('should stop panning on release', () => {
-            fire(view.element, 'pointerdown', 10, 10);
+            pressPan(view.element, 10, 10);
             fire(view.element, 'pointerup', 10, 10);
             fire(view.element, 'pointermove', 20, 10);
 
@@ -844,14 +910,14 @@ describe('DiagramController', () => {
         it('should not pan when another workspace is the one shown', () => {
             renderService.activeId = 'workspace-2';
 
-            fire(view.element, 'pointerdown', 10, 10);
+            pressPan(view.element, 10, 10);
             fire(view.element, 'pointermove', 20, 10);
 
             expect(renderService.panActiveDiagram).not.toHaveBeenCalled();
         });
 
         it('should show the grabbing cursor while dragging and reset it on release', () => {
-            fire(view.element, 'pointerdown', 10, 10);
+            pressPan(view.element, 10, 10);
             fire(view.element, 'pointermove', 20, 10);
             expect(view.setCursor).toHaveBeenLastCalledWith('grabbing');
 
@@ -859,8 +925,18 @@ describe('DiagramController', () => {
             expect(view.setCursor).toHaveBeenLastCalledWith('default');
         });
 
+        it('should set the grabbing cursor once for a pan, however far it is dragged', () => {
+            pressPan(view.element, 10, 10);
+            fire(view.element, 'pointermove', 20, 10);
+            fire(view.element, 'pointermove', 30, 10);
+            fire(view.element, 'pointermove', 40, 10);
+
+            expect(renderService.panActiveDiagram).toHaveBeenCalledTimes(3);
+            expect(view.setCursor).toHaveBeenCalledOnce();
+        });
+
         it('should reset the cursor when the drag is released outside the workspace', () => {
-            fire(view.element, 'pointerdown', 10, 10);
+            pressPan(view.element, 10, 10);
             fire(view.element, 'pointermove', 20, 10);
 
             fire(outside, 'pointerup', 500, 500);
@@ -869,7 +945,7 @@ describe('DiagramController', () => {
         });
 
         it('should leave the cursor alone when nothing was panned', () => {
-            fire(view.element, 'pointerdown', 10, 10);
+            pressPan(view.element, 10, 10);
             fire(view.element, 'pointerup', 10, 10);
 
             expect(view.setCursor).not.toHaveBeenCalled();
@@ -887,8 +963,8 @@ describe('DiagramController', () => {
 
             moveTo(200, 100);
             click(200, 100);
-            view.element.dispatchEvent(pointer('pointerdown', 10, 10));
-            view.element.dispatchEvent(pointer('pointermove', 20, 10, { movementX: 10 }));
+            pressButton(MouseButton.Right, 10, 10);
+            view.element.dispatchEvent(pointer('pointermove', 20, 10, { movementX: 10, buttons: 2 }));
             pressEsc();
 
             expect(view.showPreview).not.toHaveBeenCalled();

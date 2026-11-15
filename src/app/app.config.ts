@@ -1,5 +1,5 @@
 import type { ApplicationConfig} from '@angular/core';
-import { provideZoneChangeDetection } from '@angular/core';
+import { inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { providePrimeNG } from 'primeng/config';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -12,6 +12,7 @@ import { provideState, provideStore } from '@ngrx/store';
 import { settingsFeature } from './store/settings/feature';
 import { workspaceFeature } from './store/workspace/feature';
 import { componentsFeature } from './store/components/feature';
+import { PointerService } from './services/pointer/pointer.service';
 
 /**
  * The e2e tests turn animations off, unless a test is about one, by setting this flag on the window before the app
@@ -36,6 +37,8 @@ export const appConfig: ApplicationConfig = {
         provideStoreDevtools({
             maxAge: 25,
             autoPause: true
-        })
+        }),
+        // the middle button pans the diagram, so it never starts the browser's autoscroll
+        provideAppInitializer(() => inject(PointerService).preventMiddleClickAutoscroll())
     ]
 };

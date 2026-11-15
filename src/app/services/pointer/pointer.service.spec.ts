@@ -335,4 +335,95 @@ describe('PointerService', () => {
             other.remove();
         });
     });
+
+    describe('preventMiddleClickAutoscroll', () => {
+        const press = (target: EventTarget, button: number) => {
+            const event = new MouseEvent('mousedown', { button, bubbles: true, cancelable: true });
+            target.dispatchEvent(event);
+            return event;
+        };
+
+        it('should not cancel anything until it is called', () => {
+            expect(press(element, 1).defaultPrevented).toBe(false);
+        });
+
+        it('should cancel a middle press anywhere in the window, so it does not start autoscroll', () => {
+            service.preventMiddleClickAutoscroll();
+
+            expect(press(element, 1).defaultPrevented).toBe(true);
+            expect(press(outside, 1).defaultPrevented).toBe(true);
+            expect(press(document.body, 1).defaultPrevented).toBe(true);
+        });
+
+        it('should leave the left and right buttons alone', () => {
+            service.preventMiddleClickAutoscroll();
+
+            expect(press(element, 0).defaultPrevented).toBe(false);
+            expect(press(element, 2).defaultPrevented).toBe(false);
+        });
+
+        // which targets count as editable is isEditableTarget's business, tested with the keyboard service
+        it.each([
+            ['an input', '<input>'],
+            ['a textarea', '<textarea></textarea>'],
+            ['a select', '<select></select>'],
+        ])('should leave a middle press on %s alone, for middle-click paste', (_name, html) => {
+            service.preventMiddleClickAutoscroll();
+            outside.innerHTML = html;
+
+            expect(press(outside.firstElementChild!, 1).defaultPrevented).toBe(false);
+        });
+
+        it('should leave a middle press inside a content-editable element alone', () => {
+            service.preventMiddleClickAutoscroll();
+            outside.innerHTML = '<div contenteditable="true"><span>text</span></div>';
+            const inside = outside.querySelector('span')!;
+            // jsdom doesn't implement isContentEditable; a browser reports it for everything inside the element
+            Object.defineProperty(inside, 'isContentEditable', { value: true });
+
+            expect(press(inside, 1).defaultPrevented).toBe(false);
+        });
+
+        it('should cancel a middle press on an input that takes no text, like a checkbox', () => {
+            service.preventMiddleClickAutoscroll();
+            outside.innerHTML = '<input type="checkbox">';
+
+            expect(press(outside.firstElementChild!, 1).defaultPrevented).toBe(true);
+        });
+
+        it('should cancel a press once however many times it is called', () => {
+            service.preventMiddleClickAutoscroll();
+            service.preventMiddleClickAutoscroll();
+            const event = new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true });
+            const preventDefault = vi.spyOn(event, 'preventDefault');
+
+            element.dispatchEvent(event);
+
+            expect(preventDefault).toHaveBeenCalledOnce();
+        });
+
+        it('should cancel a middle press even when something on the page stops it from reaching the window', () => {
+            service.preventMiddleClickAutoscroll();
+            element.addEventListener('mousedown', event => event.stopPropagation());
+
+            expect(press(element, 1).defaultPrevented).toBe(true);
+        });
+
+        it('should listen outside the Angular zone', () => {
+            const zone = TestBed.inject(NgZone);
+            const outsideAngular = vi.spyOn(zone, 'runOutsideAngular');
+
+            service.preventMiddleClickAutoscroll();
+
+            expect(outsideAngular).toHaveBeenCalled();
+        });
+
+        it('should stop listening when the app is destroyed', () => {
+            service.preventMiddleClickAutoscroll();
+
+            TestBed.resetTestingModule();
+
+            expect(press(element, 1).defaultPrevented).toBe(false);
+        });
+    });
 });
