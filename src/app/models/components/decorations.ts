@@ -2,10 +2,7 @@ import type { Point } from "../Point";
 import type { Decoration } from "./Decoration";
 import type { DrawState } from "../Drawable";
 import { ComponentType } from "./Component";
-import type { BoundingBox } from "../Selectable";
-
-// Placeholder footprint until Text.draw() is implemented.
-const TEXT_BOUNDING_BOX: BoundingBox = { x: 0, y: 0, width: 80, height: 20 };
+import { BoundingBox } from "../Selectable";
 
 export class Text implements Decoration {
     position: Point;
@@ -30,6 +27,6 @@ export class Text implements Decoration {
     }
 
     getBoundingBox(): BoundingBox {
-        return { ...TEXT_BOUNDING_BOX };
+        return new BoundingBox(4, 1); // should reflect text font size instead
     }
 }

@@ -4,6 +4,7 @@ import { AbstractCanvasLayerComponent } from '../abstract-canvas-layer.component
 import type { Drawable, DrawState } from '../../../models/Drawable';
 import { CommonModule } from '@angular/common';
 import { RenderService } from '../../../services/render/render.service';
+import { pixelsToDiagram } from '../../../services/render/view-transform';
 
 @Component({
     selector: 'app-wire-canvas-layer',
@@ -36,7 +37,7 @@ export class WireCanvasLayerComponent extends AbstractCanvasLayerComponent {
         }
         if (updateDrawables.length === 0) return;
         this.offscreenContext.strokeStyle = 'black';
-        this.offscreenContext.lineWidth = this.renderService.STANDARD_LINE_WIDTH;
+        this.offscreenContext.lineWidth = pixelsToDiagram(this.renderService.STANDARD_LINE_WIDTH, drawState);
         this.offscreenContext.beginPath();
         updateDrawables.forEach(d => d.draw(this.offscreenContext!, drawState));
         this.offscreenContext.stroke();

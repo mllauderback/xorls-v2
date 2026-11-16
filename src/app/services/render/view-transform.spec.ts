@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ViewTransform, applyDrawState, canvasToDiagram, diagramToCanvas, visibleDiagramRect } from './view-transform';
+import { ViewTransform, applyDrawState, canvasToDiagram, diagramToCanvas, visibleDiagramRect, pixelsToDiagram } from './view-transform';
 import type { DrawState } from '../../models/Drawable';
 
 describe('ViewTransform', () => {
@@ -47,23 +47,57 @@ describe('ViewTransform', () => {
         });
     });
 
-    describe('setScale', () => {
-        it('changes the scale and bumps the version', () => {
+    describe('setZoom', () => {
+        it('changes the zoom and the scale, and bumps the version', () => {
             const view = new ViewTransform();
 
-            view.setScale(2);
+            view.setZoom(2);
 
+            expect(view.zoom).toBe(2);
             expect(view.scale).toBe(2);
             expect(view.version).toBe(1);
         });
 
-        it('leaves the version alone when the scale is unchanged', () => {
+        it('leaves the version alone when the zoom is unchanged', () => {
             const view = new ViewTransform();
 
-            view.setScale(1);
+            view.setZoom(1);
 
             expect(view.version).toBe(0);
         });
+    });
+
+    describe('setGridScale', () => {
+        it('changes the grid scale and the scale, and bumps the version', () => {
+            const view = new ViewTransform();
+
+            view.setGridScale(2.5);
+
+            expect(view.gridScale).toBe(2.5);
+            expect(view.scale).toBe(2.5);
+            expect(view.version).toBe(1);
+        });
+
+        it('leaves the version alone when the grid scale is unchanged', () => {
+            const view = new ViewTransform();
+
+            view.setGridScale(1);
+
+            expect(view.version).toBe(0);
+        });
+    });
+
+    it('scales by the zoom times the grid scale, so changing one keeps the other', () => {
+        const view = new ViewTransform(undefined, 2, 1.5);
+        expect(view.scale).toBe(3);
+
+        view.setGridScale(1);
+        expect(view.zoom).toBe(2);
+        expect(view.scale).toBe(2);
+
+        view.setZoom(1);
+        view.setGridScale(1.5);
+        expect(view.scale).toBe(1.5);
     });
 });
 
@@ -84,14 +118,16 @@ describe('DrawState', () => {
 
     it('does not let whoever holds one change the view (checked by the type checker)', () => {
         // never called: the @ts-expect-error lines fail type checking if DrawState ever allows these
-        const changesTheView = (state: DrawState) => {
+        function changesTheView(state: DrawState) {
             // @ts-expect-error only the RenderService moves the origin, through the ViewTransform itself
             state.shiftOrigin(1, 1);
             // @ts-expect-error only the RenderService changes the zoom
-            state.setScale(2);
+            state.setZoom(2);
+            // @ts-expect-error only the RenderService changes the grid scale
+            state.setGridScale(2);
             // @ts-expect-error the fields are read-only
             state.scale = 2;
-        };
+        }
 
         expect(changesTheView).toBeTypeOf('function');
     });
@@ -120,5 +156,18 @@ describe('view transform helpers', () => {
 
     it('visibleDiagramRect is the canvas mapped back into the diagram', () => {
         expect(visibleDiagramRect(state, 800, 600)).toEqual({ x: -250, y: 15, width: 400, height: 300 });
+    });
+});
+
+describe('pixelsToDiagram', () => {
+    it('should give a length in canvas pixels in diagram units, which are grid cells', () => {
+        expect(pixelsToDiagram(2, { scale: 20 })).toBe(0.1);
+        expect(pixelsToDiagram(3, { scale: 50 })).toBeCloseTo(0.06);
+    });
+
+    it('should give the same length on the canvas at any scale', () => {
+        for (const scale of [0.5, 1, 20, 37.5, 100]) {
+            expect(pixelsToDiagram(2, { scale }) * scale).toBeCloseTo(2);
+        }
     });
 });

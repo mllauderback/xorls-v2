@@ -79,15 +79,17 @@ export class PointerService {
         const tolerance = options.clickTolerance ?? DEFAULT_CLICK_TOLERANCE;
 
         /** Returns true if event target is in the DOM tree and is a child of the element */
-        const isInside = (event: PointerEvent) => event.target instanceof Node && element.contains(event.target);
+        function isInside(event: PointerEvent) {
+            return event.target instanceof Node && element.contains(event.target);
+        }
 
         /** Returns a ScopedPointerEvent that converts the window x,y coords to local x,y coords for the element's bounding rectangle */
-        const scope = (event: PointerEvent): ScopedPointerEvent => {
+        function scope(event: PointerEvent): ScopedPointerEvent {
             const rect = element.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
             return { event, x, y };
-        };
+        }
         const pressesOnElement$ = this.down$.pipe(filter(down => isInside(down)));
 
         return {

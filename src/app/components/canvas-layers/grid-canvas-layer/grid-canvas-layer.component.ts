@@ -7,6 +7,7 @@ import { RenderService } from '../../../services/render/render.service';
 import type { GridMode } from './Grid';
 import { Grid } from './Grid';
 import type { GridSettingsState } from '../../../store/settings/state';
+import { pixelsToDiagram } from '../../../services/render/view-transform';
 
 @Component({
     selector: 'app-grid-canvas-layer',
@@ -20,45 +21,34 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
 
     private grid?: Grid;
     private _gridMode?: GridMode;
-    private _gridSpacing?: number;
 
     @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
+    /**
+     * The grid only takes the mode from the settings. The spacing setting scales the whole diagram through the view
+     * transform (see GRID_SPACING), which redraws every layer, this one included.
+     */
     @Input()
     set gridSettings(settings: GridSettingsState | null | undefined) {
         if (!settings) {
             console.warn('Settings is null or undefined - skipping update.');
             return;
         }
-        this._gridMode = settings.gridMode ?? 'dots';
-        this._gridSpacing = settings.gridSpacing ?? 20;
-        // both values go to the grid in one step so it is marked, and drawn, once
-        this.applyToGrid(settings.gridMode, settings.gridSpacing);
+        this.gridMode = settings.gridMode;
     }
 
-    set gridMode(mode: GridMode | null) {
+    set gridMode(mode: GridMode | null | undefined) {
         this._gridMode = mode ?? 'dots';
-        this.applyToGrid(mode, undefined);
+        this.applyToGrid(mode);
     }
 
     get gridMode(): GridMode | undefined {
         return this._gridMode;
     }
 
-    get gridSpacing(): number | undefined {
-        return this._gridSpacing;
-    }
-
-    set gridSpacing(spacing: number | null) {
-        this._gridSpacing = spacing ?? 20;
-        this.applyToGrid(undefined, spacing);
-    }
-
     constructor() {
         super();
-        const mode = this.gridMode ?? 'dots';
-        const spacing = this.gridSpacing ?? 20;
-        this.grid = new Grid(spacing, mode);
+        this.grid = new Grid(this.gridMode ?? 'dots');
         this.add(this.grid);
     }
 
@@ -81,7 +71,7 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
         }
         if (updateDrawables.length > 0) {
             this.offscreenContext.strokeStyle = 'black';
-            this.offscreenContext.lineWidth = this.renderService.THIN_LINE_WIDTH;
+            this.offscreenContext.lineWidth = pixelsToDiagram(this.renderService.THIN_LINE_WIDTH, drawState);
             this.offscreenContext.beginPath();
             updateDrawables.forEach(d => d.draw(this.offscreenContext!, drawState));
             this.offscreenContext.stroke();
@@ -94,30 +84,20 @@ export class GridCanvasLayerComponent extends AbstractCanvasLayerComponent {
     }
 
     /**
-     * Gives the grid new settings and, if anything changed, repaints it once on the next refresh.
-     * `undefined` means "leave this one alone"; `null` or an invalid value is skipped with a warning.
+     * Gives the grid a new mode and, if it changed, repaints it once on the next refresh.
+     * `null`, `undefined` or an invalid value is skipped with a warning.
      */
-    private applyToGrid(gridMode: GridMode | null | undefined, gridSpacing: number | null | undefined) {
+    private applyToGrid(gridMode: GridMode | null | undefined) {
         if (!this.grid) {
             console.warn('Cannot update grid settings - no grid.');
             return;
         }
-        let changed = false;
-        if (gridMode !== undefined) {
-            if (gridMode) {
-                this.grid.gridMode = gridMode;
-                changed = true;
-            }
-            else console.warn('Cannot update grid mode - skipping update');
+        if (!gridMode) {
+            console.warn('Cannot update grid mode - skipping update');
+            return;
         }
-        if (gridSpacing !== undefined) {
-            if (gridSpacing) {
-                this.grid.gridSpacing = gridSpacing;
-                changed = true;
-            }
-            else console.warn('Cannot update grid spacing - skipping update');
-        }
-        if (!changed) return;
+        if (gridMode === this.grid.gridMode) return;
+        this.grid.gridMode = gridMode;
         this.markForUpdate(this.grid);
         this.forceClearAll = true;
     }

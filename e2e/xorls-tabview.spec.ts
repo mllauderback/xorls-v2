@@ -39,10 +39,12 @@ test.describe('Xorls tab view', () => {
         // have better ways to strictly test active vs inactive vs hover styles.
         test('styles the active header apart from the others', async ({ page }) => {
             await page.mouse.move(0, 0); // hover has its own style
-            const styleOf = (name: string) => tabs.header(name).evaluate(el => {
-                const s = getComputedStyle(el);
-                return { borderTop: s.borderTopColor, background: s.backgroundColor, color: s.color };
-            });
+            function styleOf(name: string) {
+                return tabs.header(name).evaluate(el => {
+                    const s = getComputedStyle(el);
+                    return { borderTop: s.borderTopColor, background: s.backgroundColor, color: s.color };
+                });
+            }
 
             const [active, inactive] = INITIAL_TABS;
             const activeStyle = await styleOf(active);

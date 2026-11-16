@@ -11,9 +11,7 @@ import { createPlaceable } from '../../../../models/components/ComponentFactory'
 import type { PaletteComponent } from '../../../../models/components/PaletteComponent';
 import type { Point } from '../../../../models/Point';
 import type { DiagramView } from './diagram-view';
-
-// Matches the grid layer's default spacing
-const DEFAULT_GRID_SPACING = 20;
+import { GRID_SPACING } from '../../../canvas-layers/grid-canvas-layer/Grid';
 
 /**
  * The buttons that pan the diagram when dragged. The left button is kept for placing and selecting components, so a
@@ -53,7 +51,6 @@ export class DiagramController {
 
     private paletteComponent: PaletteComponent | null = null;
     private selectedSelectable: SelectedSelectable | null = null;
-    private gridSpacing = DEFAULT_GRID_SPACING;
 
     /** The preview of the palette component being placed, if any. Not in app state: it only affects how it's drawn. */
     private ghost: Placeable | null = null;
@@ -116,9 +113,15 @@ export class DiagramController {
         this.selectedSelectable = selectedSelectable;
     }
 
-    /** Tells the controller about the settings of the workspace. They set the grid components snap to. */
+    /**
+     * Tells the controller about the settings of the workspace. The grid spacing scales the diagram: components still
+     * snap to GRID_SPACING in diagram units, and the render service draws GRID_SPACING as the setting's size.
+     * A missing or invalid spacing leaves the scale as it is.
+     */
     setWorkspaceSettings(settings: WorkspaceSettingsState | null): void {
-        this.gridSpacing = settings?.gridSettings?.gridSpacing || DEFAULT_GRID_SPACING;
+        const spacing = settings?.gridSettings?.gridSpacing;
+        if (!spacing || !Number.isFinite(spacing) || spacing <= 0) return;
+        this.renderService.setGridScale(spacing / GRID_SPACING);
     }
 
     /**
@@ -237,8 +240,8 @@ export class DiagramController {
 
         const box = ghost.getBoundingBox();
         const position = this.snapToGrid({
-            x: cursor.x - (box.x + box.width / 2),
-            y: cursor.y - (box.y + box.height / 2)
+            x: cursor.x - box.width / 2,
+            y: cursor.y - box.height / 2
         });
 
         if (view.isPreviewing(ghost) && position.x === ghost.position.x && position.y === ghost.position.y) return;
@@ -248,12 +251,13 @@ export class DiagramController {
 
     /**
      * Snaps a diagram position to the nearest grid point. The grid is anchored to the diagram origin, so its points are
-     * the multiples of the spacing in diagram coordinates, wherever the origin is on the canvas.
+     * the multiples of GRID_SPACING in diagram coordinates, wherever the origin is on the canvas and whatever the scale.
      */
     private snapToGrid(position: Point): Point {
-        const spacing = this.gridSpacing;
         // `+ 0` turns -0 (rounding a small negative value) into 0
-        const snap = (value: number) => Math.round(value / spacing) * spacing + 0;
+        function snap(value: number) {
+            return Math.round(value / GRID_SPACING) * GRID_SPACING + 0;
+        }
         return { x: snap(position.x), y: snap(position.y) };
     }
 }

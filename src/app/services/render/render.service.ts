@@ -2,7 +2,9 @@ import { Injectable } from '@angular/core';
 import type { Drawable, DrawState } from '../../models/Drawable';
 import { isGhostable } from '../../models/Ghostable';
 import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
-import { ViewTransform } from './view-transform';
+import { pixelsToDiagram, ViewTransform } from './view-transform';
+import { GRID_SPACING } from '../../components/canvas-layers/grid-canvas-layer/Grid';
+import { DEFAULT_GRID_SPACING } from '../../store/settings/feature';
 
 /**
  * The RenderService tracks shared variables across all layers like the origin and scale, as one ViewTransform per
@@ -13,6 +15,10 @@ import { ViewTransform } from './view-transform';
     providedIn: 'root'
 })
 export class RenderService {
+    /*
+     * Line widths are in canvas pixels, so lines look the same at any grid spacing or zoom. Layers draw in diagram
+     * units, so they set them on the context with pixelsToDiagram.
+     */
     public readonly THIN_LINE_WIDTH = 1;
     public readonly STANDARD_LINE_WIDTH = 2;
     public readonly BOLD_LINE_WIDTH = 3;
@@ -33,6 +39,8 @@ export class RenderService {
     private activeLayers: AbstractCanvasLayerComponent[] = [];
     private _activeViewTransform: ViewTransform | null = null;
     private _activeId = "";
+    /** The grid spacing setting / GRID_SPACING. The setting is the same for every diagram. */
+    private gridScale = DEFAULT_GRID_SPACING / GRID_SPACING;
 
     public getActiveDiagram() {
         return this.diagramsCanvasLayerMap.get(this._activeId)!;
@@ -93,7 +101,7 @@ export class RenderService {
      */
     public add(id: string, layers: AbstractCanvasLayerComponent[]): RenderService {
         this.diagramsCanvasLayerMap.set(id, layers);
-        this.viewTransforms.set(id, new ViewTransform());
+        this.viewTransforms.set(id, new ViewTransform(undefined, 1, this.gridScale));
         return this;
     }
 
@@ -117,7 +125,7 @@ export class RenderService {
      * @param ctx The context to draw on
      * @param drawables The drawables to draw
      * @param drawState Global draw state information
-     * @param style The layer's stroke style and line width for non-ghost drawables
+     * @param style The layer's stroke style and line width, in canvas pixels, for non-ghost drawables
      */
     public drawDrawables(
         ctx: OffscreenCanvasRenderingContext2D,
@@ -142,7 +150,7 @@ export class RenderService {
         if (drawables.length === 0) return;
         ctx.globalAlpha = alpha;
         ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth = lineWidth;
+        ctx.lineWidth = pixelsToDiagram(lineWidth, drawState);
         ctx.beginPath();
         drawables.forEach(d => d.draw(ctx, drawState));
         ctx.stroke();
@@ -155,21 +163,26 @@ export class RenderService {
     public start() {
         if (this.animationId !== null) return;
         const interval = 1000 / this.targetFPS;
-        const drawLoop = (timestamp: number) => {
-            const elapsedTime = timestamp - this.lastTimestamp;
-            this.animationId = requestAnimationFrame(drawLoop);
-            if (elapsedTime >= interval) {
-                this.lastTimestamp = timestamp - (elapsedTime % interval);
-                // Possibly consider storing each promise in a layer-promise map with the current promise and the 
-                // most recent promise.  This way, the current promise is allowed to finish if it takes longer than
-                // the FPS interval, but the next promise to await will always be from the most recent refresh,
-                // preventing a long queue of potentially very very heavy refreshes.  This would result in 
-                // "jumping" in the animation, but layer will be at the most up-to-date state possible intead of
-                // trying to draw every missed frame which might appear smoother, but will be much laggier.
-                this.activeLayers.forEach(layer => layer.refresh(this._activeViewTransform!));
-            }
-        };
-        this.animationId = requestAnimationFrame(drawLoop);
+        this.animationId = requestAnimationFrame(timestamp => this.drawFrame(timestamp, interval));
+    }
+
+    /**
+     * One frame of the draw loop: asks for the next frame, and refreshes the active layers if at least interval
+     * milliseconds have passed since the last refresh.
+     */
+    private drawFrame(timestamp: number, interval: number) {
+        const elapsedTime = timestamp - this.lastTimestamp;
+        this.animationId = requestAnimationFrame(next => this.drawFrame(next, interval));
+        if (elapsedTime >= interval) {
+            this.lastTimestamp = timestamp - (elapsedTime % interval);
+            // Possibly consider storing each promise in a layer-promise map with the current promise and the 
+            // most recent promise.  This way, the current promise is allowed to finish if it takes longer than
+            // the FPS interval, but the next promise to await will always be from the most recent refresh,
+            // preventing a long queue of potentially very very heavy refreshes.  This would result in 
+            // "jumping" in the animation, but layer will be at the most up-to-date state possible intead of
+            // trying to draw every missed frame which might appear smoother, but will be much laggier.
+            this.activeLayers.forEach(layer => layer.refresh(this._activeViewTransform!));
+        }
     }
 
     /**
@@ -183,10 +196,19 @@ export class RenderService {
     }
 
     /**
-     * Updates the draw state scale by offset which affects all layers
+     * Updates the active diagram's zoom by offset which affects all layers
      */
     public scaleActiveDiagram(offset: number) {
-        this._activeViewTransform!.setScale(this._activeViewTransform!.scale + offset);
+        this._activeViewTransform!.setZoom(this._activeViewTransform!.zoom + offset);
+    }
+
+    /**
+     * Scales every diagram, and the ones added later, by gridScale (the grid spacing setting / GRID_SPACING). Their
+     * layers redraw everything on their next refresh.
+     */
+    public setGridScale(gridScale: number) {
+        this.gridScale = gridScale;
+        this.viewTransforms.forEach(view => view.setGridScale(gridScale));
     }
 
     /**

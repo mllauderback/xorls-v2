@@ -5,8 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ElementPointer, ScopedPointerEvent } from './pointer.service';
 import { DEFAULT_CLICK_TOLERANCE, PointerService } from './pointer.service';
 
-const fire = (target: EventTarget, type: string, x = 0, y = 0) =>
-    target.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+function fire(target: EventTarget, type: string, x = 0, y = 0) {
+    return target.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+}
 
 describe('PointerService', () => {
     let service: PointerService;
@@ -16,11 +17,11 @@ describe('PointerService', () => {
     let subscriptions: Subscription[];
 
     /** Subscribes and records every emission; the subscription is closed after the test. */
-    const record = <T>(source: { subscribe: (next: (value: T) => void) => Subscription }): T[] => {
+    function record<T>(source: { subscribe: (next: (value: T) => void) => Subscription }): T[] {
         const values: T[] = [];
         subscriptions.push(source.subscribe(value => values.push(value)));
         return values;
-    };
+    }
 
     beforeEach(() => {
         service = TestBed.inject(PointerService);
@@ -337,11 +338,11 @@ describe('PointerService', () => {
     });
 
     describe('preventMiddleClickAutoscroll', () => {
-        const press = (target: EventTarget, button: number) => {
+        function press(target: EventTarget, button: number) {
             const event = new MouseEvent('mousedown', { button, bubbles: true, cancelable: true });
             target.dispatchEvent(event);
             return event;
-        };
+        }
 
         it('should not cancel anything until it is called', () => {
             expect(press(element, 1).defaultPrevented).toBe(false);

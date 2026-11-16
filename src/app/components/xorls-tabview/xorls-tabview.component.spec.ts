@@ -39,16 +39,17 @@ class TestHostComponent {
 })
 class EmptyHostComponent { }
 
-const getTabviewInstance = (fixture: ComponentFixture<unknown>): XorlsTabviewComponent =>
-    fixture.debugElement.query(By.directive(XorlsTabviewComponent)).componentInstance;
+function getTabviewInstance(fixture: ComponentFixture<unknown>): XorlsTabviewComponent {
+    return fixture.debugElement.query(By.directive(XorlsTabviewComponent)).componentInstance;
+}
 
-const finishLatestAnimation = () => {
+function finishLatestAnimation() {
     const animateMock = vi.mocked(Element.prototype.animate);
     const results = animateMock.mock.results;
     const latest = results[results.length - 1];
     const animation = latest.value as Animation & { finish: () => void };
     animation.finish();
-};
+}
 
 describe('XorlsTabviewComponent', () => {
     describe('with tabs', () => {
@@ -69,11 +70,11 @@ describe('XorlsTabviewComponent', () => {
         afterEach(() => vi.clearAllMocks());
 
         /** Lets a change the host made reach the tab view (it re-reads its tabs in a microtask) and renders it. */
-        const settle = async () => {
+        async function settle() {
             fixture.detectChanges();
             await fixture.whenStable();
             fixture.detectChanges();
-        };
+        }
 
         describe('rendering', () => {
             it('should render a tab header for each tab', () => {

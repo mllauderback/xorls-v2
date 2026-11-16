@@ -10,14 +10,18 @@ const SIDES = ['left', 'top', 'right', 'bottom'] as const;
 
 const CHANNELS = ['r', 'g', 'b'] as const;
 
-const formatPoint = (point: Point) => `(${point.x}, ${point.y})`;
+function formatPoint(point: Point) {
+    return `(${point.x}, ${point.y})`;
+}
 
 /**
  * How far a color channel read back from a canvas can be from what was drawn. A canvas stores colors multiplied by
  * their alpha, so reading back a partly transparent pixel loses precision, more the fainter it is, and browsers
  * round it differently. An opaque pixel reads back exactly.
  */
-const channelTolerance = (alpha: number) => alpha === 255 ? 0 : Math.ceil(255 / alpha);
+function channelTolerance(alpha: number) {
+    return alpha === 255 ? 0 : Math.ceil(255 / alpha);
+}
 
 /**
  * Mathers for what is drawn on the diagram's canvases.
@@ -36,16 +40,17 @@ export const expect = baseExpect.extend({
         const offset = received && { x: received.x - pointer.x, y: received.y - pointer.y };
         const pass = !!offset && Math.abs(offset.x) <= tolerance && Math.abs(offset.y) <= tolerance;
 
-        const message = () => {
-            const hint = this.utils.matcherHint(name, 'center', 'pointer', { isNot: this.isNot });
+        const { isNot, utils } = this;
+        function message() {
+            const hint = utils.matcherHint(name, 'center', 'pointer', { isNot });
             if (!received || !offset) return `${hint}\n\nNothing is drawn: there is no center.`;
             return `${hint}\n\n` +
-                `Expected the center ${this.isNot ? 'not ' : ''}to be within ${tolerance}px of the pointer on both axes ` +
+                `Expected the center ${isNot ? 'not ' : ''}to be within ${tolerance}px of the pointer on both axes ` +
                 `(half of a ${spacing}px grid cell, plus ${ANTIALIASING}px).\n` +
                 `Center:  ${formatPoint(received)}\n` +
                 `Pointer: ${formatPoint(pointer)}\n` +
                 `Off by:  ${formatPoint(offset)}`;
-        };
+        }
 
         return { pass, message, name, expected: pointer, actual: received };
     },
@@ -63,19 +68,22 @@ export const expect = baseExpect.extend({
             : [...SIDES];
         const pass = differences.length === 0;
 
-        const message = () => {
-            const hint = this.utils.matcherHint(name, 'drawing', 'other', { isNot: this.isNot });
+        const { isNot, utils } = this;
+        function message() {
+            const hint = utils.matcherHint(name, 'drawing', 'other', { isNot });
             if (!received) return `${hint}\n\nNothing is drawn: there is no box.`;
-            if (this.isNot) {
+            if (isNot) {
                 return `${hint}\n\nExpected the boxes to differ by more htan ${ANTIALIASING}px on some side, but they don't.`;
             }
             const lines = differences.map(side =>
-                `\t${side.padEnd(6)} ${this.utils.printReceived(received[side])}, expected ${this.utils.printExpected(expected[side])}`
+                `\t${side.padEnd(6)} ${utils.printReceived(received[side])}, expected ${utils.printExpected(expected[side])}`
             );
             return `${hint}\n\nExpected every side within ${ANTIALIASING}px.  Off:\n${lines.join('\n')}`;
-        };
+        }
 
-        const box = (drawn: Drawn | null) => drawn && Object.fromEntries(SIDES.map(side => [side, drawn[side]]));
+        function box(drawn: Drawn | null) {
+            return drawn && Object.fromEntries(SIDES.map(side => [side, drawn[side]]));
+        }
         return { pass, message, name, expected: box(expected), actual: box(received) };
     },
 
@@ -91,11 +99,13 @@ export const expect = baseExpect.extend({
         const remainder = Math.abs(received) % spacing;
         const pass = remainder <= ANTIALIASING || spacing - remainder <= ANTIALIASING;
 
-        const message = () =>
-            `${this.utils.matcherHint(name, 'distance', 'spacing', { isNot: this.isNot })}\n\n` +
-            `Expected ${this.utils.printReceived(received)}px ${this.isNot ? 'not ' : ''}to be a whole number of ` +
-            `${this.utils.printExpected(spacing)}px cells (within ${ANTIALIASING}px).\n` +
-            `That is ${(received / spacing).toFixed(2)} cells.`;
+        const { isNot, utils } = this;
+        function message() {
+            return `${utils.matcherHint(name, 'distance', 'spacing', { isNot })}\n\n` +
+                `Expected ${utils.printReceived(received)}px ${isNot ? 'not ' : ''}to be a whole number of ` +
+                `${utils.printExpected(spacing)}px cells (within ${ANTIALIASING}px).\n` +
+                `That is ${(received / spacing).toFixed(2)} cells.`;
+        }
 
         return { pass, message, name, expected: spacing, actual: received };
     },
@@ -110,22 +120,24 @@ export const expect = baseExpect.extend({
      */
     toMatchColor(received: ColorCount[], expected: Color) {
         const name = 'toMatchColor';
-        const isOff = (color: Color) =>
-            CHANNELS.some(channel => Math.abs(color[channel] - expected[channel]) > channelTolerance(color.a));
+        function isOff(color: Color) {
+            return CHANNELS.some(channel => Math.abs(color[channel] - expected[channel]) > channelTolerance(color.a));
+        }
         const off = received.filter(colorCount => isOff(colorCount.color));
         const pass = received.length > 0 && off.length === 0;
 
-        const message = () => {
-            const hint = this.utils.matcherHint(name, 'colors', 'expected', { isNot: this.isNot });
+        const { isNot, utils } = this;
+        function message() {
+            const hint = utils.matcherHint(name, 'colors', 'expected', { isNot });
             const color = `rgb(${expected.r}, ${expected.g}, ${expected.b})`;
             if (received.length === 0) return `${hint}\n\nNothing is drawn: there are no colors.`;
-            if (this.isNot) return `${hint}\n\nExpected some color not to be ${color}, but they all are.`;
+            if (isNot) return `${hint}\n\nExpected some color not to be ${color}, but they all are.`;
             const shown = off.slice(0, 5).map(c =>
                 `\trgba(${c.color.r}, ${c.color.g}, ${c.color.b}, ${c.color.a}) on ${c.count} pixels, allowed to be off by ${channelTolerance(c.color.a)}`
             );
             const more = off.length > shown.length ? `\n\t...and ${off.length - shown.length} more` : '';
             return `${hint}\n\nExpected every color to be ${color}.  Off:\n${shown.join('\n')}${more}`;
-        };
+        }
 
         return { pass, message, name, expected, actual: off };
     }

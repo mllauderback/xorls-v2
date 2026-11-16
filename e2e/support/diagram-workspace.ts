@@ -143,13 +143,16 @@ export class DiagramWorkspace {
      * @returns The size the window had
      */
     async growWindow(by?: Size): Promise<Size> {
-        const width = async () => (await this.presenter.boundingBox())!.width;
+        const presenter = this.presenter;
+        async function width() {
+            return (await presenter.boundingBox())!.width;
+        }
         const widthBefore = await width();
         const before = await growWindow(this.page, by);
 
         await expect.poll(width).toBeGreaterThan(widthBefore);
         await expect.poll(async () => {
-            const box = (await this.presenter.boundingBox())!;
+            const box = (await presenter.boundingBox())!;
             return this.canvases.evaluateAll(
                 (canvases: HTMLCanvasElement[], view: Size) => canvases.every(c => c.width >= view.width && c.height >= view.height),
                 { width: Math.floor(box.width), height: Math.floor(box.height) }

@@ -8,10 +8,12 @@ import type { Drawable, DrawState } from '../../../models/Drawable';
 
 const DRAW_STATE: DrawState = { origin: { x: 0, y: 0 }, scale: 1, version: 0 };
 
-const buildDrawable = (isGhost?: boolean): Drawable => ({
-    draw: vi.fn(),
-    ...(isGhost === undefined ? {} : { isGhost }),
-} as unknown as Drawable);
+function buildDrawable(isGhost?: boolean): Drawable {
+    return ({
+        draw: vi.fn(),
+        ...(isGhost === undefined ? {} : { isGhost }),
+    } as unknown as Drawable);
+}
 
 describe('ActiveComponentCanvasLayerComponent', () => {
     let component: ActiveComponentCanvasLayerComponent;

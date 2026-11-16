@@ -147,11 +147,14 @@ export class CanvasLayer {
      * How many pixels are drawn in each column and row of a region
      * 
      * @param region The region to profile
+     * @param minAlpha How opaque a pixel has to be to count as drawn, 1-255. The default counts any pixel that is
+     * not fully transparent; a higher one leaves out the near-invisible fringe that rounding in the canvas can leave
+     * next to a line whose width isn't a whole number of diagram units.
      * @returns The region and the list of counts
      */
-    async profile(region?: Region): Promise<Profile> {
+    async profile(region?: Region, minAlpha = 1): Promise<Profile> {
         const target = region ?? await this.visibleRegion();
-        const counts = await this.canvas.evaluate((canvas: HTMLCanvasElement, r: Region) => {
+        const counts = await this.canvas.evaluate((canvas: HTMLCanvasElement, { r, minAlpha }: { r: Region, minAlpha: number }) => {
             const rect = canvas.getBoundingClientRect();
             const { data } = canvas.getContext('2d', { willReadFrequently: true })!
                 .getImageData(r.left - rect.left, r.top - rect.top, r.width, r.height);
@@ -159,13 +162,13 @@ export class CanvasLayer {
             const rows = new Array<number>(r.height).fill(0);
             for (let y = 0; y < r.height; y++) {
                 for (let x = 0; x < r.width; x++) {
-                    if (data[(y * r.width + x) * 4 + 3] === 0) continue;
+                    if (data[(y * r.width + x) * 4 + 3] < minAlpha) continue;
                     columns[x]++;
                     rows[y]++;
                 }
             }
             return { columns, rows };
-        }, target);
+        }, { r: target, minAlpha });
         return { region: target, ...counts };
     }
 

@@ -13,6 +13,11 @@ const DOT_SIZE = 2;
 const LINE_WIDTH = 1;
 /** The grid's color: CSS lightgray, fully opaque. */
 const LIGHT_GRAY = { r: 211, g: 211, b: 211, a: 255 };
+/**
+ * How opaque a pixel has to be to count as part of a grid mark: about 3%. Dot and line widths are fractions of a
+ * cell in diagram units, and rounding in the canvas can leave an invisible 1/255 fringe beside them.
+ */
+const VISIBLE_ALPHA = 8;
 
 /** Where the grid's columns and rows are in a region, as runs of pixels and as the grid position of each. */
 interface GridMarks {
@@ -46,51 +51,53 @@ test.describe('Grid canvas layer', () => {
     });
 
     /** Reads where the grid's columns and rows are in the part of the layer that is shown. */
-    const readMarks = async (mode: GridMode): Promise<GridMarks> => {
-        const { region, columns, rows } = await grid.profile();
+    async function readMarks(mode: GridMode): Promise<GridMarks> {
+        const { region, columns, rows } = await grid.profile(undefined, VISIBLE_ALPHA);
         // in lines mode every column has the pixels of the lines across it, so a line is a column that is mostly drawn
         const isColumn = mode === 'lines' ? (count: number) => count > region.height / 2 : undefined;
         const isRow = mode === 'lines' ? (count: number) => count > region.width / 2 : undefined;
         const size = mode === 'lines' ? LINE_WIDTH : DOT_SIZE;
         // a dot cut off by the far edge of the region ends before its grid position: leave it out
-        const whole = (last: number) => (run: Run) => !(run.end === last && run.length < size);
+        function whole(last: number) {
+            return (run: Run) => !(run.end === last && run.length < size);
+        }
         const columnRuns = runs(columns, region.left, isColumn).filter(whole(region.left + region.width - 1));
         const rowRuns = runs(rows, region.top, isRow).filter(whole(region.top + region.height - 1));
         return { region, columns: columnRuns, rows: rowRuns, x: columnRuns.map(r => r.end), y: rowRuns.map(r => r.end) };
-    };
+    }
 
     /** Checks that positions are evenly spaced, with no gap, from one edge to the other. */
-    const expectEvenlySpacedAcross = (positions: number[], spacing: number, first: number, last: number) => {
+    function expectEvenlySpacedAcross(positions: number[], spacing: number, first: number, last: number) {
         expect(positions.length).toBeGreaterThan(1);
         const gaps = positions.slice(1).map((position, i) => position - positions[i]);
         expect(new Set(gaps)).toEqual(new Set([spacing]));
         expect(positions[0] - first).toBeLessThan(spacing);
         expect(last - positions.at(-1)!).toBeLessThan(spacing);
-    };
+    }
 
     /** Checks that the grid is one cell apart both ways and reaches every edge of the part that is shown. */
-    const expectCoversWorkspace = (marks: GridMarks, spacing: number) => {
+    function expectCoversWorkspace(marks: GridMarks, spacing: number) {
         const { region } = marks;
         expectEvenlySpacedAcross(marks.x, spacing, region.left, region.left + region.width - 1);
         expectEvenlySpacedAcross(marks.y, spacing, region.top, region.top + region.height - 1);
-    };
+    }
 
     /** Sets the grid's display mode in the settings and waits for the layer to draw it. */
-    const setMode = async (mode: GridMode) => {
+    async function setMode(mode: GridMode) {
         await settings.openGridSettings();
         await settings.setGridMode(mode);
         await expect.poll(async () => (await readMarks(mode)).x.length).toBeGreaterThan(1);
-    };
+    }
 
     /** Sets the grid's cell size in the settings and waits for the layer to draw it. */
-    const setSpacing = async (spacing: number, mode: GridMode = 'dots') => {
+    async function setSpacing(spacing: number, mode: GridMode = 'dots') {
         await settings.openGridSettings();
         await settings.setGridSpacing(spacing);
         await expect.poll(async () => {
             const marks = await readMarks(mode);
             return marks.x[1] - marks.x[0];
         }).toBe(spacing);
-    };
+    }
 
     test.describe('dots', () => {
         test('draws the grid as dots by default, in opaque light gray', async () => {

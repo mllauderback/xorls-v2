@@ -44,7 +44,9 @@ export const test = base.extend<AnimationOptions & { applyAnimationOption: void 
                     animation-delay: 0s !important;
                 }`;
                 // the script runs before the page's own markup is parsed
-                const add = () => document.head.append(style);
+                function add() {
+                    document.head.append(style);
+                }
                 if (document.head) add();
                 else document.addEventListener('DOMContentLoaded', add, { once: true });
 
@@ -93,7 +95,9 @@ export async function watchAnimations(element: Locator): Promise<() => Promise<S
     await element.evaluate((root: Watched) => {
         const started: StartedAnimation[] = [];
         root.__e2eAnimations = started;
-        const describe = (target: Element) => [target.tagName.toLowerCase(), ...target.classList].join('.');
+        function describe(target: Element) {
+            return [target.tagName.toLowerCase(), ...target.classList].join('.');
+        }
 
         // Angular: ng-animating is added when an animation starts, and removed when it ends
         const animating = new WeakSet<Element>();

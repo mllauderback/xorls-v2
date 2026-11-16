@@ -30,7 +30,7 @@ test.describe('Component canvas layer', () => {
     });
 
     /** Places a component and returns the region around it. Other components have to be out of that region. */
-    const placeAt = async (offset = { x: 0, y: 0 }): Promise<Region> => {
+    async function placeAt(offset = { x: 0, y: 0 }): Promise<Region> {
         const before = (await layer.drawn())?.count ?? 0;
         await diagram.place(offset);
         await expect.poll(async () => (await layer.drawn())?.count ?? 0).toBeGreaterThan(before);
@@ -42,20 +42,22 @@ test.describe('Component canvas layer', () => {
             width: AND_GATE.width + 40,
             height: AND_GATE.height + 40,
         };
-    };
+    }
 
     /**
      * Checks that two regions hold the same drawing: the same number of drawn pixels in every column and row, give or
      * take a pixel. Components are stroked together, and the antialiasing of one can differ by a faint pixel
      * depending on what else is stroked with it.
      */
-    const expectSameDrawing = (actual: Profile, expected: Profile) => {
-        const differences = (a: number[], b: number[]) => a.map((count, i) => Math.abs(count - b[i]));
+    function expectSameDrawing(actual: Profile, expected: Profile) {
+        function differences(a: number[], b: number[]) {
+            return a.map((count, i) => Math.abs(count - b[i]));
+        }
         expect(actual.columns.length).toBe(expected.columns.length);
         expect(actual.rows.length).toBe(expected.rows.length);
         expect(Math.max(...differences(actual.columns, expected.columns))).toBeLessThanOrEqual(1);
         expect(Math.max(...differences(actual.rows, expected.rows))).toBeLessThanOrEqual(1);
-    };
+    }
 
     test.describe('drawing', () => {
         test('draws nothing until a component is placed', async () => {
@@ -159,7 +161,7 @@ test.describe('Component canvas layer', () => {
             expect(await layer.fingerprint(region)).toBe(fingerprint);
         });
 
-        test('is not changed by the grid settings', async () => {
+        test('is not changed by the grid mode', async () => {
             const settings = new SettingsPanel(diagram.page);
             const region = await placeAt();
             const fingerprint = await layer.fingerprint(region);
@@ -167,9 +169,26 @@ test.describe('Component canvas layer', () => {
             await settings.openGridSettings();
             await settings.setGridMode('lines');
             expect(await layer.fingerprint(region)).toBe(fingerprint);
+        });
 
+        test('scales the components with the grid spacing, and back', async () => {
+            const settings = new SettingsPanel(diagram.page);
+            const box = (await diagram.presenter.boundingBox())!;
+            const center = await diagram.center();
+            const region = await placeAt({ x: box.x + 120 - center.x, y: box.y + 100 - center.y });
+            const fingerprint = await layer.fingerprint(region);
+            function width(drawn: { left: number, right: number }) {
+                return drawn.right - drawn.left + 1;
+            }
+
+            // the spacing setting scales the whole diagram: 50 / 20 = 2.5 times the default size
+            await settings.openGridSettings();
             await settings.setGridSpacing(50);
-            expect(await layer.fingerprint(region)).toBe(fingerprint);
+            await expect.poll(async () => width((await layer.drawn())!)).not.toBe(AND_GATE.width);
+            expect(Math.abs(width((await layer.drawn())!) - AND_GATE.width * 2.5)).toBeLessThanOrEqual(1);
+
+            await settings.setGridSpacing(20);
+            await expect.poll(() => layer.fingerprint(region)).toBe(fingerprint);
         });
     });
 

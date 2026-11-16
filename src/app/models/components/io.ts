@@ -1,11 +1,7 @@
 import type { DrawState } from "../Drawable";
 import type { Point } from "../Point";
-import type { BoundingBox } from "../Selectable";
+import { BoundingBox } from "../Selectable";
 import { ComponentType, type Component, type Node } from "./Component";
-
-// Placeholder footprints until each component's draw() is implemented.
-const IO_BOUNDING_BOX: BoundingBox = { x: 0, y: 0, width: 60, height: 40 };
-const SEVEN_SEGMENT_BOUNDING_BOX: BoundingBox = { x: 0, y: 0, width: 80, height: 120 };
 
 export class Input implements Component {
     position: Point;
@@ -30,7 +26,7 @@ export class Input implements Component {
     }
 
     getBoundingBox(): BoundingBox {
-        return { ...IO_BOUNDING_BOX };
+        return new BoundingBox(3, 2);
     }
 }
 
@@ -57,7 +53,7 @@ export class Output implements Component {
     }
 
     getBoundingBox(): BoundingBox {
-        return { ...IO_BOUNDING_BOX };
+        return new BoundingBox(3, 2);
     }
 
 }
@@ -89,7 +85,7 @@ export class SevenSegmentDisplay implements Component {
     }
 
     getBoundingBox(): BoundingBox {
-        return { ...SEVEN_SEGMENT_BOUNDING_BOX };
+        return new BoundingBox(4, 6);
     }
 
 }

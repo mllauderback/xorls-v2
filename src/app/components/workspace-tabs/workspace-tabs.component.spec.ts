@@ -26,12 +26,16 @@ describe('WorkspaceTabsComponent', () => {
         set activeId(_: string) { },
     };
 
-    const buildEntry = (width: number, height: number): ResizeObserverEntry => ({
-        contentRect: { width, height } as DOMRectReadOnly
-    } as ResizeObserverEntry);
+    function buildEntry(width: number, height: number): ResizeObserverEntry {
+        return ({
+            contentRect: { width, height } as DOMRectReadOnly
+        } as ResizeObserverEntry);
+    }
 
     // convenience getter — this component creates one observer, so index 0
-    const observer = () => resizeObserverInstances[0];
+    function observer() {
+        return resizeObserverInstances[0];
+    }
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
