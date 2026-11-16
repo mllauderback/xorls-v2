@@ -299,7 +299,9 @@ describe('DiagramWorkspacePresenterComponent', () => {
         let staticComponent: FakeLayer;
         let staticIO: FakeLayer;
 
-        const gate = () => createPlaceable(ComponentType.AndGate, { x: 0, y: 0 });
+        function gate() {
+            return createPlaceable(ComponentType.AndGate, { x: 0, y: 0 });
+        }
 
         beforeEach(() => {
             fixture.detectChanges();

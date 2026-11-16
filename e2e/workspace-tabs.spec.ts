@@ -24,28 +24,28 @@ test.describe('Workspace tabs', () => {
     });
 
     /** A picture of each tab's diagram, taken before anything is placed. */
-    const blankSnapshots = async (): Promise<Map<string, Buffer>> => {
+    async function blankSnapshots(): Promise<Map<string, Buffer>> {
         const snapshots = new Map<string, Buffer>();
         for (const name of INITIAL_TABS) {
             await tabs.activate(name);
             snapshots.set(name, await tabs.snapshot());
         }
         return snapshots;
-    };
+    }
 
     /** Places a component in a tab and waits for its diagram to change. Returns the picture of the changed diagram. */
-    const changeDiagram = async (name: string, blank: Buffer): Promise<Buffer> => {
+    async function changeDiagram(name: string, blank: Buffer): Promise<Buffer> {
         await tabs.activate(name);
         await diagram.place();
         await expect.poll(async () => (await tabs.snapshot()).equals(blank)).toBe(false);
         return tabs.snapshot();
-    };
+    }
 
     /** Shows a tab and checks its diagram looks the way it did. */
-    const expectDiagram = async (name: string, expected: Buffer) => {
+    async function expectDiagram(name: string, expected: Buffer) {
         await tabs.activate(name);
         await expect.poll(async () => (await tabs.snapshot()).equals(expected)).toBe(true);
-    };
+    }
 
     test.describe('workspaces', () => {
         test('opens with the initial tabs', async () => {

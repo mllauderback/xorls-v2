@@ -15,20 +15,23 @@ class MockPaletteComponentSvgsComponent {
     @Input() type?: string;
 }
 
-const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): PaletteComponent => ({
-    type: ComponentType.AndGate,
-    selected: false,
-    ...overrides,
-});
+function buildPaletteComponent(overrides: Partial<PaletteComponent> = {}): PaletteComponent {
+    return {
+        type: ComponentType.AndGate,
+        selected: false,
+        ...overrides,
+    };
+}
 
 /** A palette with the components in one category. The other categories are there but empty. */
-const buildRecord = (
+function buildRecord(
     category: PaletteComponentCategories,
-    components: PaletteComponent[]
-): PaletteComponentRecord => ({
-    ...Object.fromEntries(Object.values(PaletteComponentCategories).map(c => [c, []])),
-    [category]: components,
-} as PaletteComponentRecord);
+    components: PaletteComponent[]): PaletteComponentRecord {
+    return ({
+        ...Object.fromEntries(Object.values(PaletteComponentCategories).map(c => [c, []])),
+        [category]: components,
+    } as PaletteComponentRecord);
+}
 
 const CATEGORY: PaletteComponentCategories = PaletteComponentCategories.gates;
 
@@ -53,14 +56,13 @@ describe('GridSelectionPanelComponent', () => {
 
     afterEach(() => vi.clearAllMocks());
 
-    const setup = (
+    function setup(
         components: PaletteComponent[],
-        category: PaletteComponentCategories = CATEGORY
-    ) => {
+        category: PaletteComponentCategories = CATEGORY) {
         component.categoryPaletteComponents = buildRecord(category, components);
         component.category = category;
         fixture.detectChanges();
-    };
+    }
 
     describe('rendering', () => {
         it('should render a checkbox and label for each palette component', () => {

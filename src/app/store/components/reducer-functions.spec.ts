@@ -7,23 +7,31 @@ import { componentsReducer } from './feature';
 import * as actions from './actions';
 import { ComponentType } from '../../models/components/Component';
 
-const buildRecord = (selectedClassName?: string): PaletteComponentRecord => ({
-    [PaletteComponentCategories.gates]: [
-        { type: ComponentType.AndGate, selected: ComponentType.AndGate === selectedClassName },
-        { type: ComponentType.OrGate, selected: ComponentType.OrGate === selectedClassName },
-    ],
-    [PaletteComponentCategories.io]: [],
-    [PaletteComponentCategories.decorations]: [],
-});
+function buildRecord(selectedClassName?: string): PaletteComponentRecord {
+    return {
+        [PaletteComponentCategories.gates]: [
+            { type: ComponentType.AndGate, selected: ComponentType.AndGate === selectedClassName },
+            { type: ComponentType.OrGate, selected: ComponentType.OrGate === selectedClassName },
+        ],
+        [PaletteComponentCategories.io]: [],
+        [PaletteComponentCategories.decorations]: [],
+    };
+}
 
-const buildState = (overrides: Partial<PaletteComponentsState> = {}): PaletteComponentsState => ({
-    ...initialComponentsState,
-    paletteComponents: buildRecord(),
-    ...overrides,
-});
+function buildState(overrides: Partial<PaletteComponentsState> = {}): PaletteComponentsState {
+    return {
+        ...initialComponentsState,
+        paletteComponents: buildRecord(),
+        ...overrides,
+    };
+}
 
-const placedGate = (): SelectedSelectable => ({ workspaceId: 'workspace-1', id: 'gate-1', type: ComponentType.AndGate });
-const anyHighlighted = (state: PaletteComponentsState) => Object.values(state.paletteComponents).flat().some(c => c.selected);
+function placedGate(): SelectedSelectable {
+    return { workspaceId: 'workspace-1', id: 'gate-1', type: ComponentType.AndGate };
+}
+function anyHighlighted(state: PaletteComponentsState) {
+    return Object.values(state.paletteComponents).flat().some(c => c.selected);
+}
 
 describe('components reducer functions', () => {
     describe('setSelectedPaletteComponent', () => {

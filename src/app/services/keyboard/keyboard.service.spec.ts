@@ -5,15 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { KeyboardService, matchesKeyCombo, parseKeyCombo } from './keyboard.service';
 import { isEditableTarget } from '../service-helpers';
 
-const keyEvent = (key: string, init: KeyboardEventInit = {}) =>
-    new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+function keyEvent(key: string, init: KeyboardEventInit = {}) {
+    return new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+}
 
 /** Dispatches a key press on the target and returns the event so its defaultPrevented can be checked. */
-const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = document.body) => {
+function press(key: string, init: KeyboardEventInit = {}, target: EventTarget = document.body) {
     const event = keyEvent(key, init);
     target.dispatchEvent(event);
     return event;
-};
+}
 
 describe('parseKeyCombo', () => {
     it('should parse a plain key', () => {
@@ -108,11 +109,11 @@ describe('KeyboardService', () => {
     let removers: (() => void)[];
 
     /** Registers a handler and removes it after the test. */
-    const on = (...args: Parameters<KeyboardService['on']>) => {
+    function on(...args: Parameters<KeyboardService['on']>) {
         const remove = service.on(...args);
         removers.push(remove);
         return remove;
-    };
+    }
 
     beforeEach(() => {
         service = TestBed.inject(KeyboardService);
@@ -337,7 +338,9 @@ describe('KeyboardService', () => {
         it('should ignore a key something else already handled', () => {
             const handler = vi.fn();
             on('Escape', handler);
-            const dialog = (e: Event) => e.preventDefault(); // consumes the key before it bubbles up
+            function dialog(e: Event) {
+                e.preventDefault();
+            } // consumes the key before it bubbles up
             window.addEventListener('keydown', dialog, true);
 
             press('Escape');
@@ -395,13 +398,13 @@ describe('KeyboardService', () => {
         });
 
         it('should remove the handler when the given DestroyRef is destroyed', () => {
-            let destroy = () => { /* set below */ };
+            let destroy: (() => void) | undefined; // what the service gives the DestroyRef
             const destroyRef = { onDestroy: (callback: () => void) => { destroy = callback; return () => { /* unused */ }; } } as DestroyRef;
             const handler = vi.fn();
             on('Escape', handler, { destroyRef });
 
             press('Escape');
-            destroy();
+            destroy!();
             press('Escape');
 
             expect(handler).toHaveBeenCalledOnce();
@@ -409,7 +412,9 @@ describe('KeyboardService', () => {
     });
 
     describe('window listener', () => {
-        const keydownCalls = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.filter(([type]) => type === 'keydown');
+        function keydownCalls(spy: { mock: { calls: unknown[][] } }) {
+            return spy.mock.calls.filter(([type]) => type === 'keydown');
+        }
 
         it('should not listen until a handler is registered', () => {
             const add = vi.spyOn(window, 'addEventListener');

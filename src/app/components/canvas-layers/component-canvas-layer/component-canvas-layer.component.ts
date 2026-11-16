@@ -4,6 +4,7 @@ import { AbstractCanvasLayerComponent } from '../abstract-canvas-layer.component
 import type { Drawable, DrawState } from '../../../models/Drawable';
 import { CommonModule } from '@angular/common';
 import { RenderService } from '../../../services/render/render.service';
+import { pixelsToDiagram } from '../../../services/render/view-transform';
 
 @Component({
     selector: 'app-component-canvas-layer',
@@ -37,7 +38,7 @@ export class ComponentCanvasLayerComponent extends AbstractCanvasLayerComponent 
         // if (updateDrawables.length === 0 && !this.forceRepaint) return;
         if (updateDrawables.length > 0) {
             this.offscreenContext.strokeStyle = 'black';
-            this.offscreenContext.lineWidth = this.renderService.STANDARD_LINE_WIDTH;
+            this.offscreenContext.lineWidth = pixelsToDiagram(this.renderService.STANDARD_LINE_WIDTH, drawState);
             this.offscreenContext.beginPath();
             updateDrawables.forEach(d => d.draw(this.offscreenContext!, drawState));
             this.offscreenContext.stroke();

@@ -22,16 +22,19 @@ const GATES_CATEGORY: PaletteComponentCategories = PaletteComponentCategories.ga
 const IO_CATEGORY: PaletteComponentCategories = PaletteComponentCategories.io;
 const DECORATIONS_CATEGORY: PaletteComponentCategories = PaletteComponentCategories.decorations;
 
-const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): PaletteComponent => ({
-    type: ComponentType.AndGate,
-    selected: false,
-    ...overrides,
-});
+function buildPaletteComponent(overrides: Partial<PaletteComponent> = {}): PaletteComponent {
+    return {
+        type: ComponentType.AndGate,
+        selected: false,
+        ...overrides,
+    };
+}
 
 /** A palette with just the given categories. Rendering only follows the keys there are, so the tests can leave some out. */
-const buildRecord = (
-    entries: [PaletteComponentCategories, PaletteComponent[]][]
-): PaletteComponentRecord => Object.fromEntries(entries) as PaletteComponentRecord;
+function buildRecord(
+    entries: [PaletteComponentCategories, PaletteComponent[]][]): PaletteComponentRecord {
+    return Object.fromEntries(entries) as PaletteComponentRecord;
+}
 
 describe('ComponentPalettePresenterComponent content projection', () => {
     @Component({

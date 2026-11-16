@@ -16,6 +16,7 @@ import type { Point } from '../../../../models/Point';
 import { AndGate, OrGate } from '../../../../models/components/gates';
 import { Input as InputComponent } from '../../../../models/components/io';
 import { ComponentType } from '../../../../models/components/Component';
+import { GRID_SPACING } from '../../../canvas-layers/grid-canvas-layer/Grid';
 
 /** Provides the controller the way the container does, so it lives and dies with its host. */
 @Component({ selector: 'app-controller-host', template: '', providers: [DiagramController] })
@@ -25,17 +26,22 @@ class MockRenderService {
     activeId = 'workspace-1';
     activeViewTransform: { origin: Point; scale: number } | null = { origin: { x: 0, y: 0 }, scale: 1 };
     panActiveDiagram = vi.fn();
+    setGridScale = vi.fn<(gridScale: number) => void>();
 }
 
-/** Stands in for the presenter: it records what the controller asks it to show. */
+
 class FakeView implements DiagramView {
+    /** Stands in for the presenter: it records what the controller asks it to show. */
+    /** Pixels per grid cell, as the real view has them with the default grid spacing and no zoom. */
+    static readonly CELL = 20;
     readonly element = document.createElement('div');
     previewed = new Set<Drawable>();
     /** Where the diagram's origin is on the screen. */
     offset: Point | null = { x: 0, y: 0 };
 
+    /** Diagram units are grid cells, CELL pixels across on the screen. */
     clientToDiagram = vi.fn((client: Point): Point | null =>
-        this.offset ? { x: client.x - this.offset.x, y: client.y - this.offset.y } : null);
+        this.offset ? { x: (client.x - this.offset.x) / FakeView.CELL, y: (client.y - this.offset.y) / FakeView.CELL } : null);
     isPreviewing = vi.fn((d: Drawable) => this.previewed.has(d));
     showPreview = vi.fn((d: Drawable) => { this.previewed.add(d); });
     hidePreview = vi.fn((d: Drawable) => { this.previewed.delete(d); });
@@ -49,29 +55,40 @@ describe('DiagramController', () => {
     let renderService: MockRenderService;
     let view: FakeView;
 
-    const palette = (type: ComponentType | null): PaletteComponent | null => type ? { type, selected: true } : null;
-    const select = (type: ComponentType | null) => controller.setPaletteComponent(palette(type));
-    const ghost = () => controller['ghost'];
+    function palette(type: ComponentType | null): PaletteComponent | null {
+        return type ? { type, selected: true } : null;
+    }
+    function select(type: ComponentType | null) {
+        controller.setPaletteComponent(palette(type));
+    }
+    function ghost() {
+        return controller['ghost'];
+    }
 
-    const pointer = (type: string, x: number, y: number, init: MouseEventInit = {}) =>
-        new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, ...init });
-    const moveTo = (x: number, y: number, target: EventTarget = view.element) => target.dispatchEvent(pointer('pointermove', x, y));
-    const click = (x: number, y: number, init: MouseEventInit = {}) => {
+    function pointer(type: string, x: number, y: number, init: MouseEventInit = {}) {
+        return new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, ...init });
+    }
+    function moveTo(x: number, y: number, target: EventTarget = view.element) {
+        return target.dispatchEvent(pointer('pointermove', x, y));
+    }
+    function click(x: number, y: number, init: MouseEventInit = {}) {
         view.element.dispatchEvent(pointer('pointerdown', x, y, init));
         view.element.dispatchEvent(pointer('pointerup', x, y, init));
-    };
+    }
     /** The bit of MouseEvent.buttons that says a button is held, by its MouseEvent.button. */
     const HELD = { [MouseButton.Left]: 1, [MouseButton.Middle]: 4, [MouseButton.Right]: 2 } as const;
     type Button = keyof typeof HELD;
-    const pressButton = (button: Button, x: number, y: number, target: EventTarget = view.element) =>
-        target.dispatchEvent(pointer('pointerdown', x, y, { button, buttons: HELD[button] }));
-    const releaseButton = (button: Button, x: number, y: number, target: EventTarget = view.element) =>
-        target.dispatchEvent(pointer('pointerup', x, y, { button }));
-    const pressEsc = (target: EventTarget = document.body) => {
+    function pressButton(button: Button, x: number, y: number, target: EventTarget = view.element) {
+        return target.dispatchEvent(pointer('pointerdown', x, y, { button, buttons: HELD[button] }));
+    }
+    function releaseButton(button: Button, x: number, y: number, target: EventTarget = view.element) {
+        return target.dispatchEvent(pointer('pointerup', x, y, { button }));
+    }
+    function pressEsc(target: EventTarget = document.body) {
         const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
         target.dispatchEvent(event);
         return event;
-    };
+    }
 
     beforeEach(() => {
         TestBed.configureTestingModule({
@@ -88,7 +105,9 @@ describe('DiagramController', () => {
     afterEach(() => view.element.remove());
 
     /** Most tests start from a controller that is already controlling the view. */
-    const attach = () => controller.attach(view, 'workspace-1');
+    function attach() {
+        controller.attach(view, 'workspace-1');
+    }
 
     describe('attach', () => {
         it('should only control one view', () => {
@@ -105,7 +124,8 @@ describe('DiagramController', () => {
             moveTo(205, 107);
 
             expect(ghost()).toBeInstanceOf(AndGate);
-            expect(ghost()!.position).toEqual({ x: 150, y: 50 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
+            expect(renderService.setGridScale).toHaveBeenCalledWith(50);
         });
 
         it('should not show anything until the pointer is over the workspace', () => {
@@ -151,74 +171,82 @@ describe('DiagramController', () => {
             select(ComponentType.AndGate);
 
             expect(view.showPreview).toHaveBeenCalledWith(ghost());
-            expect(ghost()!.position).toEqual({ x: 160, y: 80 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 4 });
         });
 
         it("should put the middle of the ghost's bounding box under the cursor", () => {
-            select(ComponentType.AndGate); // and gate: box -20..100 x 0..80, so its middle is (40, 40) from its position
+            select(ComponentType.AndGate); // and gate: box 6 x 4 cells, so its middle is (3, 2) from its position
 
             moveTo(200, 100);
 
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
         it('should snap the ghost to grid points', () => {
             select(ComponentType.AndGate);
 
-            moveTo(205, 107); // wanted position is (165, 67)
+            moveTo(205, 107); // (10.25, 5.35) in the diagram, so the wanted position is (7.25, 3.35)
 
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
-        it('should snap to the grid spacing from the workspace settings', () => {
+        it('should scale the diagram by the grid spacing setting / GRID_SPACING: pixels per cell', () => {
+            controller.setWorkspaceSettings({ gridSettings: { gridSpacing: 50, gridMode: 'dots' } } as WorkspaceSettingsState);
+
+            expect(renderService.setGridScale).toHaveBeenCalledExactlyOnceWith(50 / GRID_SPACING);
+        });
+
+        it('should snap to GRID_SPACING in diagram units whatever the grid spacing setting', () => {
+            // the setting only changes how big a cell is on screen, which the view accounts for in clientToDiagram
             controller.setWorkspaceSettings({ gridSettings: { gridSpacing: 50, gridMode: 'dots' } } as WorkspaceSettingsState);
             select(ComponentType.AndGate);
 
             moveTo(205, 107);
 
-            expect(ghost()!.position).toEqual({ x: 150, y: 50 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
-        it('should go back to the default spacing without workspace settings', () => {
+        it('should leave the grid scale alone without a usable grid spacing', () => {
             controller.setWorkspaceSettings({ gridSettings: { gridSpacing: 50, gridMode: 'dots' } } as WorkspaceSettingsState);
             controller.setWorkspaceSettings(null);
-            select(ComponentType.AndGate);
+            controller.setWorkspaceSettings({ gridSettings: { gridSpacing: 0, gridMode: 'dots' } } as WorkspaceSettingsState);
+            controller.setWorkspaceSettings({ gridSettings: { gridSpacing: -20, gridMode: 'dots' } } as WorkspaceSettingsState);
+            controller.setWorkspaceSettings({ gridSettings: { gridSpacing: NaN, gridMode: 'dots' } } as WorkspaceSettingsState);
 
-            moveTo(205, 107);
-
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(renderService.setGridScale).toHaveBeenCalledExactlyOnceWith(50);
         });
 
-        it('should snap to multiples of the spacing in diagram coordinates, wherever the origin is', () => {
-            // the grid is anchored to the diagram origin, which moves in steps of 500 as the layer grows;
-            // 500 isn't a multiple of 30, so this would land off the grid if snapping depended on the origin
+        it('should snap to multiples of GRID_SPACING in diagram coordinates, wherever the origin is', () => {
+            // the grid is anchored to the diagram origin, which moves in steps of 500 canvas pixels as the layer grows;
+            // with 30px cells 500 isn't a multiple of a cell, so this would land off the grid if snapping depended on
+            // the origin
             controller.setWorkspaceSettings({ gridSettings: { gridSpacing: 30, gridMode: 'lines' } } as WorkspaceSettingsState);
             select(ComponentType.AndGate);
 
             renderService.activeViewTransform = { origin: { x: 0, y: 0 }, scale: 1 };
-            moveTo(200, 100); // wanted position is (160, 60)
+            moveTo(200, 100); // wanted position is (7, 3)
             const atStart = { ...ghost()!.position };
 
             renderService.activeViewTransform = { origin: { x: 500, y: -30 }, scale: 1 };
             moveTo(201, 100);
             moveTo(200, 100);
 
-            expect(atStart).toEqual({ x: 150, y: 60 });
+            expect(atStart).toEqual({ x: 7, y: 3 });
             expect(ghost()!.position).toEqual(atStart);
         });
 
         it('should snap positions left of and above the origin to multiples of the spacing too', () => {
             select(ComponentType.AndGate);
 
-            moveTo(-35, -65); // wanted position is (-75, -105)
+            moveTo(-35, -65); // wanted position is (-4.75, -5.25)
 
-            expect(ghost()!.position).toEqual({ x: -80, y: -100 });
+            expect(ghost()!.position).toEqual({ x: -5, y: -5 });
         });
 
         it('should snap a small negative position to 0, not -0', () => {
             select(ComponentType.AndGate);
 
-            moveTo(35, 35); // wanted position is (-5, -5)
+            moveTo(55, 35); // wanted position is (-0.25, -0.25)
 
             expect(Object.is(ghost()!.position.x, 0)).toBe(true);
             expect(Object.is(ghost()!.position.y, 0)).toBe(true);
@@ -228,10 +256,10 @@ describe('DiagramController', () => {
             view.offset = { x: 100, y: 20 }; // the view knows where the canvas is on screen and how far it is panned
             select(ComponentType.AndGate);
 
-            moveTo(300, 120); // 200,100 in the diagram
+            moveTo(300, 120); // 200,100 from the diagram's origin on the screen: (10, 5) in the diagram
 
             expect(view.clientToDiagram).toHaveBeenCalledWith({ x: 300, y: 120 });
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
         it('should not show the ghost when the view cannot place the pointer', () => {
@@ -307,7 +335,7 @@ describe('DiagramController', () => {
             expect(ghost()).toBeInstanceOf(OrGate);
             expect(view.hidePreview).toHaveBeenCalledWith(first);
             expect([...view.previewed]).toEqual([ghost()]);
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
         it('should keep the same ghost when the palette selection is reported again unchanged', () => {
@@ -340,7 +368,7 @@ describe('DiagramController', () => {
 
             moveTo(400, 300);
 
-            expect(discarded.position).toEqual({ x: 160, y: 60 });
+            expect(discarded.position).toEqual({ x: 7, y: 3 });
             expect(ghost()).toBeNull();
         });
 
@@ -357,8 +385,12 @@ describe('DiagramController', () => {
         let outside: HTMLElement;
 
         // the right button pans; the middle one does the same and is covered under 'panning'
-        const press = (x: number, y: number, target?: EventTarget) => pressButton(MouseButton.Right, x, y, target);
-        const release = (x: number, y: number, target?: EventTarget) => releaseButton(MouseButton.Right, x, y, target);
+        function press(x: number, y: number, target?: EventTarget) {
+            return pressButton(MouseButton.Right, x, y, target);
+        }
+        function release(x: number, y: number, target?: EventTarget) {
+            return releaseButton(MouseButton.Right, x, y, target);
+        }
 
         beforeEach(() => {
             attach();
@@ -376,7 +408,7 @@ describe('DiagramController', () => {
             moveTo(214, 109);
             moveTo(337, 191);
 
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
             expect(view.showPreview).toHaveBeenCalledOnce();
         });
 
@@ -386,7 +418,7 @@ describe('DiagramController', () => {
             // far enough to snap to the next grid point
             moveTo(214, 109);
 
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
         it('should still pan the diagram', () => {
@@ -395,7 +427,7 @@ describe('DiagramController', () => {
             view.element.dispatchEvent(pointer('pointermove', 260, 100, { movementX: 60, movementY: 0 }));
 
             expect(renderService.panActiveDiagram).toHaveBeenCalledOnce();
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
         it('should not place the component on release', () => {
@@ -413,7 +445,7 @@ describe('DiagramController', () => {
 
             moveTo(400, 300);
 
-            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+            expect(ghost()!.position).toEqual({ x: 17, y: 13 });
         });
 
         it('should follow the mouse again when the button is released outside the workspace', () => {
@@ -422,7 +454,7 @@ describe('DiagramController', () => {
 
             moveTo(400, 300);
 
-            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+            expect(ghost()!.position).toEqual({ x: 17, y: 13 });
         });
 
         it('should follow the mouse again when the browser cancels the pointer', () => {
@@ -431,7 +463,7 @@ describe('DiagramController', () => {
 
             moveTo(400, 300);
 
-            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+            expect(ghost()!.position).toEqual({ x: 17, y: 13 });
         });
 
         it('should reset the cursor when the browser cancels the pointer during a pan', () => {
@@ -448,7 +480,7 @@ describe('DiagramController', () => {
 
             moveTo(400, 300);
 
-            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+            expect(ghost()!.position).toEqual({ x: 17, y: 13 });
         });
 
         it('should know where the pointer is after the release, for a ghost that is made then', () => {
@@ -459,13 +491,17 @@ describe('DiagramController', () => {
             select(ComponentType.OrGate);
 
             expect(ghost()).toBeInstanceOf(OrGate);
-            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+            expect(ghost()!.position).toEqual({ x: 17, y: 13 });
         });
     });
 
     describe('while the left button is held', () => {
-        const press = (x: number, y: number) => pressButton(MouseButton.Left, x, y);
-        const release = (x: number, y: number) => releaseButton(MouseButton.Left, x, y);
+        function press(x: number, y: number) {
+            return pressButton(MouseButton.Left, x, y);
+        }
+        function release(x: number, y: number) {
+            return releaseButton(MouseButton.Left, x, y);
+        }
 
         beforeEach(() => {
             attach();
@@ -478,7 +514,7 @@ describe('DiagramController', () => {
 
             moveTo(400, 300);
 
-            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+            expect(ghost()!.position).toEqual({ x: 17, y: 13 });
         });
 
         it('should not pan the diagram', () => {
@@ -507,7 +543,7 @@ describe('DiagramController', () => {
 
             // 211 snaps one grid point further than where the ghost was
             expect(view.place).toHaveBeenCalledWith(placed);
-            expect(placed.position).toEqual({ x: 180, y: 60 });
+            expect(placed.position).toEqual({ x: 8, y: 3 });
         });
     });
 
@@ -542,7 +578,7 @@ describe('DiagramController', () => {
 
             click(200, 100);
 
-            expect(placed.position).toEqual({ x: 160, y: 60 });
+            expect(placed.position).toEqual({ x: 7, y: 3 });
             expect(view.place).toHaveBeenCalledWith(placed);
         });
 
@@ -581,7 +617,7 @@ describe('DiagramController', () => {
             expect(ghost()!.id).not.toBe(placed.id);
             expect(ghost()!.isGhost).toBe(true);
             expect([...view.previewed]).toEqual([ghost()]);
-            expect(ghost()!.position).toEqual({ x: 160, y: 60 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
         it('should place n components with n clicks', () => {
@@ -594,7 +630,7 @@ describe('DiagramController', () => {
             expect(view.place).toHaveBeenCalledTimes(3);
             const placed = view.place.mock.calls.map(([p]) => p);
             expect(new Set(placed.map(p => p.id)).size).toBe(3);
-            expect(placed.map(p => p.position.x)).toEqual([60, 160, 260]);
+            expect(placed.map(p => p.position.x)).toEqual([2, 7, 12]);
         });
 
         it('should keep the palette selection, so that only a cleared selection ends the placement', () => {
@@ -617,8 +653,8 @@ describe('DiagramController', () => {
 
             moveTo(400, 300);
 
-            expect(placed.position).toEqual({ x: 160, y: 60 });
-            expect(ghost()!.position).toEqual({ x: 360, y: 260 });
+            expect(placed.position).toEqual({ x: 7, y: 3 });
+            expect(ghost()!.position).toEqual({ x: 17, y: 13 });
         });
 
         it('should still place when the click wobbles a pixel or two', () => {
@@ -801,7 +837,9 @@ describe('DiagramController', () => {
 
         it('should ignore Esc that something else already handled', () => {
             select(ComponentType.AndGate); // so it is only the rule under test that stops it
-            const handler = (e: Event) => e.preventDefault(); // a dialog or menu consuming the key before it bubbles up
+            function handler(e: Event) {
+                e.preventDefault();
+            } // a dialog or menu consuming the key before it bubbles up
             window.addEventListener('keydown', handler, true);
 
             pressEsc();
@@ -827,10 +865,13 @@ describe('DiagramController', () => {
     describe('panning', () => {
         let outside: HTMLElement;
 
-        const fire = (target: EventTarget, type: string, x = 0, y = 0, init: MouseEventInit = {}) =>
-            target.dispatchEvent(pointer(type, x, y, init));
+        function fire(target: EventTarget, type: string, x = 0, y = 0, init: MouseEventInit = {}) {
+            return target.dispatchEvent(pointer(type, x, y, init));
+        }
         /** Presses the right button, which pans. */
-        const pressPan = (target: EventTarget, x: number, y: number) => pressButton(MouseButton.Right, x, y, target);
+        function pressPan(target: EventTarget, x: number, y: number) {
+            return pressButton(MouseButton.Right, x, y, target);
+        }
 
         beforeEach(() => {
             attach();

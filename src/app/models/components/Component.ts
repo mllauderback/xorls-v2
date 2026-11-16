@@ -1,7 +1,8 @@
 import type { Drawable } from "../Drawable";
 import type { Ghostable } from "../Ghostable";
 import type { Point } from "../Point";
-import type { BoundingBox, Selectable } from "../Selectable";
+import type { Selectable } from "../Selectable";
+import { BoundingBox } from "../Selectable";
 
 export class Node implements Selectable {
     public position: Point;
@@ -18,7 +19,7 @@ export class Node implements Selectable {
 
     getBoundingBox(): BoundingBox {
         // this will change
-        return { x: this.position.x, y: this.position.y, width: 0, height: 0 };
+        return new BoundingBox(0, 0);
     }
 }
 

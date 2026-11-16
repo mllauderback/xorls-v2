@@ -1,11 +1,26 @@
 import type { Locator } from '@playwright/test';
-import type { Layer } from './support/canvas-layer';
-import { LAYERS } from './support/canvas-layer';
-import { DiagramWorkspace, PAN_BUTTONS } from './support/diagram-workspace';
+import type { CanvasLayer, Drawn, Layer } from './support/canvas-layer';
+import { LAYERS, runs } from './support/canvas-layer';
+import { DEFAULT_GRID_SPACING, DiagramWorkspace, PAN_BUTTONS } from './support/diagram-workspace';
 import { expect } from './support/draw-matchers';
 import { settle } from './support/draw-helpers';
 import { SettingsPanel } from './support/settings-panel';
 import { test } from './support/test';
+
+/** The component layers stroke gates with lines this many pixels wide, at the default grid spacing. */
+const LINE_WIDTH = 2;
+
+/** Every gate in the palette, with the size of its bounding box in grid cells: input pins, body and output pin. */
+const GATES = [
+    { type: 'AndGate', cells: { width: 6, height: 4 } },
+    { type: 'OrGate', cells: { width: 6, height: 4 } },
+    { type: 'XorGate', cells: { width: 6, height: 4 } },
+    { type: 'NotGate', cells: { width: 4, height: 2 } },
+    { type: 'Buffer', cells: { width: 4, height: 2 } },
+    { type: 'NandGate', cells: { width: 6, height: 4 } },
+    { type: 'NorGate', cells: { width: 6, height: 4 } },
+    { type: 'XnorGate', cells: { width: 6, height: 4 } },
+] as const;
 
 /**
  * The diagram workspace shows one diagram on a stack of canvas layers (the presenter) and handles what the user does
@@ -143,6 +158,146 @@ test.describe('Diagram workspace', () => {
             await diagram.moveFromCenterTo({ x: 40, y: 40 });
 
             await expect.poll(() => diagram.layer('activeComponent').drawn()).not.toBeNull();
+        });
+    });
+
+    test.describe('Gates', () => {
+        let diagram: DiagramWorkspace;
+        let settings: SettingsPanel;
+        let components: CanvasLayer;
+        let activeLayer: CanvasLayer;
+
+        test.beforeEach(async ({ page }) => {
+            diagram = new DiagramWorkspace(page);
+            settings = new SettingsPanel(page);
+            components = diagram.layer('component');
+            activeLayer = diagram.layer('activeComponent');
+            await diagram.load();
+        });
+
+        /** The grid lines shown in the workspace, in client coordinates. The grid has to be in lines mode. */
+        async function gridLines(): Promise<{ x: number[], y: number[] }> {
+            const { region, columns, rows } = await diagram.layer('grid').profile();
+            const xs = runs(columns, region.left, count => count > region.height / 2).map(run => run.end);
+            const ys = runs(rows, region.top, count => count > region.width / 2).map(run => run.end);
+            return { x: xs, y: ys };
+        }
+
+        /** Switches the grid to lines, with a cell size, and waits until it is drawn that way. */
+        async function useGrid(spacing: number) {
+            await settings.openGridSettings();
+            await settings.setGridMode('lines');
+            if (spacing !== DEFAULT_GRID_SPACING) await settings.setGridSpacing(spacing);
+            await expect.poll(async () => {
+                const { x } = await gridLines();
+                return x.length > 1 ? x[1] - x[0] : 0;
+            }).toBe(spacing);
+        }
+
+        /** Places a gate in the middle of the workspace and returns what the component layer draws. */
+        async function place(type: string): Promise<Drawn> {
+            await diagram.place({ x: 0, y: 0 }, type);
+            await expect.poll(async () => (await components.drawn())?.count ?? 0).toBeGreaterThan(0);
+            return (await components.drawn())!;
+        }
+
+        function width(drawn: Drawn) {
+            return drawn.right - drawn.left + 1;
+        }
+        function height(drawn: Drawn) {
+            return drawn.bottom - drawn.top + 1;
+        }
+
+        /** The gate's pins are on grid lines: the left end of its inputs and the right end of its output. */
+        async function expectPinsOnGridLines(drawn: Drawn) {
+            const lines = await gridLines();
+            // the input pins start on the column of the left line; the output pin ends just before the right line
+            expect(lines.x).toContain(drawn.left);
+            expect(lines.x).toContain(drawn.right + 1);
+            // the middle of a gate is a grid row: between its two inputs, or on the pin of a one-input gate
+            const middle = (drawn.top + drawn.bottom) / 2;
+            const nearestRow = Math.min(...lines.y.map(y => Math.abs(y - middle)));
+            expect(nearestRow).toBeLessThanOrEqual(1);
+        }
+
+        for (const { type, cells } of GATES) {
+            test.describe(type, () => {
+                test('is drawn as big as its bounding box', async () => {
+                    const drawn = await place(type);
+
+                    // the pins end on the box's left and right sides with square ends
+                    expect(width(drawn)).toBe(cells.width * DEFAULT_GRID_SPACING);
+                    // the top and bottom of the body are centered on the box's top and bottom sides
+                    expect(Math.abs(height(drawn) - (cells.height * DEFAULT_GRID_SPACING + LINE_WIDTH)))
+                        .toBeLessThanOrEqual(1);
+                });
+
+                test('has its pins on grid lines when it is placed', async () => {
+                    await useGrid(DEFAULT_GRID_SPACING);
+
+                    await expectPinsOnGridLines(await place(type));
+                });
+
+                test('previews a ghost as big as its bounding box, centered on the pointer', async () => {
+                    await diagram.pickPaletteComponent(type);
+
+                    for (const move of [{ x: 0, y: 0 }, { x: 37, y: -13 }, { x: -71, y: 52 }]) {
+                        const pointer = await diagram.moveFromCenterTo(move);
+                        await settle(diagram.page);
+                        const ghost = (await activeLayer.drawn())!;
+
+                        expect(width(ghost)).toBe(cells.width * DEFAULT_GRID_SPACING);
+                        expect(await activeLayer.drawnCenter()).toBeCenteredOn(pointer);
+                    }
+                });
+
+                test('is scaled with the grid spacing, with its pins still on grid lines', async () => {
+                    const spacing = 50;
+                    await useGrid(spacing);
+
+                    const drawn = await place(type);
+
+                    expect(width(drawn)).toBe(cells.width * spacing);
+                    await expectPinsOnGridLines(drawn);
+                });
+            });
+        }
+
+        test.describe('line widths', () => {
+            /** How many pixels thick the output pin is: it is the only line in a gate's right-most column. */
+            async function outputPinWidth(layer: CanvasLayer) {
+                const drawn = (await layer.drawn())!;
+                const { columns } = await layer.profile({
+                    left: drawn.right, top: drawn.top, width: 1, height: drawn.bottom - drawn.top + 1,
+                });
+                return columns[0];
+            }
+
+            for (const spacing of [DEFAULT_GRID_SPACING, 50]) {
+                test(`strokes a placed gate ${LINE_WIDTH}px wide with ${spacing}px cells`, async () => {
+                    await useGrid(spacing);
+
+                    await place('AndGate');
+
+                    // 2px centered on a pixel edge: exactly two rows
+                    expect(await outputPinWidth(components)).toBe(LINE_WIDTH);
+                });
+            }
+
+            test('keeps the ghost the same width in pixels when the grid spacing changes', async () => {
+                await diagram.pickPaletteComponent('AndGate');
+                await diagram.moveFromCenterTo();
+                await settle(diagram.page);
+                const atDefault = await outputPinWidth(activeLayer);
+
+                await useGrid(50);
+                await diagram.moveFromCenterTo({ x: 7, y: 3 });
+                await settle(diagram.page);
+
+                // the ghost is bolder than a placed gate, and stays that bold
+                expect(atDefault).toBeGreaterThan(LINE_WIDTH);
+                expect(await outputPinWidth(activeLayer)).toBe(atDefault);
+            });
         });
     });
 
@@ -322,10 +477,12 @@ test.describe('Diagram workspace', () => {
 
         test("does not let a middle press start the browser's autoscroll, except in a field", async ({ page }) => {
             /** Whether a middle mousedown on the element is cancelled, which is what keeps autoscroll from starting. */
-            const middlePressCancelled = (target: Locator) => target.evaluate(el => {
-                const event = new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true });
-                return !el.dispatchEvent(event);
-            });
+            function middlePressCancelled(target: Locator) {
+                return target.evaluate(el => {
+                    const event = new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true });
+                    return !el.dispatchEvent(event);
+                });
+            }
 
             expect(await middlePressCancelled(diagram.layer('activeWire').canvas)).toBe(true);
             expect(await middlePressCancelled(page.locator('body'))).toBe(true);
@@ -412,7 +569,9 @@ test.describe('Diagram workspace', () => {
 
         test('grows the canvases when panning brings an edge into view, keeping the diagram where it was', async () => {
             await diagram.place();
-            const sizeOf = () => diagram.canvases.evaluateAll((cs: HTMLCanvasElement[]) => cs.map(c => `${c.width}x${c.height}`));
+            function sizeOf() {
+                return diagram.canvases.evaluateAll((cs: HTMLCanvasElement[]) => cs.map(c => `${c.width}x${c.height}`));
+            }
             const sizesBefore = await sizeOf();
             const before = (await diagram.layer('component').drawn())!;
 

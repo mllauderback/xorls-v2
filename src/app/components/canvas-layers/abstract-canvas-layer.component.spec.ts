@@ -9,7 +9,9 @@ describe('AbstractCanvasLayerComponent', () => {
     let layer: ComponentCanvasLayerComponent;
     let warnSpy: ReturnType<typeof vi.spyOn>;
 
-    const makeDrawable = (): Drawable => ({ draw: () => { /* not needed for list bookkeeping */ } });
+    function makeDrawable(): Drawable {
+        return { draw: () => { /* not needed for list bookkeeping */ } };
+    }
 
     beforeEach(() => {
         layer = TestBed.createComponent(ComponentCanvasLayerComponent).componentInstance;
@@ -160,10 +162,18 @@ describe('AbstractCanvasLayerComponent', () => {
 
     describe('refresh', () => {
         type MockContext = Record<'setTransform' | 'resetTransform' | 'save' | 'restore' | 'clearRect' | 'scale', ReturnType<typeof vi.fn>>;
-        const state = (version: number, origin = { x: 10, y: 20 }, scale = 2): DrawState => ({ origin, scale, version });
-        const drawSpy = () => ({ draw: vi.fn() });
-        const offscreen = () => layer.offscreenContext as unknown as MockContext;
-        const onscreen = () => layer.context as unknown as MockContext;
+        function state(version: number, origin = { x: 10, y: 20 }, scale = 2): DrawState {
+            return { origin, scale, version };
+        }
+        function drawSpy() {
+            return { draw: vi.fn() };
+        }
+        function offscreen() {
+            return layer.offscreenContext as unknown as MockContext;
+        }
+        function onscreen() {
+            return layer.context as unknown as MockContext;
+        }
 
         beforeEach(() => {
             const fixture = TestBed.createComponent(ComponentCanvasLayerComponent);

@@ -3,12 +3,15 @@ import type { SettingsState } from "./state";
 import * as actions from './actions';
 import * as functions from "./reducer-functions";
 
+/** How many pixels a grid cell is until the settings say otherwise. */
+export const DEFAULT_GRID_SPACING = 20;
+
 export const initialSettingsState: SettingsState = { // eventually load these from a database on startup
     leftPanelResizeByPct: true,
     leftPanelWidth: 30,
     workspaceSettings: {
         gridSettings: {
-            gridSpacing: 20,
+            gridSpacing: DEFAULT_GRID_SPACING,
             gridMode: 'dots'
         }
     }

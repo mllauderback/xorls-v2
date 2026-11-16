@@ -1,19 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { RenderService } from './render.service';
+import { DEFAULT_GRID_SPACING } from '../../store/settings/feature';
 import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
 import type { Drawable, DrawState } from '../../models/Drawable';
 
-const buildMockLayer = (overrides = {}): AbstractCanvasLayerComponent => ({
-    context: {
-        scale: vi.fn(),
-    } as unknown as CanvasRenderingContext2D,
-    resize: vi.fn(),
-    refresh: vi.fn(),
-    width: 800,
-    height: 600,
-    ...overrides,
-} as unknown as AbstractCanvasLayerComponent);
+function buildMockLayer(overrides = {}): AbstractCanvasLayerComponent {
+    return ({
+        context: {
+            scale: vi.fn(),
+        } as unknown as CanvasRenderingContext2D,
+        resize: vi.fn(),
+        refresh: vi.fn(),
+        width: 800,
+        height: 600,
+        ...overrides,
+    } as unknown as AbstractCanvasLayerComponent);
+}
 
 describe('RenderService', () => {
     let service: RenderService;
@@ -175,7 +178,7 @@ describe('RenderService', () => {
         const LAYER_STYLE = { strokeStyle: 'blue', lineWidth: 4 };
 
         /** Records the stroke style, alpha and width that were active when each drawable drew. */
-        const buildContext = () => {
+        function buildContext() {
             const ctx = {
                 strokeStyle: '',
                 lineWidth: 0,
@@ -184,15 +187,15 @@ describe('RenderService', () => {
                 stroke: vi.fn(),
             };
             return ctx as typeof ctx & OffscreenCanvasRenderingContext2D;
-        };
-        const buildDrawable = (ctx: { strokeStyle: unknown, globalAlpha: number, lineWidth: number }, isGhost?: boolean) => {
+        }
+        function buildDrawable(ctx: { strokeStyle: unknown, globalAlpha: number, lineWidth: number }, isGhost?: boolean) {
             const seen: { strokeStyle: unknown, globalAlpha: number, lineWidth: number }[] = [];
             const drawable = {
                 draw: vi.fn(() => seen.push({ strokeStyle: ctx.strokeStyle, globalAlpha: ctx.globalAlpha, lineWidth: ctx.lineWidth })),
                 ...(isGhost === undefined ? {} : { isGhost }),
             } as unknown as Drawable;
             return { drawable, seen };
-        };
+        }
 
         it('should draw a non-ghost drawable in the layer style', () => {
             const ctx = buildContext();
@@ -233,6 +236,19 @@ describe('RenderService', () => {
             expect(solid.seen[0].strokeStyle).toBe('blue');
             expect(ghost.seen[0].strokeStyle).toBe(service.GHOST_STROKE_STYLE);
             expect(ctx.globalAlpha).toBe(1);
+        });
+
+        it('should give the line width in canvas pixels, converted to diagram units, whatever the scale', () => {
+            const ctx = buildContext();
+            const solid = buildDrawable(ctx, false);
+            const ghost = buildDrawable(ctx, true);
+            const scaled: DrawState = { origin: { x: 0, y: 0 }, scale: 20, version: 0 };
+
+            service.drawDrawables(ctx, [ghost.drawable, solid.drawable], scaled, LAYER_STYLE);
+
+            // 4px with 20px cells is a fifth of a cell
+            expect(solid.seen[0].lineWidth).toBeCloseTo(4 / 20);
+            expect(ghost.seen[0].lineWidth).toBeCloseTo(4 / 20);
         });
 
         it('should pass the draw state to each drawable', () => {
@@ -330,7 +346,53 @@ describe('RenderService', () => {
             service.resizeActiveDiagram(800, 600);
 
             const drawState = (layer.refresh as ReturnType<typeof vi.fn>).mock.calls[0][0];
-            expect(drawState.scale).toBe(1.5);
+            expect(drawState.scale).toBe(1.5 * DEFAULT_GRID_SPACING);
+        });
+    });
+
+    describe('setGridScale', () => {
+        it('should scale every diagram and bump their versions', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.add('diagramB', [buildMockLayer()]);
+
+            service.setGridScale(2);
+
+            for (const id of ['diagramA', 'diagramB']) {
+                service.activeId = id;
+                expect(service.activeViewTransform!.scale).toBe(2);
+                expect(service.activeViewTransform!.version).toBe(1);
+            }
+        });
+
+        it('should scale diagrams added afterwards', () => {
+            service.setGridScale(2);
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
+
+            expect(service.activeViewTransform!.gridScale).toBe(2);
+            expect(service.activeViewTransform!.scale).toBe(2);
+        });
+
+        it('should keep the zoom', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
+            service.scaleActiveDiagram(0.5);
+
+            service.setGridScale(2);
+
+            expect(service.activeViewTransform!.zoom).toBe(1.5);
+            expect(service.activeViewTransform!.scale).toBe(3);
+        });
+
+        it('should zoom by the offset, not by the offset times the grid scale', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
+            service.setGridScale(2);
+
+            service.scaleActiveDiagram(0.5);
+
+            expect(service.activeViewTransform!.zoom).toBe(1.5);
+            expect(service.activeViewTransform!.scale).toBe(3);
         });
     });
 
@@ -414,7 +476,7 @@ describe('RenderService', () => {
 
     describe('view transform', () => {
         /** A layer the size of the given viewport plus 100px all round, panned so the viewport is in its middle. */
-        const buildPannableLayer = (offset = { x: -100, y: -100 }) => {
+        function buildPannableLayer(offset = { x: -100, y: -100 }) {
             const layer = buildMockLayer({ width: 800, height: 600, viewportOffset: { ...offset } });
             const mock = layer as unknown as { viewportOffset: { x: number, y: number }, width: number, height: number };
             Object.assign(layer, {
@@ -425,7 +487,7 @@ describe('RenderService', () => {
                 resize: vi.fn((w: number, h: number) => { mock.width = w; mock.height = h; }),
             });
             return layer;
-        };
+        }
         const VIEWPORT = { width: 600, height: 400 };
 
         it('should give each diagram its own view transform at the origin with no zoom', () => {
@@ -437,7 +499,15 @@ describe('RenderService', () => {
 
             expect(a).not.toBe(b);
             expect(a.origin).toEqual({ x: 0, y: 0 });
-            expect(a.scale).toBe(1);
+            expect(a.zoom).toBe(1);
+        });
+
+        it('should start each diagram at the default grid spacing: that many pixels per cell', () => {
+            service.add('diagramA', [buildMockLayer()]);
+            service.activeId = 'diagramA';
+
+            expect(service.activeViewTransform!.gridScale).toBe(DEFAULT_GRID_SPACING);
+            expect(service.activeViewTransform!.scale).toBe(DEFAULT_GRID_SPACING);
         });
 
         it('should leave the view transform alone when panning within the canvas, so panning stays cheap', () => {
@@ -496,7 +566,8 @@ describe('RenderService', () => {
 
             service.scaleActiveDiagram(0.5);
 
-            expect(service.activeViewTransform!.scale).toBe(1.5);
+            expect(service.activeViewTransform!.zoom).toBe(1.5);
+            expect(service.activeViewTransform!.scale).toBe(1.5 * DEFAULT_GRID_SPACING);
             expect(service.activeViewTransform!.version).toBe(before + 1);
         });
     });

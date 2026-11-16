@@ -28,20 +28,25 @@ class MockSelectablePropertiesContainerComponent { }
 const CATEGORY: PaletteComponentCategories = PaletteComponentCategories.gates;
 
 /** Every action dispatched so far, oldest first. */
-const dispatchedActions = (store: MockStore): { type: string }[] =>
-    vi.mocked(store.dispatch).mock.calls.map(([action]) => action as unknown as { type: string });
+function dispatchedActions(store: MockStore): { type: string }[] {
+    return vi.mocked(store.dispatch).mock.calls.map(([action]) => action as unknown as { type: string });
+}
 
-const buildPaletteComponent = (overrides: Partial<PaletteComponent> = {}): PaletteComponent => ({
-    type: ComponentType.AndGate,
-    selected: false,
-    ...overrides,
-});
+function buildPaletteComponent(overrides: Partial<PaletteComponent> = {}): PaletteComponent {
+    return {
+        type: ComponentType.AndGate,
+        selected: false,
+        ...overrides,
+    };
+}
 
 /** A palette with the given components in one category. The other categories are there but empty. */
-const buildRecord = (components: PaletteComponent[]): PaletteComponentRecord => ({
-    ...Object.fromEntries(Object.values(PaletteComponentCategories).map(category => [category, []])),
-    [CATEGORY]: components,
-} as PaletteComponentRecord);
+function buildRecord(components: PaletteComponent[]): PaletteComponentRecord {
+    return ({
+        ...Object.fromEntries(Object.values(PaletteComponentCategories).map(category => [category, []])),
+        [CATEGORY]: components,
+    } as PaletteComponentRecord);
+}
 
 const mockRecord = buildRecord([buildPaletteComponent()]);
 
@@ -190,18 +195,18 @@ describe('ComponentPaletteContainerComponent', () => {
                 buildPaletteComponent({ type: ComponentType.OrGate, selected: true }),
             ]);
 
-            const emitSelectedRecord = async () => {
+            async function emitSelectedRecord() {
                 await fixture.whenStable();
                 const presenter = fixture.debugElement.query(
                     By.directive(MockComponentPalettePresenterComponent)
                 ).componentInstance as MockComponentPalettePresenterComponent;
                 presenter.categoryPaletteComponentsChange.emit(selectedRecord);
-            };
+            }
 
-            const selectAction = () => {
+            function selectAction() {
                 const action = dispatchedActions(store).find(a => a.type === actions.selectPaletteComponent.type);
                 return action as ReturnType<typeof actions.selectPaletteComponent> | undefined;
-            };
+            }
 
             it('should select the palette component', async () => {
                 await emitSelectedRecord();

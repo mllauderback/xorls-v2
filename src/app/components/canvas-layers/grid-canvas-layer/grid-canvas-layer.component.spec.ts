@@ -24,8 +24,12 @@ describe('GridCanvasLayerComponent', () => {
 
     describe('changing the grid settings', () => {
         let warnSpy: ReturnType<typeof vi.spyOn>;
-        const grid = () => component.getDrawableList()[0] as Grid;
-        const forceClearAll = () => (component as unknown as { forceClearAll: boolean }).forceClearAll;
+        function grid() {
+            return component.getDrawableList()[0] as Grid;
+        }
+        function forceClearAll() {
+            return (component as unknown as { forceClearAll: boolean }).forceClearAll;
+        }
 
         beforeEach(() => {
             warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { /* keep test output quiet */ });
@@ -39,14 +43,13 @@ describe('GridCanvasLayerComponent', () => {
             expect(component.getDrawableList()).toHaveLength(1);
         });
 
-        it('gives the grid both the new mode and the new spacing', () => {
+        it('gives the grid the new mode', () => {
             component.gridSettings = { gridMode: 'lines', gridSpacing: 40 };
 
             expect(grid().gridMode).toBe('lines');
-            expect(grid().gridSpacing).toBe(40);
         });
 
-        it('queues the grid once, not once per setting, and clears the canvas before it is painted', () => {
+        it('queues the grid once and clears the canvas before it is painted', () => {
             component.gridSettings = { gridMode: 'lines', gridSpacing: 40 };
 
             expect(component.getUpdateDrawablesList()).toEqual([grid()]);
@@ -61,14 +64,15 @@ describe('GridCanvasLayerComponent', () => {
             expect(component.getUpdateDrawablesList()).toEqual([grid()]);
         });
 
-        it('queues the grid for a spacing change on its own and leaves the mode alone', () => {
-            const modeBefore = grid().gridMode;
+        it('queues nothing for a spacing change on its own: the view transform scales the grid instead', () => {
+            const mode = grid().gridMode;
 
-            component.gridSpacing = 35;
+            component.gridSettings = { gridMode: mode, gridSpacing: 35 };
 
-            expect(grid().gridSpacing).toBe(35);
-            expect(grid().gridMode).toBe(modeBefore);
-            expect(component.getUpdateDrawablesList()).toEqual([grid()]);
+            expect(grid().gridMode).toBe(mode);
+            expect(component.getUpdateDrawablesList()).toHaveLength(0);
+            expect(forceClearAll()).toBe(false);
+            expect(warnSpy).not.toHaveBeenCalled();
         });
 
         it('does nothing but warn when the settings are missing', () => {
@@ -79,20 +83,12 @@ describe('GridCanvasLayerComponent', () => {
             expect(warnSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('skips an invalid spacing with a warning but still applies a valid mode', () => {
-            const spacingBefore = grid().gridSpacing;
+        it('queues nothing and warns when the mode is not usable', () => {
+            const modeBefore = grid().gridMode;
 
-            component.gridSettings = { gridMode: 'lines', gridSpacing: 0 };
+            component.gridMode = null;
 
-            expect(grid().gridMode).toBe('lines');
-            expect(grid().gridSpacing).toBe(spacingBefore);
-            expect(component.getUpdateDrawablesList()).toEqual([grid()]);
-            expect(warnSpy).toHaveBeenCalledTimes(1);
-        });
-
-        it('queues nothing when neither setting is usable', () => {
-            component.gridSpacing = null;
-
+            expect(grid().gridMode).toBe(modeBefore);
             expect(component.getUpdateDrawablesList()).toHaveLength(0);
             expect(warnSpy).toHaveBeenCalledTimes(1);
         });

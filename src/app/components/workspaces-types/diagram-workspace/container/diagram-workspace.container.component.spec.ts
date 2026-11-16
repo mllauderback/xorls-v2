@@ -167,9 +167,10 @@ describe('DiagramWorkspaceContainerComponent', () => {
     });
 
     describe('template', () => {
-        const getPresenter = (f: ComponentFixture<DiagramWorkspaceContainerComponent>) =>
-            f.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
+        function getPresenter(f: ComponentFixture<DiagramWorkspaceContainerComponent>) {
+            return f.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
                 .componentInstance as MockDiagramWorkspacePresenterComponent;
+        }
 
         it('should render the presenter component', () => {
             const presenter = fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent));
@@ -240,8 +241,10 @@ describe('DiagramWorkspaceContainerComponent', () => {
     describe('controller', () => {
         const paletteComponent: PaletteComponent = { type: ComponentType.AndGate, selected: true };
         const selection: SelectedSelectable = { workspaceId: 'test-diagram-id', id: 'gate-1', type: ComponentType.AndGate };
-        const presenterOf = () => fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
-            .componentInstance as MockDiagramWorkspacePresenterComponent;
+        function presenterOf() {
+            return fixture.debugElement.query(By.directive(MockDiagramWorkspacePresenterComponent))
+                .componentInstance as MockDiagramWorkspacePresenterComponent;
+        }
 
         it('should be provided by the container, so each workspace has its own', () => {
             expect(controller).toBeInstanceOf(MockDiagramController);

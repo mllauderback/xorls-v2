@@ -135,12 +135,14 @@ export class KeyboardService {
         );
         this.startListening();
 
-        const remove = () => {
-            this.bindings = this.bindings.filter(b => b !== binding);
-            if (this.bindings.length === 0) this.stopListening();
-        };
-        options.destroyRef?.onDestroy(remove);
-        return remove;
+        options.destroyRef?.onDestroy(() => this.removeBinding(binding));
+        return () => this.removeBinding(binding);
+    }
+
+    /** Removes a binding, and stops listening to the window when it was the last one. Removing it again does nothing. */
+    private removeBinding(binding: Binding) {
+        this.bindings = this.bindings.filter(b => b !== binding);
+        if (this.bindings.length === 0) this.stopListening();
     }
 
     private dispatch(event: KeyboardEvent) {

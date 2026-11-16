@@ -5,6 +5,7 @@ import * as io from './io';
 import * as decorations from './decorations';
 import { initialComponentsState } from '../../store/components/feature';
 import { ComponentType } from './Component';
+import { BoundingBox } from '../Selectable';
 
 describe('ComponentFactory', () => {
     describe('createPlaceable', () => {
@@ -78,12 +79,12 @@ describe('ComponentFactory', () => {
         it('should return a copy so callers cannot change the shared footprint', () => {
             const gate = createPlaceable(ComponentType.AndGate, { x: 0, y: 0 });
             gate.getBoundingBox().width = 1;
-            expect(gate.getBoundingBox().width).toBe(120);
+            expect(gate.getBoundingBox().width).toBe(6);
         });
 
         it('should cover the and gate body and pins that draw() draws', () => {
-            // draw(): body 0..80, input pins 20px left of it, output pin 20px right of it, 80px tall
-            expect(new gates.AndGate({ x: 0, y: 0 }, 2).getBoundingBox()).toEqual({ x: -20, y: 0, width: 120, height: 80 });
+            // draw(), in grid cells: input pins 0..1, body 1..5, output pin 5..6, 4 tall
+            expect(new gates.AndGate({ x: 0, y: 0 }, 2).getBoundingBox()).toEqual(new BoundingBox(6, 4));
         });
     });
 
@@ -94,7 +95,7 @@ describe('ComponentFactory', () => {
         });
 
         it('should reject null, undefined and selectables that cannot be previewed', () => {
-            const defaultBoundingBox = { x: 0, y: 0, width: 0, height: 0 };
+            const defaultBoundingBox = new BoundingBox(0, 0);
             expect(isPlaceable(null)).toBe(false);
             expect(isPlaceable(undefined)).toBe(false);
             expect(isPlaceable({ isSelected: () => false, getBoundingBox: () => defaultBoundingBox })).toBe(false);

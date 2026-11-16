@@ -32,7 +32,7 @@ test.describe('Active component canvas layer', () => {
 
     /** The region around a component centered on a point relative to the middle of the workspace. */
     // this will eventually change or be completely deprecated once placeables are completely implemented
-    const regionAt = async (offset: Point): Promise<Region> => {
+    async function regionAt(offset: Point): Promise<Region> {
         const center = await diagram.atCenter(offset);
         // give or take the snap to the grid
         return {
@@ -41,16 +41,16 @@ test.describe('Active component canvas layer', () => {
             width: AND_GATE.width + DEFAULT_GRID_SPACING * 2,
             height: AND_GATE.height + DEFAULT_GRID_SPACING * 2,
         };
-    };
+    }
 
     /** Picks a component and moves the mouse over the diagram, so its ghost is drawn. Returns the region around it. */
-    const showGhost = async (offset: Point = { x: 0, y: 0 }): Promise<Region> => {
+    async function showGhost(offset: Point = { x: 0, y: 0 }): Promise<Region> {
         await diagram.pickPaletteComponent();
         await diagram.moveFromCenterTo({ x: offset.x - 30, y: offset.y - 30 });
         await diagram.moveFromCenterTo(offset);
         await expect.poll(() => layer.drawn()).not.toBeNull();
         return regionAt(offset);
-    };
+    }
 
     test.describe('drawing', () => {
         test('draws nothing until a picked component is over the diagram', async () => {
@@ -208,12 +208,12 @@ test.describe('Active component canvas layer', () => {
                  * Checks the ghost moved by exactly the drag: starting a drag must not move the ghost itself, only
                  * the diagram under it.
                  */
-                const expectMovedWithDiagram = async () => {
+                async function expectMovedWithDiagram() {
                     const drawn = (await layer.drawn())!;
                     expect({ x: drawn.left - before.left, y: drawn.top - before.top }).toEqual(by);
                     expect(await layer.fingerprint(shifted(region, by.x, by.y))).toBe(fingerprint);
                     expect(drawn.count).toBe(before.count);
-                };
+                }
 
                 await diagram.pan({ x: 0, y: 0 }, by, { release: false });
                 await expectMovedWithDiagram();
@@ -226,10 +226,10 @@ test.describe('Active component canvas layer', () => {
         test('draws one ghost when the mouse moves on after a drag', async () => {
             await showGhost();
             const count = (await layer.drawn())!.count;
-            const size = async (): Promise<Size> => {
+            async function size(): Promise<Size> {
                 const drawn = (await layer.drawn())!;
                 return { width: drawn.right - drawn.left, height: drawn.bottom - drawn.top };
-            };
+            }
             const before = await size();
 
             await diagram.pan({ x: 0, y: 0 }, { x: -47, y: 33 });
