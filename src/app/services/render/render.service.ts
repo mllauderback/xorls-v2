@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import type { Drawable, DrawState } from '../../models/Drawable';
 import { isGhostable } from '../../models/Ghostable';
 import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
-import { pixelsToDiagram, ViewTransform } from './view-transform';
+import { canvasToDiagram, pixelsToDiagram, ViewTransform } from './view-transform';
+import type { Point } from '../../models/Point';
 import { GRID_SPACING } from '../../components/canvas-layers/grid-canvas-layer/Grid';
 import { DEFAULT_GRID_SPACING } from '../../store/settings/feature';
 
@@ -39,6 +40,11 @@ export class RenderService {
     private activeLayers: AbstractCanvasLayerComponent[] = [];
     private _activeViewTransform: ViewTransform | null = null;
     private _activeId = "";
+    /**
+     * The canvas point the last zoom was around, and the diagram point it kept there, so the next zoom at the same
+     * canvas point keeps that same diagram point: see zoomActiveDiagram.
+     */
+    private zoomAnchor: { view: ViewTransform, diagram: Point, canvas: Point, version: number } | null = null;
     /** The grid spacing setting / GRID_SPACING. The setting is the same for every diagram. */
     private gridScale = DEFAULT_GRID_SPACING / GRID_SPACING;
 
@@ -196,10 +202,29 @@ export class RenderService {
     }
 
     /**
-     * Updates the active diagram's zoom by offset which affects all layers
+     * Zooms the active diagram around the pointer.
+     *
+     * @param zoom The new zoom
+     * @param at The canvas point to zoom around, in canvas pixels
      */
-    public scaleActiveDiagram(offset: number) {
-        this._activeViewTransform!.setZoom(this._activeViewTransform!.zoom + offset);
+    public zoomActiveDiagram(zoom: number, at: Point) {
+        const view = this._activeViewTransform;
+        if (!view) return;
+        // A pointer held still gives exactly the same canvas point every time: it is worked out the same way from
+        // the same values, and zooming doesn't change any of them. So no tolerance is needed to recognize it.
+        const last = this.zoomAnchor;
+        const carriesOn = last !== null && last.view === view && last.version === view.version
+            && last.canvas.x === at.x && last.canvas.y === at.y;
+        const diagram = carriesOn ? last.diagram : canvasToDiagram(view, at);
+
+        view.setZoom(zoom);
+        // the whole-pixel origin that puts the diagram point closest to the canvas point
+        const origin = {
+            x: Math.round(at.x - diagram.x * view.scale),
+            y: Math.round(at.y - diagram.y * view.scale),
+        };
+        view.shiftOrigin(origin.x - view.origin.x, origin.y - view.origin.y);
+        this.zoomAnchor = { view, diagram, canvas: at, version: view.version };
     }
 
     /**

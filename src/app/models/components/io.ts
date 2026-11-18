@@ -1,4 +1,3 @@
-import type { DrawState } from "../Drawable";
 import type { Point } from "../Point";
 import { BoundingBox } from "../Selectable";
 import { ComponentType, type Component, type Node } from "./Component";
@@ -18,7 +17,7 @@ export class Input implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -45,7 +44,7 @@ export class Output implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
@@ -77,7 +76,7 @@ export class SevenSegmentDisplay implements Component {
         this.busWidth = busWidth;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {

@@ -10,7 +10,7 @@ import { DiagramWorkspaceContainerComponent } from './diagram-workspace.containe
 import { DiagramWorkspacePresenterComponent } from '../presenter/diagram-workspace.presenter.component';
 import { DiagramController } from '../controller/diagram.controller';
 import type { DiagramView } from '../controller/diagram-view';
-import { selectWorkspaceSettings } from '../../../../store/settings/feature';
+import { DEFAULT_ZOOM_SETTINGS, selectWorkspaceSettings } from '../../../../store/settings/feature';
 import { selectDiagramWorkspaceState } from '../../../../store/workspace/feature';
 import { selectSelectedPaletteComponent, selectSelectedSelectable } from '../../../../store/components/feature';
 import * as componentActions from '../../../../store/components/actions';
@@ -227,7 +227,8 @@ describe('DiagramWorkspaceContainerComponent', () => {
                 gridSettings: {
                     gridSpacing: 10,
                     gridMode: 'lines'
-                }
+                },
+                zoomSettings: { ...DEFAULT_ZOOM_SETTINGS }
             };
             store.overrideSelector(selectWorkspaceSettings, updatedSettings);
             store.refreshState();
@@ -287,7 +288,10 @@ describe('DiagramWorkspaceContainerComponent', () => {
         });
 
         it('should tell the controller when the workspace settings change, but not when they are null', () => {
-            const updated: WorkspaceSettingsState = { gridSettings: { gridSpacing: 10, gridMode: 'lines' } };
+            const updated: WorkspaceSettingsState = {
+                gridSettings: { gridSpacing: 10, gridMode: 'lines' },
+                zoomSettings: { ...DEFAULT_ZOOM_SETTINGS },
+            };
             store.overrideSelector(selectWorkspaceSettings, updated);
             store.refreshState();
             expect(controller.setWorkspaceSettings).toHaveBeenLastCalledWith(updated);

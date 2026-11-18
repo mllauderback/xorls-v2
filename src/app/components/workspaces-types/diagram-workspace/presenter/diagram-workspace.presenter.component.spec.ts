@@ -387,6 +387,50 @@ describe('DiagramWorkspacePresenterComponent', () => {
             });
         });
 
+        describe('clientToCanvas', () => {
+            it('should account for where the canvas is on screen and how far it is panned, in canvas pixels', () => {
+                active.clientRect = { left: 300, top: 50 };
+                active.viewportOffset = { x: -40, y: -20 };
+
+                // 200,100 on the screen's canvas is 240,120 in the panned layer
+                expect(component.clientToCanvas({ x: 300 + 200, y: 50 + 100 })).toEqual({ x: 240, y: 120 });
+            });
+
+            it('should not depend on the zoom or the diagram origin', () => {
+                active.clientRect = { left: 300, top: 50 };
+                active.viewportOffset = { x: -40, y: -20 };
+                const client = { x: 300 + 200, y: 50 + 100 };
+                const before = component.clientToCanvas(client);
+
+                renderService.activeViewTransform = { origin: { x: 10, y: 5 }, scale: 3.7, version: 4 };
+
+                expect(component.clientToCanvas(client)).toEqual(before);
+            });
+
+            it('should be exactly what clientToDiagram converts to the diagram', () => {
+                active.clientRect = { left: 300.25, top: 50.5 };
+                active.viewportOffset = { x: -40, y: -20 };
+                renderService.activeViewTransform = { origin: { x: 10, y: 5 }, scale: 2, version: 0 };
+                const client = { x: 517.3, y: 141.9 };
+
+                const canvas = component.clientToCanvas(client)!;
+
+                expect(component.clientToDiagram(client)).toEqual({ x: (canvas.x - 10) / 2, y: (canvas.y - 5) / 2 });
+            });
+
+            it('should be null without a canvas on the screen', () => {
+                active.clientRect = null;
+
+                expect(component.clientToCanvas({ x: 200, y: 100 })).toBeNull();
+            });
+
+            it('should not need a view transform', () => {
+                renderService.activeViewTransform = null;
+
+                expect(component.clientToCanvas({ x: 200, y: 100 })).toEqual({ x: 200, y: 100 });
+            });
+        });
+
         describe('previews', () => {
             it('should show a preview on the active component layer and redraw it', () => {
                 const ghost = gate();
@@ -477,6 +521,28 @@ describe('DiagramWorkspacePresenterComponent', () => {
                 component.setCursor('grabbing');
 
                 expect((fixture.nativeElement as HTMLElement).style.cursor).toBe('grabbing');
+            });
+        });
+
+        describe('focus', () => {
+            it('should be focusable, without being a stop for the Tab key', () => {
+                expect((fixture.nativeElement as HTMLElement).getAttribute('tabindex')).toBe('-1');
+            });
+
+            it('should give the host element the focus', () => {
+                document.body.append(fixture.nativeElement);
+
+                component.focus();
+
+                expect(document.activeElement).toBe(fixture.nativeElement);
+            });
+
+            it('should not scroll the host element into view', () => {
+                const focus = vi.spyOn(fixture.nativeElement as HTMLElement, 'focus');
+
+                component.focus();
+
+                expect(focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
             });
         });
 

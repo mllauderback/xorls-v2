@@ -18,6 +18,14 @@ export interface DiagramView {
      */
     clientToDiagram(client: Point): Point | null;
 
+    /**
+     * Converts a pointer position (client coordinates) to the point under it on the diagram's canvases, in canvas
+     * pixels.
+     *
+     * @returns The point, or null while the view can't tell yet
+     */
+    clientToCanvas(client: Point): Point | null;
+
     /** Whether the drawable is currently shown as a preview. */
     isPreviewing(drawable: Drawable): boolean;
 
@@ -32,4 +40,7 @@ export interface DiagramView {
 
     /** Sets the mouse cursor over the diagram. */
     setCursor(cursor: string): void;
+
+    /** Gives the diagram the keyboard focus. */
+    focus(): void;
 }

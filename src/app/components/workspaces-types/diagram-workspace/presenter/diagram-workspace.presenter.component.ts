@@ -26,7 +26,9 @@ import type { DiagramView } from '../controller/diagram-view';
     selector: 'app-diagram-workspace-presenter',
     imports: [GridCanvasLayerComponent, ComponentCanvasLayerComponent, IOCanvasLayerComponent, WireCanvasLayerComponent, ActiveComponentCanvasLayerComponent, ActiveWireCanvasLayerComponent],
     templateUrl: './diagram-workspace.presenter.component.html',
-    styles: `:host { display: block; width: 100%; height: 100%; }`
+    // tabindex -1: focus() can give it the keyboard focus, but Tab doesn't stop on it
+    host: { tabindex: '-1' },
+    styles: `:host { display: block; width: 100%; height: 100%; } :host:focus { outline: none; }`
 })
 export class DiagramWorkspacePresenterComponent implements DiagramView, AfterViewInit, OnDestroy {
     private renderService = inject(RenderService);
@@ -73,14 +75,21 @@ export class DiagramWorkspacePresenterComponent implements DiagramView, AfterVie
      * and the offscreen canvas is painted at the layer's viewport offset.
      */
     clientToDiagram(client: Point): Point | null {
+        const canvas = this.clientToCanvas(client);
+        const viewTransform = this.renderService.activeViewTransform;
+        if (!canvas || !viewTransform) return null;
+        return canvasToDiagram(viewTransform, canvas);
+    }
+
+    /** Where a pointer position is on the layers' offscreen canvases, which are painted at the viewport offset. */
+    clientToCanvas(client: Point): Point | null {
         const layer = this.activeComponentCanvasLayerComponent;
         const rect = layer?.getClientRect();
-        const viewTransform = this.renderService.activeViewTransform;
-        if (!rect || !viewTransform) return null;
-        return canvasToDiagram(viewTransform, {
+        if (!rect) return null;
+        return {
             x: client.x - rect.left - layer.viewportOffset.x,
             y: client.y - rect.top - layer.viewportOffset.y
-        });
+        };
     }
 
     isPreviewing(drawable: Drawable): boolean {
@@ -110,5 +119,9 @@ export class DiagramWorkspacePresenterComponent implements DiagramView, AfterVie
 
     setCursor(cursor: string): void {
         this.element.style.cursor = cursor;
+    }
+
+    focus(): void {
+        this.element.focus({ preventScroll: true });
     }
 }

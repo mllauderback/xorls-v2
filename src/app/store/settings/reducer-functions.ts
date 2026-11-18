@@ -30,3 +30,64 @@ export function setGridMode(state: SettingsState, gridMode: GridMode) {
         }
     };
 }
+
+export function setZoomScrollRate(state: SettingsState, scrollRate: number) {
+    return {
+        ...state,
+        workspaceSettings: {
+            ...state.workspaceSettings,
+            zoomSettings: {
+                ...state.workspaceSettings.zoomSettings,
+                scrollRate
+            }
+        }
+    }
+}
+export function setZoomPinchRate(state: SettingsState, pinchRate: number) {
+    return {
+        ...state,
+        workspaceSettings: {
+            ...state.workspaceSettings,
+            zoomSettings: {
+                ...state.workspaceSettings.zoomSettings,
+                pinchRate
+            }
+        }
+    }
+}
+export function setMinZoom(state: SettingsState, minZoom: number) {
+    return {
+        ...state,
+        workspaceSettings: {
+            ...state.workspaceSettings,
+            zoomSettings: {
+                ...state.workspaceSettings.zoomSettings,
+                minZoom
+            }
+        }
+    }
+}
+export function setMaxZoom(state: SettingsState, maxZoom: number) {
+    return {
+        ...state,
+        workspaceSettings: {
+            ...state.workspaceSettings,
+            zoomSettings: {
+                ...state.workspaceSettings.zoomSettings,
+                maxZoom
+            }
+        }
+    }
+}
+export function setZoomScrollInversion(state: SettingsState, invertScroll: boolean) {
+    return {
+        ...state,
+        workspaceSettings: {
+            ...state.workspaceSettings,
+            zoomSettings: {
+                ...state.workspaceSettings.zoomSettings,
+                invertScroll
+            }
+        }
+    }
+}

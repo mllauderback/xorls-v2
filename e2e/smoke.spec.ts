@@ -3,7 +3,7 @@ import { StartedAnimation, test, watchAnimations } from './support/test';
 import { CATEGORIES, ComponentPalette } from './support/component-palette';
 import { DiagramWorkspace } from './support/diagram-workspace';
 import { settle } from './support/draw-helpers';
-import { SettingsPanel } from './support/settings-panel';
+import { SettingsPanel, zoomSettingsFields } from './support/settings-panel';
 import { INITIAL_TABS, WorkspaceTabs } from './support/workspace-tabs';
 
 /**
@@ -61,7 +61,18 @@ test.describe('Smoke', () => {
 
         await settings.openGridSettings();
 
-        await expect(page.locator('#gridSpacing')).toBeVisible();
+        await expect(settings.gridSpacingSlider).toBeVisible();
+    });
+
+    test('opens the zoom settings', async ({ page }) => {
+        const settings = new SettingsPanel(page);
+        await page.goto('/');
+
+        await settings.openZoomSettings();
+
+        for (const setting of zoomSettingsFields) {
+            await expect(settings.zoomSlider(setting)).toBeVisible();
+        }
     });
 
     test('runs with the app\'s animations turned off', async ({ page }) => {

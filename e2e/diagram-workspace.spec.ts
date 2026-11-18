@@ -5,6 +5,9 @@ import { DEFAULT_GRID_SPACING, DiagramWorkspace, PAN_BUTTONS } from './support/d
 import { expect } from './support/draw-matchers';
 import { settle } from './support/draw-helpers';
 import { SettingsPanel } from './support/settings-panel';
+import { Sidebar } from './support/sidebar';
+import { addTextField } from './support/text-field';
+import { CATEGORIES, ComponentPalette } from './support/component-palette';
 import { test } from './support/test';
 
 /** The component layers stroke gates with lines this many pixels wide, at the default grid spacing. */
@@ -445,18 +448,77 @@ test.describe('Diagram workspace', () => {
         });
 
         test('is left alone while typing in a field', async ({ page }) => {
-            const settingsPanel = new SettingsPanel(page);
-
             await diagram.pickPaletteComponent();
             await diagram.moveFromCenterTo();
-            await settingsPanel.openGridSettings();
-            await page.locator('#gridSpacing').focus();
+            const field = await addTextField(page);
+            await field.focus();
 
             await page.keyboard.press('Escape');
             await settle(diagram.page);
 
             await expect(diagram.palette.checkbox('AndGate')).toBeChecked();
             expect(await diagram.layer('activeComponent').drawn()).not.toBeNull();
+        });
+
+        test.describe('after another sidebar tab was clicked', () => {
+            // a sidebar tab keeps every key it gets from reaching the window, so the diagram has to take the focus back
+            test.beforeEach(async ({ page }) => {
+                await diagram.pickPaletteComponent();
+                await diagram.moveFromCenterTo();
+                await new Sidebar(page).open('settings');
+                await expect(page.getByTestId('settingsTab')).toBeFocused();
+            });
+
+            test('cancels once the mouse is back over the diagram', async ({ page }) => {
+                await diagram.moveFromCenterTo({ x: 30, y: 20 });
+                await expect.poll(() => diagram.layer('activeComponent').drawn()).not.toBeNull();
+
+                await page.keyboard.press('Escape');
+                await settle(diagram.page);
+
+                expect(await diagram.layer('activeComponent').drawn()).toBeNull();
+                await new Sidebar(page).open('components');
+                await expect(diagram.palette.checkedCheckboxes).toHaveCount(0);
+            });
+
+            test('gives the diagram the focus when the mouse comes back over it', async ({ page }) => {
+                await diagram.moveFromCenterTo({ x: 30, y: 20 });
+
+                await expect(page.locator('app-diagram-workspace-presenter')).toBeFocused();
+            });
+
+            test('leaves the tab its focus while the mouse stays off the diagram', async ({ page }) => {
+                await page.mouse.move(5, 5);
+
+                await expect(page.getByTestId('settingsTab')).toBeFocused();
+            });
+        });
+
+        test('leaves the focus in a field being typed in when the mouse passes over the diagram', async ({ page }) => {
+            const field = await addTextField(page);
+            await field.focus();
+
+            await diagram.moveFromCenterTo();
+            await diagram.moveFromCenterTo({ x: 40, y: 40 });
+            await page.keyboard.type('25');
+
+            await expect(field).toBeFocused();
+            await expect(field).toHaveValue('25');
+        });
+
+        test('takes the focus from the cell size slider when the mouse comes back over the diagram', async ({ page }) => {
+            const settingsPanel = new SettingsPanel(page);
+            await diagram.pickPaletteComponent();
+            await settingsPanel.openGridSettings();
+            await settingsPanel.gridSpacingSlider.focus();
+
+            await diagram.moveFromCenterTo();
+            await page.keyboard.press('Escape');
+            await settle(page);
+
+            await expect(page.locator('app-diagram-workspace-presenter')).toBeFocused();
+            expect(await diagram.layer('activeComponent').drawn()).toBeNull();
+            expect(await settingsPanel.gridSpacing()).toBe(DEFAULT_GRID_SPACING);
         });
     });
 
@@ -488,8 +550,7 @@ test.describe('Diagram workspace', () => {
             expect(await middlePressCancelled(page.locator('body'))).toBe(true);
 
             // a middle press in a field is left alone, for middle-click paste
-            await new SettingsPanel(page).openGridSettings();
-            expect(await middlePressCancelled(page.locator('#gridSpacing'))).toBe(false);
+            expect(await middlePressCancelled(await addTextField(page))).toBe(false);
         });
 
         test('does not move the diagram with a left drag, which places and selects', async () => {
@@ -613,6 +674,208 @@ test.describe('Diagram workspace', () => {
             // the new one lines up with the old one, which moved by 7px with the grid
             expect(panned.left - first.left).toBe(7);
             expect(both.left).toBe(panned.left);
+        });
+    });
+
+    test.describe('zooming', () => {
+        /** How far apart the grid lines are on the screen: the size of a cell. The grid has to be in lines mode. */
+        async function cellSize(): Promise<number> {
+            const { region, columns } = await diagram.layer('grid').profile();
+            const xs = runs(columns, region.left, count => count > region.height / 2).map(run => run.end);
+            return xs.length > 1 ? xs[1] - xs[0] : 0;
+        }
+
+        /** Scrolls with the mouse wheel where the pointer is, as one 100px notch per step. Up is negative. */
+        async function scroll(notches: number) {
+            for (let i = 0; i < Math.abs(notches); i++) await diagram.page.mouse.wheel(0, Math.sign(notches) * 100);
+            await settle(diagram.page);
+        }
+
+        /** The cell size after zooming from the default by some 100px notches, with the default zoom settings. */
+        function cellsAfter(notches: number) {
+            return Math.round(DEFAULT_GRID_SPACING * Math.min(5, Math.max(0.25, Math.exp(-0.15 * notches))));
+        }
+
+        test.beforeEach(async ({ page }) => {
+            const settings = new SettingsPanel(page);
+            await settings.openGridSettings();
+            await settings.setGridMode('lines');
+            await expect.poll(cellSize).toBe(DEFAULT_GRID_SPACING);
+        });
+
+        test('zooms in scrolling up over the diagram, and back out scrolling down', async () => {
+            await diagram.moveFromCenterTo();
+
+            await scroll(-2);
+            await expect.poll(cellSize).toBe(cellsAfter(-2));
+            expect(cellsAfter(-2)).toBeGreaterThan(DEFAULT_GRID_SPACING);
+
+            await scroll(2);
+            await expect.poll(cellSize).toBe(DEFAULT_GRID_SPACING);
+        });
+
+        test('keeps the point under the pointer where it is', async () => {
+            await diagram.place();
+            const components = diagram.layer('component');
+            await expect.poll(async () => (await components.drawn())?.count ?? 0).toBeGreaterThan(0);
+            const before = (await components.drawn())!;
+            // a point inside the gate, off its middle, so the gate grows unevenly around it
+            const pointer = { x: before.left + 17, y: before.top + 23 };
+            await diagram.page.mouse.move(pointer.x, pointer.y);
+            await settle(diagram.page);
+
+            await scroll(-3);
+
+            await expect.poll(cellSize).toBe(cellsAfter(-3));
+            const after = (await components.drawn())!;
+            // the gate is 6 cells across, so its width says how much it grew
+            const growth = (after.right - after.left + 1) / (before.right - before.left + 1);
+            expect(growth).toBeCloseTo(cellsAfter(-3) / DEFAULT_GRID_SPACING, 1);
+            expect(Math.abs(after.left - (pointer.x - (pointer.x - before.left) * growth))).toBeLessThanOrEqual(1.5);
+            expect(Math.abs(after.top - (pointer.y - (pointer.y - before.top) * growth))).toBeLessThanOrEqual(1.5);
+        });
+
+        test('stops at the zoom limits', async () => {
+            await diagram.moveFromCenterTo();
+
+            await scroll(20);
+            await expect.poll(cellSize).toBe(cellsAfter(20)); // 0.25 x 20px
+            expect(cellsAfter(20)).toBe(5);
+
+            await scroll(-40);
+            await expect.poll(cellSize).toBe(cellsAfter(-40)); // 5 x 20px
+            expect(cellsAfter(-40)).toBe(100);
+        });
+
+        test('keeps the ghost under the pointer', async () => {
+            await diagram.pickPaletteComponent('AndGate');
+            const pointer = await diagram.moveFromCenterTo({ x: 23, y: -11 });
+
+            await scroll(-3);
+
+            await expect.poll(cellSize).toBe(cellsAfter(-3));
+            expect(await diagram.layer('activeComponent').drawnCenter()).toBeCenteredOn(pointer, cellsAfter(-3));
+        });
+
+        test.describe('settings', () => {
+            let settings: SettingsPanel;
+
+            test.beforeEach(async ({ page }) => {
+                settings = new SettingsPanel(page);
+                await settings.openZoomSettings();
+            });
+
+            test('shows the default zoom settings', async () => {
+                expect(await settings.zoomSetting('zoomScrollRate')).toBe(0.0015);
+                expect(await settings.zoomSetting('zoomPinchRate')).toBe(0.01);
+                expect(await settings.zoomSetting('zoomMin')).toBe(0.25);
+                expect(await settings.zoomSetting('zoomMax')).toBe(5);
+            });
+
+            test('does not invert scrolling to start with', async () => {
+                await expect(settings.page.locator('#zoomInvertScroll')).not.toBeChecked();
+            });
+
+            test('zooms out scrolling up, and in scrolling down, when scrolling is inverted', async () => {
+                await settings.setInvertScroll(true);
+                await diagram.moveFromCenterTo();
+
+                await scroll(-2);
+                await expect.poll(cellSize).toBe(cellsAfter(2));
+                expect(cellsAfter(2)).toBeLessThan(DEFAULT_GRID_SPACING);
+
+                await scroll(4);
+                await expect.poll(cellSize).toBe(cellsAfter(-2));
+            });
+
+            test('zooms the usual way again once scrolling is no longer inverted', async () => {
+                await settings.setInvertScroll(true);
+                await settings.setInvertScroll(false);
+                await diagram.moveFromCenterTo();
+
+                await scroll(-2);
+
+                await expect.poll(cellSize).toBe(cellsAfter(-2));
+            });
+
+            test('zooms at the scroll speed set in the settings', async () => {
+                await settings.setZoomSetting('zoomScrollRate', 0.003);
+                await diagram.moveFromCenterTo();
+
+                await scroll(-1);
+
+                // one 100px notch at 0.003 is e^0.3: 1.35x, twice the default's 0.15 in steps
+                await expect.poll(cellSize).toBe(Math.round(DEFAULT_GRID_SPACING * Math.exp(0.3)));
+            });
+
+            test('stops at the zoom limits set in the settings', async () => {
+                await settings.setZoomSetting('zoomMax', 1.5);
+                await settings.setZoomSetting('zoomMin', 0.5);
+                await diagram.moveFromCenterTo();
+
+                await scroll(-10);
+                await expect.poll(cellSize).toBe(1.5 * DEFAULT_GRID_SPACING);
+
+                await scroll(20);
+                await expect.poll(cellSize).toBe(0.5 * DEFAULT_GRID_SPACING);
+            });
+
+            test('sets the scroll speed by dragging its slider: all the way right is the fastest', async ({ page }) => {
+                const handle = settings.zoomSlider('zoomScrollRate');
+                const track = (await page.getByTestId('zoomScrollRate').boundingBox())!;
+                const start = (await handle.boundingBox())!;
+                await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+                await page.mouse.down();
+                await page.mouse.move(track.x + track.width + 50, start.y + start.height / 2, { steps: 5 });
+                await page.mouse.up();
+                expect(await settings.zoomSetting('zoomScrollRate')).toBe(0.005);
+                await diagram.moveFromCenterTo();
+
+                await scroll(-1);
+
+                // one 100px notch at 0.005 is e^0.5: 1.65x
+                await expect.poll(cellSize).toBe(Math.round(DEFAULT_GRID_SPACING * Math.exp(0.5)));
+            });
+
+            test('shows each setting beside its label', async ({ page }) => {
+                await settings.setZoomSetting('zoomMax', 2.5);
+
+                await expect(page.getByTestId('zoomScrollRateValue')).toHaveText('0.0015');
+                await expect(page.getByTestId('zoomPinchRateValue')).toHaveText('0.010');
+                await expect(page.getByTestId('zoomMinValue')).toHaveText('0.25x');
+                await expect(page.getByTestId('zoomMaxValue')).toHaveText('2.5x');
+            });
+
+            test('has sliders, not text fields', async ({ page }) => {
+                const zoomSettings = page.getByTestId('zoomSettings');
+
+                await expect(zoomSettings.getByRole('slider')).toHaveCount(4);
+                await expect(zoomSettings.locator('input:not([type="checkbox"])')).toHaveCount(0);
+            });
+        });
+
+        test('leaves scrolling the left panel alone: it scrolls, and the diagram does not zoom', async ({ page }) => {
+            const palette = new ComponentPalette(page);
+            await palette.sidebar.open('components');
+            for (const category of CATEGORIES) await palette.expand(category);
+            // the palette's top splitter panel is what scrolls
+            const scroller = palette.root.locator('.p-splitterpanel').first();
+            // make sure there is something to scroll
+            await page.setViewportSize({ width: 1280, height: 420 });
+            await expect.poll(() => scroller.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+            const prevented = await page.evaluateHandle(() => {
+                const seen: boolean[] = [];
+                window.addEventListener('wheel', event => seen.push(event.defaultPrevented));
+                return seen;
+            });
+
+            const box = (await scroller.boundingBox())!;
+            await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+            await scroll(2);
+
+            await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+            expect(await prevented.evaluate(seen => seen)).toEqual([false, false]);
+            expect(await cellSize()).toBe(DEFAULT_GRID_SPACING);
         });
     });
 
