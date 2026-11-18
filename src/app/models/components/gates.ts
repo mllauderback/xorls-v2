@@ -1,5 +1,3 @@
-
-import type { DrawState } from "../Drawable";
 import { arcFromEndPoints } from "../drawing-helpers";
 import type { Point } from "../Point";
 import { BoundingBox } from "../Selectable";
@@ -32,7 +30,7 @@ export class AndGate implements Component {
     }
 
     /** Draws in diagram coordinates: the layer's context transform puts it in the right place on the canvas. */
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         // body
         const { x, y } = this.position;
         ctx.moveTo(x + 3, y);
@@ -82,7 +80,7 @@ export class OrGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
         const backArgs = arcFromEndPoints(x + 1, y, x + 1, y + 4, 4);
         if (!backArgs) return;
@@ -136,7 +134,7 @@ export class XorGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
         const backArgs = arcFromEndPoints(x + 1, y, x + 1, y + 4, 4);
         const doubleArgs = arcFromEndPoints(x + 0.5, y, x + 0.5, y + 4, 4);
@@ -193,7 +191,7 @@ export class NotGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         // body
         const { x, y } = this.position;
         ctx.moveTo(x + 1, y);
@@ -237,7 +235,7 @@ export class Buffer implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         // body
         const { x, y } = this.position;
         ctx.moveTo(x + 1, y);
@@ -278,7 +276,7 @@ export class NandGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         // body
         const { x, y } = this.position;
         ctx.moveTo(x + 3, y);
@@ -330,7 +328,7 @@ export class NorGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
         const backArgs = arcFromEndPoints(x + 1, y, x + 1, y + 4, 4);
         if (!backArgs) return;
@@ -386,7 +384,7 @@ export class XnorGate implements Component {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
         const backArgs = arcFromEndPoints(x + 1, y, x + 1, y + 4, 4);
         const doubleArgs = arcFromEndPoints(x + 0.5, y, x + 0.5, y + 4, 4);

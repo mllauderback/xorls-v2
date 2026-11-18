@@ -337,6 +337,135 @@ describe('PointerService', () => {
         });
     });
 
+    describe('within: enter$', () => {
+        function enter(target: EventTarget, x = 0, y = 0) {
+            // pointerenter doesn't bubble: the browser sends it to the element the pointer comes over
+            target.dispatchEvent(new PointerEvent('pointerenter', { clientX: x, clientY: y, bubbles: false }));
+        }
+
+        it('should emit when the pointer comes over the element, relative to its top left corner', () => {
+            const events = record(pointer.enter$);
+
+            enter(element, 130, 70);
+
+            expect(events.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 30, y: 20 }]);
+        });
+
+        it('should emit once for each time the pointer comes over it', () => {
+            const events = record(pointer.enter$);
+
+            enter(element);
+            enter(element);
+
+            expect(events).toHaveLength(2);
+        });
+
+        it('should not emit for the pointer coming over anything else, or moving over the element', () => {
+            const child = document.createElement('span');
+            element.append(child);
+            const events = record(pointer.enter$);
+
+            enter(outside);
+            enter(child); // between the element's children: the element itself doesn't get one
+            element.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+            element.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+
+            expect(events).toHaveLength(0);
+        });
+
+        it('should listen on the element with a passive listener, and remove it after the last subscriber leaves', () => {
+            const add = vi.spyOn(element, 'addEventListener');
+            const remove = vi.spyOn(element, 'removeEventListener');
+
+            const a = pointer.enter$.subscribe();
+            const b = pointer.enter$.subscribe();
+            expect(add.mock.calls.filter(([type]) => type === 'pointerenter'))
+                .toEqual([['pointerenter', expect.any(Function), { passive: true }]]);
+            a.unsubscribe();
+            b.unsubscribe();
+
+            expect(remove.mock.calls.filter(([type]) => type === 'pointerenter')).toHaveLength(1);
+            add.mockRestore();
+            remove.mockRestore();
+        });
+    });
+
+    describe('within: wheel$', () => {
+        function wheel(target: EventTarget, x = 0, y = 0, deltaY = 100) {
+            const event = new WheelEvent('wheel', { clientX: x, clientY: y, deltaY, bubbles: true, cancelable: true });
+            target.dispatchEvent(event);
+            return event;
+        }
+
+        it('should emit scrolls over the element and its children, relative to its top left corner', () => {
+            const child = document.createElement('span');
+            element.append(child);
+            const events = record(pointer.wheel$);
+
+            const onElement = wheel(element, 130, 70);
+            wheel(child, 150, 90);
+
+            expect(events.map(({ x, y }) => ({ x, y }))).toEqual([{ x: 30, y: 20 }, { x: 50, y: 40 }]);
+            expect(events[0].event).toBe(onElement);
+        });
+
+        it('should not emit scrolls anywhere else', () => {
+            const events = record(pointer.wheel$);
+
+            wheel(outside);
+            wheel(document.body);
+            wheel(window);
+
+            expect(events).toHaveLength(0);
+        });
+
+        it('should let a subscriber stop a scroll over the element from scrolling the page', () => {
+            subscriptions.push(pointer.wheel$.subscribe(({ event }) => event.preventDefault()));
+
+            expect(wheel(element).defaultPrevented).toBe(true);
+            expect(wheel(outside).defaultPrevented).toBe(false);
+        });
+
+        it('should listen on the element, not the window, with a listener that is not passive', () => {
+            const add = vi.spyOn(element, 'addEventListener');
+            const addToWindow = vi.spyOn(window, 'addEventListener');
+
+            subscriptions.push(pointer.wheel$.subscribe());
+
+            expect(add).toHaveBeenCalledExactlyOnceWith('wheel', expect.any(Function), { passive: false });
+            expect(addToWindow.mock.calls.filter(([type]) => type === 'wheel')).toHaveLength(0);
+            add.mockRestore();
+            addToWindow.mockRestore();
+        });
+
+        it('should share one listener between subscribers, and remove it after the last one leaves', () => {
+            const add = vi.spyOn(element, 'addEventListener');
+            const remove = vi.spyOn(element, 'removeEventListener');
+            const a = pointer.wheel$.subscribe();
+            const b = pointer.wheel$.subscribe();
+
+            expect(add.mock.calls.filter(([type]) => type === 'wheel')).toHaveLength(1);
+            a.unsubscribe();
+            expect(remove.mock.calls.filter(([type]) => type === 'wheel')).toHaveLength(0);
+            b.unsubscribe();
+            expect(remove.mock.calls.filter(([type]) => type === 'wheel')).toHaveLength(1);
+            add.mockRestore();
+            remove.mockRestore();
+        });
+
+        it('should deliver scrolls outside the Angular zone, even to a subscriber inside it', () => {
+            const ngZone = TestBed.inject(NgZone);
+            const insideZone: boolean[] = [];
+
+            ngZone.run(() => {
+                subscriptions.push(pointer.wheel$.subscribe(() => insideZone.push(NgZone.isInAngularZone())));
+            });
+            wheel(element);
+
+            expect(insideZone).toEqual([false]);
+        });
+    });
+
     describe('preventMiddleClickAutoscroll', () => {
         function press(target: EventTarget, button: number) {
             const event = new MouseEvent('mousedown', { button, bubbles: true, cancelable: true });

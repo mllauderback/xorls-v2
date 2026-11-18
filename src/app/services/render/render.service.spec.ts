@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { RenderService } from './render.service';
+import { canvasToDiagram, diagramToCanvas } from './view-transform';
 import { DEFAULT_GRID_SPACING } from '../../store/settings/feature';
 import type { AbstractCanvasLayerComponent } from '../../components/canvas-layers/abstract-canvas-layer.component';
 import type { Drawable, DrawState } from '../../models/Drawable';
@@ -323,30 +324,110 @@ describe('RenderService', () => {
         });
     });
 
-    describe('scaleActiveDiagram', () => {
-        it('should not throw when called', () => {
-            const layer = buildMockLayer();
-            service.add('diagramA', [layer]);
+    describe('zoomActiveDiagram', () => {
+        beforeEach(() => {
+            service.add('diagramA', [buildMockLayer()]);
             service.activeId = 'diagramA';
-            expect(() => service.scaleActiveDiagram(0.1)).not.toThrow();
         });
 
-        it('should throw if activeId is not set', () => {
-            const layer = buildMockLayer();
-            service.add('diagramA', [layer]);
-            service.activeId = "";
-            expect(() => service.scaleActiveDiagram(0.1)).toThrow();
+        function canvasPointOf(diagramPoint: { x: number, y: number }) {
+            return diagramToCanvas(service.activeViewTransform!, diagramPoint);
+        }
+
+        function expectWithinHalfAPixel(actual: { x: number, y: number }, expected: { x: number, y: number }) {
+            expect(Math.abs(actual.x - expected.x)).toBeLessThanOrEqual(0.5);
+            expect(Math.abs(actual.y - expected.y)).toBeLessThanOrEqual(0.5);
+        }
+
+        it('should zoom, keeping the diagram point at the canvas point there within half a pixel', () => {
+            const at = { x: 267.4, y: -84 };
+            const under = canvasToDiagram(service.activeViewTransform!, at);
+
+            service.zoomActiveDiagram(2.3, at);
+
+            expect(service.activeViewTransform!.zoom).toBe(2.3);
+            expect(service.activeViewTransform!.scale).toBe(46);
+            expectWithinHalfAPixel(canvasPointOf(under), at);
         });
 
-        it('should affect the view transform passed to layers on the next resize+refresh', () => {
-            const layer = buildMockLayer();
-            service.add('diagramA', [layer]);
-            service.activeId = 'diagramA';
-            service.scaleActiveDiagram(0.5);
-            service.resizeActiveDiagram(800, 600);
+        it('should move the origin by whole pixels, so the grid stays on whole pixels', () => {
+            service.zoomActiveDiagram(1.37, { x: 146.2, y: 58 });
 
-            const drawState = (layer.refresh as ReturnType<typeof vi.fn>).mock.calls[0][0];
-            expect(drawState.scale).toBe(1.5 * DEFAULT_GRID_SPACING);
+            const { origin } = service.activeViewTransform!;
+            expect(Number.isInteger(origin.x)).toBe(true);
+            expect(Number.isInteger(origin.y)).toBe(true);
+        });
+
+        describe('over a long scroll with the pointer held still', () => {
+            // like the controller: a pointer held still is at exactly the same canvas point for every scroll
+            const pointer = { x: 437, y: 191 };
+            const first = { x: 437 / DEFAULT_GRID_SPACING, y: 191 / DEFAULT_GRID_SPACING }; // under it at the start
+
+            it('should keep the first point under the pointer within half a pixel, zooming in and back out', () => {
+                for (let i = 1; i <= 50; i++) {
+                    service.zoomActiveDiagram(1 + i * 0.03, pointer);
+                    expectWithinHalfAPixel(canvasPointOf(first), pointer);
+                }
+                for (let i = 49; i >= 0; i--) service.zoomActiveDiagram(1 + i * 0.03, pointer);
+
+                // back at the start: exactly where it was
+                expect(service.activeViewTransform!.scale).toBe(DEFAULT_GRID_SPACING);
+                expect(canvasPointOf(first)).toEqual(pointer);
+            });
+
+            it('should start again from what is under the pointer once the pointer moves', () => {
+                service.zoomActiveDiagram(1.5, pointer);
+                const moved = { x: 101, y: 57 };
+                const under = canvasToDiagram(service.activeViewTransform!, moved);
+
+                service.zoomActiveDiagram(2.2, moved);
+
+                expectWithinHalfAPixel(canvasPointOf(under), moved);
+            });
+
+            it('should start again once something else changes the view in between', () => {
+                service.zoomActiveDiagram(1.5, pointer);
+                service.setGridScale(30); // 45px cells now
+                const under = canvasToDiagram(service.activeViewTransform!, pointer);
+
+                service.zoomActiveDiagram(2, pointer);
+
+                expectWithinHalfAPixel(canvasPointOf(under), pointer);
+            });
+
+            it('should start again on another diagram, at the same canvas point', () => {
+                service.zoomActiveDiagram(1.5, pointer);
+                service.add('diagramB', [buildMockLayer()]);
+                service.activeId = 'diagramB';
+                service.activeViewTransform!.shiftOrigin(-300, -120);
+                const under = canvasToDiagram(service.activeViewTransform!, pointer);
+
+                service.zoomActiveDiagram(2, pointer);
+
+                expectWithinHalfAPixel(canvasPointOf(under), pointer);
+            });
+        });
+
+        it('should leave the origin and version alone for a zoom too small to change the drawn scale', () => {
+            const { version } = service.activeViewTransform!;
+
+            service.zoomActiveDiagram(1.01, { x: 600, y: 600 });
+
+            expect(service.activeViewTransform!.origin).toEqual({ x: 0, y: 0 });
+            expect(service.activeViewTransform!.version).toBe(version);
+        });
+
+        it('should keep the origin where it is when zooming around it', () => {
+            service.zoomActiveDiagram(3, { x: 0, y: 0 });
+
+            expect(service.activeViewTransform!.origin).toEqual({ x: 0, y: 0 });
+        });
+
+        it('should do nothing without an active diagram', () => {
+            vi.spyOn(console, 'warn').mockImplementation(vi.fn());
+            service.activeId = 'unregistered';
+
+            expect(() => service.zoomActiveDiagram(2, { x: 1, y: 1 })).not.toThrow();
         });
     });
 
@@ -376,7 +457,7 @@ describe('RenderService', () => {
         it('should keep the zoom', () => {
             service.add('diagramA', [buildMockLayer()]);
             service.activeId = 'diagramA';
-            service.scaleActiveDiagram(0.5);
+            service.zoomActiveDiagram(1.5, { x: 0, y: 0 });
 
             service.setGridScale(2);
 
@@ -389,7 +470,7 @@ describe('RenderService', () => {
             service.activeId = 'diagramA';
             service.setGridScale(2);
 
-            service.scaleActiveDiagram(0.5);
+            service.zoomActiveDiagram(1.5, { x: 0, y: 0 });
 
             expect(service.activeViewTransform!.zoom).toBe(1.5);
             expect(service.activeViewTransform!.scale).toBe(3);
@@ -564,7 +645,7 @@ describe('RenderService', () => {
             service.activeId = 'diagramA';
             const before = service.activeViewTransform!.version;
 
-            service.scaleActiveDiagram(0.5);
+            service.zoomActiveDiagram(1.5, { x: 0, y: 0 });
 
             expect(service.activeViewTransform!.zoom).toBe(1.5);
             expect(service.activeViewTransform!.scale).toBe(1.5 * DEFAULT_GRID_SPACING);

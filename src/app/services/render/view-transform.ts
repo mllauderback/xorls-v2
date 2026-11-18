@@ -13,11 +13,13 @@ export interface DiagramRect {
  * Where a diagram sits on its layers' offscreen canvases: canvas = diagram * scale + origin.
  *
  * The RenderService owns one per diagram and is the only thing that changes it. Panning never does (the layers move
- * their cached bitmaps instead); the origin moves when the layers grow left or up. The scale is the zoom times the
- * grid scale (the grid spacing setting / GRID_SPACING), kept apart so that zooming and changing the grid spacing don't
- * undo each other.
- * Every change bumps `version`. Layers compare it on each refresh and redraw everything when it differs from the
- * version they last drew, so nothing has to be told about changes.
+ * their cached bitmaps instead); the origin moves when the layers grow left or up, and when zooming keeps a point
+ * where it is on the screen. The scale is the zoom times the grid scale (the grid spacing setting / GRID_SPACING),
+ * kept apart so that zooming and changing the grid spacing don't undo each other, and rounded so that a grid cell is
+ * a whole number of pixels: with a whole-pixel origin too, grid lines land on whole pixels and stay sharp.
+ * Every change to what is drawn bumps `version`. Layers compare it on each refresh and redraw everything when it
+ * differs from the version they last drew, so nothing has to be told about changes. A zoom too small to change the
+ * rounded scale changes nothing drawn, so it doesn't bump it.
  */
 export class ViewTransform {
     private readonly _origin: Point;
@@ -35,9 +37,12 @@ export class ViewTransform {
         return this._origin;
     }
 
-    /** Diagram units to canvas pixels: the zoom times the grid scale. */
+    /**
+     * Diagram units to canvas pixels: the zoom times the grid scale, rounded to a whole number of pixels, and at least
+     * one. Diagram units are grid cells (GRID_SPACING is 1), so a cell is a whole number of pixels.
+     */
     get scale(): number {
-        return this._zoom * this._gridScale;
+        return Math.max(1, Math.round(this._zoom * this._gridScale));
     }
 
     get zoom(): number {
@@ -61,16 +66,18 @@ export class ViewTransform {
         this._version++;
     }
 
+    /** Sets the zoom. The version is bumped only if the rounded scale changes. */
     setZoom(zoom: number): void {
-        if (zoom === this._zoom) return;
+        const scale = this.scale;
         this._zoom = zoom;
-        this._version++;
+        if (this.scale !== scale) this._version++;
     }
 
+    /** Sets the grid scale. The version is bumped only if the rounded scale changes. */
     setGridScale(gridScale: number): void {
-        if (gridScale === this._gridScale) return;
+        const scale = this.scale;
         this._gridScale = gridScale;
-        this._version++;
+        if (this.scale !== scale) this._version++;
     }
 }
 
@@ -102,7 +109,6 @@ export function diagramToCanvas(state: DrawState, point: Point): Point {
     };
 }
 
-/** The part of the diagram that a canvas of the given size shows. */
 /**
  * A length in canvas pixels, in diagram units: what to give the context for something meant to look the same size
  * at any scale, like a line width, once the layer's transform is applied.
@@ -111,6 +117,7 @@ export function pixelsToDiagram(pixels: number, state: Pick<DrawState, 'scale'>)
     return pixels / state.scale;
 }
 
+/** The part of the diagram that a canvas of the given size shows. */
 export function visibleDiagramRect(state: DrawState, canvasWidth: number, canvasHeight: number): DiagramRect {
     const topLeft = canvasToDiagram(state, { x: 0, y: 0 });
     return {

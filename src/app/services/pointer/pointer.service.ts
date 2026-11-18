@@ -16,6 +16,15 @@ export interface ScopedPointerEvent {
     y: number;
 }
 
+/**
+ * A wheel event together with the pointer position relative to the top left corner of its scope
+ */
+export interface ScopedWheelEvent {
+    event: WheelEvent;
+    x: number;
+    y: number;
+}
+
 export interface ElementPointerOptions {
     clickTolerance?: number;
 }
@@ -28,6 +37,17 @@ export interface ElementPointer {
     move$: Observable<ScopedPointerEvent>;
     click$: Observable<ScopedPointerEvent>;
     drag$: Observable<ScopedPointerEvent>;
+    /**
+     * Wheel and trackpad scrolls over the element, pinches included (browsers report a pinch as a wheel event with
+     * ctrlKey). Subscribers may call preventDefault() to keep the scroll from scrolling the page. Scrolls anywhere
+     * else are never seen, so they scroll normally.
+     */
+    wheel$: Observable<ScopedWheelEvent>;
+    /**
+     * The pointer coming over the element from outside it: once each time, not again while it moves over the element
+     * or between its children.
+     */
+    enter$: Observable<ScopedPointerEvent>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -35,10 +55,10 @@ export class PointerService {
     private ngZone = inject(NgZone);
     private destroyRef = inject(DestroyRef);
 
-    readonly down$: Observable<PointerEvent> = this.windowEvent('pointerdown');
-    readonly up$: Observable<PointerEvent> = this.windowEvent('pointerup');
-    readonly move$: Observable<PointerEvent> = this.windowEvent('pointermove');
-    readonly cancel$: Observable<PointerEvent> = this.windowEvent('pointercancel');
+    readonly down$: Observable<PointerEvent> = this.listen(window, 'pointerdown');
+    readonly up$: Observable<PointerEvent> = this.listen(window, 'pointerup');
+    readonly move$: Observable<PointerEvent> = this.listen(window, 'pointermove');
+    readonly cancel$: Observable<PointerEvent> = this.listen(window, 'pointercancel');
 
     /**
      * Cancels a middle press, unless it is on an editable field: on Linux it pastes the primary selection there.
@@ -84,7 +104,7 @@ export class PointerService {
         }
 
         /** Returns a ScopedPointerEvent that converts the window x,y coords to local x,y coords for the element's bounding rectangle */
-        function scope(event: PointerEvent): ScopedPointerEvent {
+        function scope<T extends MouseEvent>(event: T): { event: T, x: number, y: number } {
             const rect = element.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
@@ -106,18 +126,30 @@ export class PointerService {
             drag$: pressesOnElement$.pipe(
                 switchMap(() => this.move$.pipe(takeUntil(merge(this.up$, this.cancel$)))),
                 map(scope)
-            )
+            ),
+            wheel$: this.listen(element, 'wheel', { passive: false }).pipe(map(scope)),
+            enter$: this.listen(element, 'pointerenter', { passive: true }).pipe(map(scope))
         };
     }
 
     /**
-     * A stream of one type of pointer event on the window, listened to outside the Angular zone. Its subscribers
-     * share one window listener, which is there only while there are subscribers.
+     * A stream of one type of event on the window or an element, listened to outside the Angular zone.
+     * Its subscribers share one listener.  The type of event is determined by its name: 'wheel' gives 
+     * WheelEvents, 'pointerdown' gives PointerEvents.
+     * 
+     * @param target window or element
+     * @param type event type ('pointerdown', etc)
+     * @param options 
+     * @returns Observable of an event
      */
-    private windowEvent(type: 'pointerdown' | 'pointerup' | 'pointermove' | 'pointercancel'): Observable<PointerEvent> {
-        return new Observable<PointerEvent>(subscriber => {
+    private listen<K extends keyof HTMLElementEventMap>(
+        target: Window | HTMLElement,
+        type: K,
+        options: AddEventListenerOptions = {}
+    ): Observable<HTMLElementEventMap[K]> {
+        return new Observable<HTMLElementEventMap[K]>(subscriber => {
             return this.ngZone.runOutsideAngular(() => {
-                return fromEvent<PointerEvent>(window, type).subscribe(subscriber);
+                return fromEvent<HTMLElementEventMap[K]>(target, type, options).subscribe(subscriber);
             });
         }).pipe(share());
     }

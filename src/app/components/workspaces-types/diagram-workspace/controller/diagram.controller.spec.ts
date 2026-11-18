@@ -17,6 +17,9 @@ import { AndGate, OrGate } from '../../../../models/components/gates';
 import { Input as InputComponent } from '../../../../models/components/io';
 import { ComponentType } from '../../../../models/components/Component';
 import { GRID_SPACING } from '../../../canvas-layers/grid-canvas-layer/Grid';
+import { PIXELS_PER_LINE, zoomAfterScroll } from './zoom';
+import { DEFAULT_GRID_SPACING, DEFAULT_ZOOM_SETTINGS } from '../../../../store/settings/feature';
+import type { ZoomSettingsState } from '../../../../store/settings/state';
 
 /** Provides the controller the way the container does, so it lives and dies with its host. */
 @Component({ selector: 'app-controller-host', template: '', providers: [DiagramController] })
@@ -24,8 +27,9 @@ class HostComponent { }
 
 class MockRenderService {
     activeId = 'workspace-1';
-    activeViewTransform: { origin: Point; scale: number } | null = { origin: { x: 0, y: 0 }, scale: 1 };
+    activeViewTransform: { origin: Point; scale: number; zoom: number } | null = { origin: { x: 0, y: 0 }, scale: 1, zoom: 1 };
     panActiveDiagram = vi.fn();
+    zoomActiveDiagram = vi.fn<(zoom: number, anchor: Point) => void>();
     setGridScale = vi.fn<(gridScale: number) => void>();
 }
 
@@ -42,11 +46,15 @@ class FakeView implements DiagramView {
     /** Diagram units are grid cells, CELL pixels across on the screen. */
     clientToDiagram = vi.fn((client: Point): Point | null =>
         this.offset ? { x: (client.x - this.offset.x) / FakeView.CELL, y: (client.y - this.offset.y) / FakeView.CELL } : null);
+    /** The canvas is in pixels, with the diagram's origin at its top left corner: the offset on the screen. */
+    clientToCanvas = vi.fn((client: Point): Point | null =>
+        this.offset ? { x: client.x - this.offset.x, y: client.y - this.offset.y } : null);
     isPreviewing = vi.fn((d: Drawable) => this.previewed.has(d));
     showPreview = vi.fn((d: Drawable) => { this.previewed.add(d); });
     hidePreview = vi.fn((d: Drawable) => { this.previewed.delete(d); });
     place = vi.fn<(placed: Placeable) => void>();
     setCursor = vi.fn<(cursor: string) => void>();
+    focus = vi.fn<() => void>();
 }
 
 describe('DiagramController', () => {
@@ -223,11 +231,11 @@ describe('DiagramController', () => {
             controller.setWorkspaceSettings({ gridSettings: { gridSpacing: 30, gridMode: 'lines' } } as WorkspaceSettingsState);
             select(ComponentType.AndGate);
 
-            renderService.activeViewTransform = { origin: { x: 0, y: 0 }, scale: 1 };
+            renderService.activeViewTransform = { origin: { x: 0, y: 0 }, scale: 1, zoom: 1 };
             moveTo(200, 100); // wanted position is (7, 3)
             const atStart = { ...ghost()!.position };
 
-            renderService.activeViewTransform = { origin: { x: 500, y: -30 }, scale: 1 };
+            renderService.activeViewTransform = { origin: { x: 500, y: -30 }, scale: 1, zoom: 1 };
             moveTo(201, 100);
             moveTo(200, 100);
 
@@ -990,6 +998,338 @@ describe('DiagramController', () => {
             fire(view.element, 'pointerup', 10, 10);
 
             expect(view.setCursor).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('keyboard focus', () => {
+        function enter() {
+            view.element.dispatchEvent(new PointerEvent('pointerenter', { clientX: 200, clientY: 100 }));
+        }
+
+        beforeEach(() => attach());
+
+        it('should give the view the focus when the pointer comes over the diagram', () => {
+            enter();
+
+            expect(view.focus).toHaveBeenCalledOnce();
+        });
+
+        it('should give it the focus every time the pointer comes back', () => {
+            enter();
+            enter();
+
+            expect(view.focus).toHaveBeenCalledTimes(2);
+        });
+
+        it('should take the focus from a button, so Escape reaches the diagram again', () => {
+            const button = document.createElement('button');
+            document.body.append(button);
+            button.focus();
+
+            enter();
+
+            expect(view.focus).toHaveBeenCalledOnce();
+            button.remove();
+        });
+
+        it.each([
+            ['a text input', () => Object.assign(document.createElement('input'), { type: 'text' })],
+            ['a number input', () => Object.assign(document.createElement('input'), { type: 'number' })],
+            ['a textarea', () => document.createElement('textarea')],
+        ])('should leave the focus in %s, which is being typed in', (_, create) => {
+            const field = create();
+            document.body.append(field);
+            field.focus();
+
+            enter();
+
+            expect(view.focus).not.toHaveBeenCalled();
+            expect(document.activeElement).toBe(field);
+            field.remove();
+        });
+
+        it('should take the focus from a checkbox, which is not typed in', () => {
+            const checkbox = Object.assign(document.createElement('input'), { type: 'checkbox' });
+            document.body.append(checkbox);
+            checkbox.focus();
+
+            enter();
+
+            expect(view.focus).toHaveBeenCalledOnce();
+            checkbox.remove();
+        });
+
+        it('should not take the focus for a workspace that is not shown', () => {
+            renderService.activeId = 'workspace-2';
+
+            enter();
+
+            expect(view.focus).not.toHaveBeenCalled();
+        });
+
+        it('should let Escape clear the selection once the pointer is back, after a tab that stops keys had the focus', () => {
+            // a tab like PrimeNG's: it keeps every key it gets from reaching the window
+            const tab = document.createElement('div');
+            tab.tabIndex = 0;
+            tab.addEventListener('keydown', event => event.stopPropagation());
+            document.body.append(tab);
+            view.focus.mockImplementation(() => {
+                view.element.tabIndex = -1;
+                view.element.focus();
+            });
+            document.body.append(view.element);
+            select(ComponentType.AndGate);
+            moveTo(200, 100);
+            let cleared = 0;
+            controller.selectionCleared$.subscribe(() => cleared++);
+            tab.focus();
+            tab.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            expect(cleared).toBe(0); // the tab kept it
+
+            enter();
+            document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+            expect(document.activeElement).toBe(view.element);
+            expect(cleared).toBe(1);
+            tab.remove();
+            view.element.remove();
+        });
+    });
+
+    describe('zooming', () => {
+        /** Where the pointer is in most of these tests. The diagram is at the screen's top left, so it is this on the canvas too. */
+        const POINTER: Point = { x: 200, y: 100 };
+        /** How far one mouse wheel notch scrolls in Chrome and Safari, in pixels. */
+        const NOTCH = 100;
+        /** How many lines one mouse wheel notch scrolls in Firefox. */
+        const NOTCH_LINES = 3;
+        /** How far a small trackpad pinch scrolls, in pixels: browsers report a pinch as a scroll with ctrl held. */
+        const PINCH = 2;
+        /** Far enough to scroll past any zoom limit. */
+        const FAR = 100_000;
+        /** Scrolling up is negative, and zooms in; spreading two fingers is a scroll up. Scrolling down is positive. */
+        const UP = -1;
+        const DOWN = 1;
+
+        function scroll(at: Point, deltaY: number, init: WheelEventInit = {}, target: EventTarget = view.element) {
+            const event = new WheelEvent('wheel', { clientX: at.x, clientY: at.y, deltaY, bubbles: true, cancelable: true, ...init });
+            target.dispatchEvent(event);
+            return event;
+        }
+
+        /** What the controller should zoom to for a scroll in pixels, from the zoom the render service has now. */
+        function zoomedBy(deltaY: number, settings: ZoomSettingsState, { pinch = false } = {}) {
+            const scrolled = { deltaY, deltaMode: WheelEvent.DOM_DELTA_PIXEL, ctrlKey: pinch };
+            return zoomAfterScroll(renderService.activeViewTransform!.zoom, scrolled, settings, view.element.clientHeight);
+        }
+
+        beforeEach(() => attach());
+
+        it('should zoom around the canvas point under the pointer', () => {
+            const expected = zoomedBy(UP * NOTCH, DEFAULT_ZOOM_SETTINGS);
+
+            scroll(POINTER, UP * NOTCH);
+
+            expect(expected).toBeGreaterThan(renderService.activeViewTransform!.zoom);
+            expect(renderService.zoomActiveDiagram).toHaveBeenCalledExactlyOnceWith(expected, POINTER);
+        });
+
+        it('should give the canvas point, not the screen point: it allows for where the diagram is on the screen', () => {
+            const diagramOnScreen = { x: 100, y: 20 };
+            view.offset = diagramOnScreen;
+
+            scroll({ x: POINTER.x + diagramOnScreen.x, y: POINTER.y + diagramOnScreen.y }, UP * NOTCH);
+
+            expect(renderService.zoomActiveDiagram.mock.calls[0][1]).toEqual(POINTER);
+        });
+
+        it('should give exactly the same canvas point for every scroll with the pointer held still', () => {
+            const offTheGrid = { x: 237, y: 151 };
+
+            scroll(offTheGrid, UP * NOTCH);
+            scroll(offTheGrid, UP * NOTCH);
+            scroll(offTheGrid, DOWN * NOTCH);
+
+            const [first, ...rest] = renderService.zoomActiveDiagram.mock.calls.map(([, at]) => at);
+            for (const at of rest) {
+                expect(at.x).toBe(first.x);
+                expect(at.y).toBe(first.y);
+            }
+        });
+
+        it('should zoom from the current zoom', () => {
+            const zoomedIn = 2;
+            renderService.activeViewTransform!.zoom = zoomedIn;
+            const expected = zoomedBy(DOWN * NOTCH, DEFAULT_ZOOM_SETTINGS);
+
+            scroll(POINTER, DOWN * NOTCH);
+
+            expect(expected).toBeLessThan(zoomedIn);
+            expect(renderService.zoomActiveDiagram).toHaveBeenCalledWith(expected, POINTER);
+        });
+
+        it('should zoom a pinch at the pinch rate', () => {
+            const expected = zoomedBy(UP * PINCH, DEFAULT_ZOOM_SETTINGS, { pinch: true });
+
+            scroll(POINTER, UP * PINCH, { ctrlKey: true });
+
+            expect(renderService.zoomActiveDiagram).toHaveBeenCalledWith(expected, POINTER);
+        });
+
+        it('should keep a scroll over the diagram from scrolling the page', () => {
+            expect(scroll(POINTER, DOWN * NOTCH).defaultPrevented).toBe(true);
+        });
+
+        it('should keep the page from scrolling even when the zoom is at its limit', () => {
+            renderService.activeViewTransform!.zoom = DEFAULT_ZOOM_SETTINGS.maxZoom;
+
+            const event = scroll(POINTER, UP * NOTCH);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(renderService.zoomActiveDiagram).toHaveBeenCalledWith(DEFAULT_ZOOM_SETTINGS.maxZoom, POINTER);
+        });
+
+        it('should leave scrolls anywhere else alone', () => {
+            const elsewhere = document.createElement('div');
+            document.body.append(elsewhere);
+
+            const event = scroll(POINTER, DOWN * NOTCH, {}, elsewhere);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(renderService.zoomActiveDiagram).not.toHaveBeenCalled();
+            elsewhere.remove();
+        });
+
+        it('should not zoom a workspace that is not shown', () => {
+            renderService.activeId = 'workspace-2';
+
+            scroll(POINTER, DOWN * NOTCH);
+
+            expect(renderService.zoomActiveDiagram).not.toHaveBeenCalled();
+        });
+
+        it('should not zoom while the view cannot tell where the pointer is on the diagram', () => {
+            view.offset = null;
+
+            scroll(POINTER, DOWN * NOTCH);
+
+            expect(renderService.zoomActiveDiagram).not.toHaveBeenCalled();
+        });
+
+        describe('with the zoom settings', () => {
+            function settings(zoomSettings: Partial<Record<keyof ZoomSettingsState, unknown>>, gridSpacing = DEFAULT_GRID_SPACING) {
+                return {
+                    gridSettings: { gridSpacing, gridMode: 'dots' },
+                    zoomSettings: { ...DEFAULT_ZOOM_SETTINGS, ...zoomSettings },
+                } as WorkspaceSettingsState;
+            }
+            /** Faster than the defaults, with narrower limits: still wide enough that one notch up isn't stopped by them. */
+            const custom: ZoomSettingsState = {
+                scrollRate: 0.004, pinchRate: 0.05, minZoom: 0.5, maxZoom: 2, invertScroll: false,
+            };
+            /** One notch up at the custom scroll speed, from no zoom: e^(NOTCH × scrollRate). */
+            const oneNotchUp = Math.exp(NOTCH * custom.scrollRate);
+
+            it('should have custom limits that don\'t stop one notch up', () => {
+                expect(oneNotchUp).toBeLessThan(custom.maxZoom);
+            });
+
+            it('should zoom at the speed the settings say', () => {
+                controller.setWorkspaceSettings(settings(custom));
+                const expected = zoomedBy(UP * NOTCH, custom);
+
+                scroll(POINTER, UP * NOTCH);
+
+                expect(expected).toBeCloseTo(oneNotchUp);
+                expect(renderService.zoomActiveDiagram).toHaveBeenCalledWith(expected, POINTER);
+            });
+
+            it('should zoom a pinch at the pinch speed and scroll by lines at the scroll speed', () => {
+                controller.setWorkspaceSettings(settings(custom));
+
+                scroll(POINTER, UP * PINCH, { ctrlKey: true });
+                scroll(POINTER, UP * NOTCH_LINES, { deltaMode: WheelEvent.DOM_DELTA_LINE });
+
+                const [[pinch], [lines]] = renderService.zoomActiveDiagram.mock.calls;
+                expect(pinch).toBeCloseTo(Math.exp(PINCH * custom.pinchRate));
+                expect(lines).toBeCloseTo(Math.exp(NOTCH_LINES * PIXELS_PER_LINE * custom.scrollRate));
+            });
+
+            it('should zoom out scrolling up when the settings invert scrolling, and keep pinches as they are', () => {
+                controller.setWorkspaceSettings(settings({ ...custom, invertScroll: true }));
+
+                scroll(POINTER, UP * NOTCH);
+                scroll(POINTER, UP * PINCH, { ctrlKey: true });
+
+                const [[scrolled], [pinched]] = renderService.zoomActiveDiagram.mock.calls;
+                expect(scrolled).toBeCloseTo(1 / oneNotchUp);
+                expect(pinched).toBeCloseTo(Math.exp(PINCH * custom.pinchRate));
+            });
+
+            it('should stop at the limits the settings say', () => {
+                controller.setWorkspaceSettings(settings(custom));
+
+                scroll(POINTER, UP * FAR);
+                scroll(POINTER, DOWN * FAR);
+
+                expect(renderService.zoomActiveDiagram.mock.calls.map(([zoom]) => zoom)).toEqual([custom.maxZoom, custom.minZoom]);
+            });
+
+            it('should use settings it was told before the view existed', () => {
+                fixture.destroy();
+                fixture = TestBed.createComponent(HostComponent);
+                controller = fixture.debugElement.injector.get(DiagramController);
+                controller.setWorkspaceSettings(settings(custom));
+                controller.attach(view, 'workspace-1');
+
+                scroll(POINTER, UP * NOTCH);
+
+                expect(renderService.zoomActiveDiagram).toHaveBeenCalledWith(zoomedBy(UP * NOTCH, custom), POINTER);
+            });
+
+            it('should keep the last usable setting for one that is empty or invalid, as a field being edited can be', () => {
+                const unusable = { scrollRate: null, maxZoom: -1 };
+                controller.setWorkspaceSettings(settings(custom));
+                controller.setWorkspaceSettings(settings({ ...custom, ...unusable }));
+
+                scroll(POINTER, UP * NOTCH);
+
+                expect(renderService.zoomActiveDiagram).toHaveBeenCalledWith(zoomedBy(UP * NOTCH, custom), POINTER);
+            });
+
+            it('should take the zoom settings even when the grid spacing is invalid', () => {
+                const invalidSpacing = 0;
+                controller.setWorkspaceSettings(settings(custom, invalidSpacing));
+
+                scroll(POINTER, UP * NOTCH);
+
+                expect(renderService.setGridScale).not.toHaveBeenCalled();
+                expect(renderService.zoomActiveDiagram.mock.calls[0][0]).toBeCloseTo(oneNotchUp);
+            });
+
+            it('should keep zooming with the settings it has when it is told about none', () => {
+                controller.setWorkspaceSettings(settings(custom));
+                controller.setWorkspaceSettings(null);
+
+                scroll(POINTER, UP * NOTCH);
+
+                expect(renderService.zoomActiveDiagram.mock.calls[0][0]).toBeCloseTo(oneNotchUp);
+            });
+        });
+
+        it('should keep the ghost under the pointer, snapped to the grid at the new zoom', () => {
+            // under the pointer is (10, 5) in cells; the AND gate is 6 x 4 cells, so it is placed half that up and left
+            const snapped = { x: 7, y: 3 };
+            // zooming moves the diagram this many cells left under the pointer
+            const moved = 2;
+            select(ComponentType.AndGate);
+            moveTo(POINTER.x, POINTER.y);
+            expect(ghost()!.position).toEqual(snapped);
+            renderService.zoomActiveDiagram.mockImplementation(() => { view.offset = { x: -moved * FakeView.CELL, y: 0 }; });
+
+            scroll(POINTER, UP * NOTCH);
+
+            expect(ghost()!.position).toEqual({ x: snapped.x + moved, y: snapped.y });
         });
     });
 

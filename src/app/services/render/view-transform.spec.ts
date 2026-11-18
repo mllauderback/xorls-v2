@@ -71,10 +71,10 @@ describe('ViewTransform', () => {
         it('changes the grid scale and the scale, and bumps the version', () => {
             const view = new ViewTransform();
 
-            view.setGridScale(2.5);
+            view.setGridScale(20);
 
-            expect(view.gridScale).toBe(2.5);
-            expect(view.scale).toBe(2.5);
+            expect(view.gridScale).toBe(20);
+            expect(view.scale).toBe(20);
             expect(view.version).toBe(1);
         });
 
@@ -88,16 +88,57 @@ describe('ViewTransform', () => {
     });
 
     it('scales by the zoom times the grid scale, so changing one keeps the other', () => {
-        const view = new ViewTransform(undefined, 2, 1.5);
-        expect(view.scale).toBe(3);
+        const view = new ViewTransform(undefined, 2, 15);
+        expect(view.scale).toBe(30);
 
-        view.setGridScale(1);
+        view.setGridScale(20);
         expect(view.zoom).toBe(2);
-        expect(view.scale).toBe(2);
+        expect(view.scale).toBe(40);
 
         view.setZoom(1);
-        view.setGridScale(1.5);
-        expect(view.scale).toBe(1.5);
+        view.setGridScale(15);
+        expect(view.scale).toBe(15);
+    });
+
+    describe('scale', () => {
+        it('rounds to a whole number of pixels per cell, so grid lines land on whole pixels', () => {
+            expect(new ViewTransform(undefined, 1.1, 20).scale).toBe(22);
+            expect(new ViewTransform(undefined, 1.33, 20).scale).toBe(27); // 26.6
+            expect(new ViewTransform(undefined, 0.51, 25).scale).toBe(13); // 12.75
+            expect(new ViewTransform(undefined, 1, 12.4).scale).toBe(12);
+        });
+
+        it('is at least one pixel per cell', () => {
+            expect(new ViewTransform(undefined, 0.01, 20).scale).toBe(1);
+        });
+    });
+
+    describe('version, for zooms smaller than a pixel per cell', () => {
+        it('is not bumped by a zoom that leaves the rounded scale as it is', () => {
+            const view = new ViewTransform(undefined, 1, 20);
+
+            view.setZoom(1.01); // 20.2px cells, drawn as 20
+
+            expect(view.zoom).toBe(1.01);
+            expect(view.scale).toBe(20);
+            expect(view.version).toBe(0);
+        });
+
+        it('is bumped once small zooms add up to a pixel', () => {
+            const view = new ViewTransform(undefined, 1, 20);
+
+            for (const zoom of [1.01, 1.02, 1.03]) view.setZoom(zoom);
+            expect(view.version).toBe(1); // 20.6px, drawn as 21
+            expect(view.scale).toBe(21);
+        });
+
+        it('is not bumped by a grid scale that leaves the rounded scale as it is', () => {
+            const view = new ViewTransform(undefined, 1, 20);
+
+            view.setGridScale(20.3);
+
+            expect(view.version).toBe(0);
+        });
     });
 });
 

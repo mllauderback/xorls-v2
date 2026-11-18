@@ -6,7 +6,7 @@ import { By } from '@angular/platform-browser';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import type { MemoizedSelector } from '@ngrx/store';
 import { SettingsContainerComponent } from './settings.container.component';
-import { selectSettingsFeatureState } from '../../../store/settings/feature';
+import { DEFAULT_ZOOM_SETTINGS, selectSettingsFeatureState } from '../../../store/settings/feature';
 import * as actions from '../../../store/settings/actions';
 import type { SettingsState } from '../../../store/settings/state';
 import type { GridMode } from '../../canvas-layers/grid-canvas-layer/Grid';
@@ -17,6 +17,11 @@ class MockSettingsPresenterComponent {
     @Input({ required: true }) settings?: SettingsState | null;
     @Output() gridMode = new EventEmitter<GridMode>();
     @Output() gridSpacing = new EventEmitter<number>();
+    @Output() zoomScrollRate = new EventEmitter<number>();
+    @Output() zoomPinchRate = new EventEmitter<number>();
+    @Output() minZoom = new EventEmitter<number>();
+    @Output() maxZoom = new EventEmitter<number>();
+    @Output() invertScroll = new EventEmitter<boolean>();
 }
 
 const mockSettingsState: SettingsState = {
@@ -26,7 +31,8 @@ const mockSettingsState: SettingsState = {
         gridSettings: {
             gridSpacing: 20,
             gridMode: 'dots'
-        }
+        },
+        zoomSettings: { ...DEFAULT_ZOOM_SETTINGS }
     }
 };
 
@@ -94,7 +100,8 @@ describe('SettingsContainerComponent', () => {
                     gridSettings: {
                         gridSpacing: 20,
                         gridMode: 'lines'
-                    }
+                    },
+                    zoomSettings: { ...DEFAULT_ZOOM_SETTINGS, scrollRate: 0.003 }
                 }
             };
             mockSelectSettingsFeatureState.setResult(updatedSettings);
@@ -163,6 +170,50 @@ describe('SettingsContainerComponent', () => {
             presenter.gridSpacing.emit(20);
 
             expect(store.dispatch).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe('update zoom settings', () => {
+        let presenter: MockSettingsPresenterComponent;
+        beforeEach(async () => {
+            await fixture.whenStable();
+            presenter = fixture.debugElement.query(
+                By.directive(MockSettingsPresenterComponent)
+            ).componentInstance as MockSettingsPresenterComponent;
+        });
+        it('should dispatch updateZoomScrollRate with a new scroll rate', () => {
+            const scrollRate = 0.004;
+            presenter.zoomScrollRate.emit(scrollRate);
+
+            expect(store.dispatch).toHaveBeenCalledExactlyOnceWith(actions.updateZoomScrollRate({ scrollRate }));
+        });
+
+        it('should dispatch updateZoomPinchRate with a new pinch rate', () => {
+            const pinchRate = 0.03;
+            presenter.zoomPinchRate.emit(pinchRate);
+
+            expect(store.dispatch).toHaveBeenCalledExactlyOnceWith(actions.updateZoomPinchRate({ pinchRate }));
+        });
+
+        it('should dispatch updateMinZoom with new min zoom factor', () => {
+            const minZoom = 0.125;
+            presenter.minZoom.emit(minZoom);
+
+            expect(store.dispatch).toHaveBeenCalledExactlyOnceWith(actions.updateMinZoom({ minZoom }));
+        });
+
+        it('should dispatch updateMaxZoom with new max zoom factor', () => {
+            const maxZoom = 7;
+            presenter.maxZoom.emit(maxZoom);
+
+            expect(store.dispatch).toHaveBeenCalledExactlyOnceWith(actions.updateMaxZoom({ maxZoom }));
+        });
+
+        it('should dispatch setZoomScrollInversion', () => {
+            const invertScroll = true;
+            presenter.invertScroll.emit(invertScroll);
+
+            expect(store.dispatch).toHaveBeenCalledExactlyOnceWith(actions.setZoomScrollInversion({ invertScroll }));
         });
     });
 });

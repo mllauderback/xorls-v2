@@ -1,17 +1,20 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
-import type { WorkspaceSettingsState } from '../../../../store/settings/state';
+import type { WorkspaceSettingsState, ZoomSettingsState } from '../../../../store/settings/state';
+import { DEFAULT_ZOOM_SETTINGS } from '../../../../store/settings/feature';
 import type { SelectedSelectable } from '../../../../store/components/state';
 import { RenderService } from '../../../../services/render/render.service';
 import { MouseButton, PointerService } from '../../../../services/pointer/pointer.service';
 import { KeyboardService } from '../../../../services/keyboard/keyboard.service';
+import { isEditableTarget } from '../../../../services/service-helpers';
 import type { Placeable } from '../../../../models/components/ComponentFactory';
 import { createPlaceable } from '../../../../models/components/ComponentFactory';
 import type { PaletteComponent } from '../../../../models/components/PaletteComponent';
 import type { Point } from '../../../../models/Point';
 import type { DiagramView } from './diagram-view';
 import { GRID_SPACING } from '../../../canvas-layers/grid-canvas-layer/Grid';
+import { usableZoomSettings, zoomAfterScroll } from './zoom';
 
 /**
  * The buttons that pan the diagram when dragged. The left button is kept for placing and selecting components, so a
@@ -42,6 +45,8 @@ export class DiagramController {
     private pointerService = inject(PointerService);
     private keyboardService = inject(KeyboardService);
     private destroyRef = inject(DestroyRef);
+    /** How scrolling zooms, from the workspace settings: the usable ones, see usableZoomSettings. */
+    private zoomSettings: ZoomSettingsState = { ...DEFAULT_ZOOM_SETTINGS };
 
     /** Emits when the user pressed Esc to deselect a component or cancel a placement, while this workspace is the one shown. */
     readonly selectionCleared$ = new Subject<void>();
@@ -81,6 +86,8 @@ export class DiagramController {
         pointer.move$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseMove(event));
         pointer.click$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseClick(event));
         pointer.drag$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onMouseDrag(event));
+        pointer.wheel$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ event }) => this.onWheel(event));
+        pointer.enter$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.onPointerEnter());
         // releasing ends the grab wherever the pointer is, even if the drag left the workspace. So does the browser
         // taking the pointer away.
         this.pointerService.up$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.onMouseUp());
@@ -114,11 +121,16 @@ export class DiagramController {
     }
 
     /**
-     * Tells the controller about the settings of the workspace. The grid spacing scales the diagram: components still
-     * snap to GRID_SPACING in diagram units, and the render service draws GRID_SPACING as the setting's size.
-     * A missing or invalid spacing leaves the scale as it is.
+     * Tells the controller about the settings of the workspace.
+     *
+     * The grid spacing scales the diagram: components still snap to GRID_SPACING in diagram units, and the render
+     * service draws GRID_SPACING as the setting's size. A missing or invalid spacing leaves the scale as it is.
+     *
+     * The zoom settings say how scrolling zooms. A missing or invalid one leaves that one as it is.
      */
     setWorkspaceSettings(settings: WorkspaceSettingsState | null): void {
+        this.zoomSettings = usableZoomSettings(settings?.zoomSettings, this.zoomSettings);
+
         const spacing = settings?.gridSettings?.gridSpacing;
         if (!spacing || !Number.isFinite(spacing) || spacing <= 0) return;
         this.renderService.setGridScale(spacing / GRID_SPACING);
@@ -217,6 +229,35 @@ export class DiagramController {
         // eventually link mouse mode to a cursor style using the store
         this.panning = true;
         this.view!.setCursor('grabbing');
+    }
+
+    /** Takes the keyboard focus from non-editable targets when the pointer comes over the diagram. */
+    private onPointerEnter() {
+        if (!this.isActive()) return;
+        if (isEditableTarget(document.activeElement)) return;
+        this.view?.focus();
+    }
+
+    /**
+     * Scrolling over the diagram zooms it around the pointer: the point under the pointer stays under it. It never
+     * scrolls the page, even at the zoom limits. Scrolling anywhere else isn't seen here, so it scrolls as usual.
+     *
+     * The ghost stays where it is on the screen too, snapped to the grid at the new zoom.
+     */
+    private onWheel(event: WheelEvent) {
+        event.preventDefault();
+        if (!this.isActive()) return;
+        const view = this.view!;
+        const transform = this.renderService.activeViewTransform;
+        const pointer = { x: event.clientX, y: event.clientY };
+        const at = view.clientToCanvas(pointer);
+        if (!transform || !at) return;
+
+        const zoom = zoomAfterScroll(transform.zoom, event, this.zoomSettings, view.element.clientHeight);
+        this.renderService.zoomActiveDiagram(zoom, at);
+
+        this.lastPointer = pointer;
+        if (this.ghost) this.moveGhostTo(pointer);
     }
 
     /** Lets the ghost follow the mouse again, and ends a pan. */

@@ -18,17 +18,65 @@
     </p-fieldset> -->
     <p-fieldset data-testid="gridSettings" legend="Grid Settings" [toggleable]="true" [collapsed]="true">
         <div class="pt-2 pb-2 flex-auto">
-            <label for="gridSpacing" class="ml-2" pTooltip="Width and height of a grid cell in pixels"
-                showDelay="1000">Cell size</label>
-            <p-inputNumber inputId="gridSpacing" suffix="px"
+            <span id="gridSpacingLabel" class="ml-2" pTooltip="Width and height of a grid cell in pixels"
+                showDelay="1000">Cell size: <span data-testid="gridSpacingValue">{{
+                    this.settings.workspaceSettings.gridSettings.gridSpacing }}px</span></span>
+            <p-slider data-testid="gridSpacing" ariaLabelledBy="gridSpacingLabel" class="m-3"
+                [min]="gridSpacingSlider.min" [max]="gridSpacingSlider.max" [step]="gridSpacingSlider.step"
                 [ngModel]="this.settings.workspaceSettings.gridSettings.gridSpacing"
-                (ngModelChange)="gridSpacing.emit($event)"></p-inputNumber>
+                (ngModelChange)="gridSpacing.emit($event)"></p-slider>
         </div>
         <div class="pt-2 pb-2 flex-auto">
             <label for="gridMode" class="ml-2" pTooltip="Choose how to display the grid" showDelay="1000">Display
                 mode</label>
-            <p-selectbutton id="gridMode" [options]="this.gridModes" [ngModel]="this.settings.workspaceSettings.gridSettings.gridMode"
+            <p-selectbutton id="gridMode" [options]="this.gridModes"
+                [ngModel]="this.settings.workspaceSettings.gridSettings.gridMode"
                 (ngModelChange)="gridMode.emit($event)"></p-selectbutton>
+        </div>
+    </p-fieldset>
+    <p-fieldset data-testid="zoomSettings" legend="Zoom Settings" [toggleable]="true" [collapsed]="true">
+        @let zoom = this.settings.workspaceSettings.zoomSettings;
+        <div class="pt-2 pb-2 flex-auto">
+            <span id="zoomScrollRateLabel" class="ml-2"
+                pTooltip="How fast a mouse wheel or a two-finger trackpad scroll zooms." showDelay="1000">Scroll zoom
+                speed: <span data-testid="zoomScrollRateValue">{{ zoom.scrollRate | number:
+                    '1.4-4' }}</span></span>
+            <p-slider data-testid="zoomScrollRate" ariaLabelledBy="zoomScrollRateLabel" class="m-3"
+                [min]="zoomSliders.scrollRate.min" [max]="zoomSliders.scrollRate.max"
+                [step]="zoomSliders.scrollRate.step" [ngModel]="zoom.scrollRate"
+                (ngModelChange)="zoomScrollRate.emit($event)"></p-slider>
+        </div>
+        <div class="pt-2 pb-2 flex-auto">
+            <span id="zoomPinchRateLabel" class="ml-2"
+                pTooltip="How fast a trackpad pinch, or a scroll with Ctrl held, zooms." showDelay="1000">Pinch zoom
+                speed: <span data-testid="zoomPinchRateValue">{{ zoom.pinchRate | number:
+                    '1.3-3' }}</span></span>
+            <p-slider data-testid="zoomPinchRate" ariaLabelledBy="zoomPinchRateLabel" class="m-3"
+                [min]="zoomSliders.pinchRate.min" [max]="zoomSliders.pinchRate.max" [step]="zoomSliders.pinchRate.step"
+                [ngModel]="zoom.pinchRate" (ngModelChange)="zoomPinchRate.emit($event)"></p-slider>
+        </div>
+        <div class="pt-2 pb-2 flex-auto">
+            <span id="zoomMinLabel" class="ml-2" pTooltip="The smallest zoom factor." showDelay="1000">Smallest zoom:
+                <span data-testid="zoomMinValue">{{ zoom.minZoom | number: '1.2-2'
+                    }}x</span></span>
+            <p-slider data-testid="zoomMin" ariaLabelledBy="zoomMinLabel" class="m-3" [min]="zoomSliders.minZoom.min"
+                [max]="zoomSliders.minZoom.max" [step]="zoomSliders.minZoom.step" [ngModel]="zoom.minZoom"
+                (ngModelChange)="minZoom.emit($event)"></p-slider>
+        </div>
+        <div class="pt-2 pb-2 flex-auto">
+            <span id="zoomMaxLabel" class="ml-2" pTooltip="The largest zoom factor." showDelay="1000">Largest zoom:
+                <span data-testid="zoomMaxValue">{{ zoom.maxZoom | number: '1.1-1'
+                    }}x</span></span>
+            <p-slider data-testid="zoomMax" ariaLabelledBy="zoomMaxLabel" class="m-3" [min]="zoomSliders.maxZoom.min"
+                [max]="zoomSliders.maxZoom.max" [step]="zoomSliders.maxZoom.step" [ngModel]="zoom.maxZoom"
+                (ngModelChange)="maxZoom.emit($event)"></p-slider>
+        </div>
+        <div class="pt-2 pb-2 flex-auto">
+            <p-checkbox inputId="zoomInvertScroll" [binary]="true"
+                [ngModel]="this.settings.workspaceSettings.zoomSettings.invertScroll"
+                (ngModelChange)="invertScroll.emit($event)"></p-checkbox>
+            <label for="zoomInvertScroll" class="ml-2" pTooltip="Scrolling up zooms out and scrolling down zooms in."
+                showDelay="1000">Invert scroll zoom</label>
         </div>
     </p-fieldset>
 </div>

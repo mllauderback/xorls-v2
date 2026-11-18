@@ -1,6 +1,5 @@
 import type { Point } from "../Point";
 import type { Decoration } from "./Decoration";
-import type { DrawState } from "../Drawable";
 import { ComponentType } from "./Component";
 import { BoundingBox } from "../Selectable";
 
@@ -19,7 +18,7 @@ export class Text implements Decoration {
         this.isGhost = false;
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D, drawState: DrawState) {
+    draw(ctx: OffscreenCanvasRenderingContext2D) {
     }
 
     isSelected(mousePosition: Point): boolean {
