@@ -3,7 +3,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import type { WorkspaceSettingsState, ZoomSettingsState } from '../../../../store/settings/state';
 import { DEFAULT_ZOOM_SETTINGS } from '../../../../store/settings/feature';
-import type { SelectedSelectable } from '../../../../store/components/state';
+import type { SelectableProperties, SelectedSelectable } from '../../../../store/components/state';
+import { fromSerializedValue, ORDERED_PROPERTY_FIELDS, validatePropertyValue } from '../../../../models/Property';
+import type { SerializedPropertyRecord } from '../../../../models/Property';
 import { RenderService } from '../../../../services/render/render.service';
 import { MouseButton, PointerService } from '../../../../services/pointer/pointer.service';
 import { KeyboardService } from '../../../../services/keyboard/keyboard.service';
@@ -36,8 +38,13 @@ const PAN_BUTTONS: readonly number[] = [MouseButton.Middle, MouseButton.Right];
  * Provide it where the workspace is made, so there is one for each workspace, and call attach() once the view exists.
  * It stops listening when what provides it is destroyed.
  *
+ * The properties panel edits the previewed component through the store: the container passes the shown properties
+ * in with setSelectableProperties, and the controller keeps the ghost in step with them. When it makes a ghost that
+ * the store has no properties for yet, it reports the ghost's own through propertiesLoaded$.
+ *
  * Mouse events arrive outside the Angular zone, because moves and drags fire at display rate and only draw on a
- * canvas. Keys arrive inside it, so selectionCleared$ can lead to a store update.
+ * canvas. Keys arrive inside it, so selectionCleared$ can lead to a store update. propertiesLoaded$ can emit from
+ * either, so whoever acts on it has to make sure it is in the zone.
  */
 @Injectable()
 export class DiagramController {
@@ -51,11 +58,19 @@ export class DiagramController {
     /** Emits when the user pressed Esc to deselect a component or cancel a placement, while this workspace is the one shown. */
     readonly selectionCleared$ = new Subject<void>();
 
+    /**
+     * Emits the properties of a new ghost, when the store doesn't already hold properties for a preview of its kind in
+     * this workspace. May emit outside the Angular zone.
+     */
+    readonly propertiesLoaded$ = new Subject<SelectableProperties>();
+
     private view: DiagramView | null = null;
     private workspaceId = '';
 
     private paletteComponent: PaletteComponent | null = null;
     private selectedSelectable: SelectedSelectable | null = null;
+    /** The properties the store shows, whoever they belong to. */
+    private selectableProperties: SelectableProperties | null = null;
 
     /** The preview of the palette component being placed, if any. Not in app state: it only affects how it's drawn. */
     private ghost: Placeable | null = null;
@@ -121,6 +136,18 @@ export class DiagramController {
     }
 
     /**
+     * Tells the controller which properties the store shows, or null when none are. When they are the properties of
+     * this workspace's preview, the ghost takes their values and is redrawn.
+     */
+    setSelectableProperties(selectableProperties: SelectableProperties | null): void {
+        this.selectableProperties = selectableProperties;
+        const ghost = this.ghost;
+        const values = this.previewValuesFor(ghost);
+        if (!ghost || !values || !this.applyValues(ghost, values)) return;
+        if (this.view?.isPreviewing(ghost)) this.view.showPreview(ghost);
+    }
+
+    /**
      * Tells the controller about the settings of the workspace.
      *
      * The grid spacing scales the diagram: components still snap to GRID_SPACING in diagram units, and the render
@@ -166,8 +193,45 @@ export class DiagramController {
             // The position is set from the pointer, as soon as there is one. It is shown then.
             this.ghost = createPlaceable(type, { x: 0, y: 0 });
             this.ghost.isGhost = true;
+            // The next ghost after a placement keeps the values edited for the last one. A new kind starts from its defaults.
+            const values = this.previewValuesFor(this.ghost);
+            if (values) {
+                this.applyValues(this.ghost, values);
+            } else {
+                this.propertiesLoaded$.next({
+                    target: { kind: 'preview', workspaceId: this.workspaceId, type },
+                    values: this.ghost.properties.serialize(),
+                });
+            }
         }
         return this.ghost;
+    }
+
+    /** The values the store holds for a preview of this kind of component in this workspace, if it holds any. */
+    private previewValuesFor(ghost: Placeable | null): SerializedPropertyRecord | null {
+        const target = this.selectableProperties?.target;
+        if (!ghost || target?.kind !== 'preview' || target.workspaceId !== this.workspaceId || target.type !== ghost.type) return null;
+        return this.selectableProperties!.values;
+    }
+
+    /**
+     * Gives the selectable the values that differ from its own. Readonly properties and values the field doesn't
+     * accept are left alone: the store only lets valid edits through, so they can only be stale.
+     *
+     * @returns Whether anything changed
+     */
+    private applyValues(selectable: Placeable, values: SerializedPropertyRecord): boolean {
+        let changed = false;
+        for (const field of ORDERED_PROPERTY_FIELDS) {
+            const serialized = values[field];
+            const property = selectable.properties.get(field);
+            if (!serialized || !property || property.isReadonly) continue;
+            const value = fromSerializedValue(field, serialized.value);
+            if (value === null || value === property.value || !validatePropertyValue(field, value)) continue;
+            selectable.updateProperty(field, value);
+            changed = true;
+        }
+        return changed;
     }
 
     /** Removes the ghost, if there is one, because nothing is waiting to be placed anymore. */
@@ -280,9 +344,10 @@ export class DiagramController {
         if (!ghost || !view || !cursor) return;
 
         const box = ghost.getBoundingBox();
+        // the box can start above or left of the ghost's position, when the ghost draws there
         const position = this.snapToGrid({
-            x: cursor.x - box.width / 2,
-            y: cursor.y - box.height / 2
+            x: cursor.x - box.left - box.width / 2,
+            y: cursor.y - box.top - box.height / 2
         });
 
         if (view.isPreviewing(ghost) && position.x === ghost.position.x && position.y === ghost.position.y) return;

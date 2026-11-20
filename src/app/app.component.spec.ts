@@ -46,11 +46,6 @@ describe('AppComponent', () => {
         fixture = TestBed.createComponent(AppComponent);
     });
 
-    it('should create the app', () => {
-        const app = fixture.componentInstance;
-        expect(app).toBeTruthy();
-    });
-
     it(`should have the 'xorls' title`, () => {
         const app = fixture.componentInstance;
         expect(app.title).toEqual('xorls');
@@ -106,54 +101,15 @@ describe('AppComponent', () => {
     });
 
     describe('Tab panel content', () => {
-        it('should have Explorer panel (idk yet, this just passes for now)', () => {
-            const panel = fixture.debugElement.query(By.css('[data-testid="explorerTabPanel"]'));
-            expect(panel).toBeTruthy();
-        });
-
-        it('should have Components panel', () => {
-            const palette = fixture.debugElement.query(By.css('[data-testid="componentsTabPanel"]'));
-            expect(palette).toBeTruthy();
-        });
-
-        it('should have Settings panel', () => {
-            const settings = fixture.debugElement.query(By.css('[data-testid="settingsTabPanel"]'));
-            expect(settings).toBeTruthy();
-        });
-
-        it('should give Explorer tab and panel the same value attribute', () => {
-            const tabEl = fixture.debugElement.query(By.css('[data-testid="explorerTab"]')).nativeElement;
-            const panelEl = fixture.debugElement.query(By.css('[data-testid="explorerTabPanel"]')).nativeElement;
-            expect(tabEl.getAttribute('value')).toBe(panelEl.getAttribute('value'));
-        });
-
-        it('should give Components tab and panel the same value attribute', () => {
-            const tabEl = fixture.debugElement.query(By.css('[data-testid="componentsTab"]')).nativeElement;
-            const panelEl = fixture.debugElement.query(By.css('[data-testid="componentsTabPanel"]')).nativeElement;
-            expect(tabEl.getAttribute('value')).toBe(panelEl.getAttribute('value'));
-        });
-
-        it('should give Settings tab and panel the same value attribute', () => {
-            const tabEl = fixture.debugElement.query(By.css('[data-testid="settingsTab"]')).nativeElement;
-            const panelEl = fixture.debugElement.query(By.css('[data-testid="settingsTabPanel"]')).nativeElement;
-            expect(tabEl.getAttribute('value')).toBe(panelEl.getAttribute('value'));
-        });
-    });
-
-    describe('Tab default state', () => {
-        it('should make Explorer tab the default (value=0)', () => {
-            const explorerTab = fixture.debugElement.query(By.css('[data-testid="explorerTab"]'));
-            expect(explorerTab.nativeElement.getAttribute('value')).toBe('0');
-        });
-
-        it('should make Components tab value=1', () => {
-            const tabEl = fixture.debugElement.query(By.css('[data-testid="componentsTab"]')).nativeElement;
-            expect(tabEl.getAttribute('value')).toBe('1');
-        });
-
-        it('should make Settings tab value=2', () => {
-            const tabEl = fixture.debugElement.query(By.css('[data-testid="settingsTab"]')).nativeElement;
-            expect(tabEl.getAttribute('value')).toBe('2');
+        it.each([
+            ['explorer', '0'],
+            ['components', '1'],
+            ['settings', '2'],
+        ])('should give the %s tab and its panel the value %s', (name, value) => {
+            const tabEl = fixture.debugElement.query(By.css(`[data-testid="${name}Tab"]`)).nativeElement;
+            const panelEl = fixture.debugElement.query(By.css(`[data-testid="${name}TabPanel"]`)).nativeElement;
+            expect(tabEl.getAttribute('value')).toBe(value);
+            expect(panelEl.getAttribute('value')).toBe(value);
         });
     });
 

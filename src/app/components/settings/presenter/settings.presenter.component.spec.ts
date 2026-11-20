@@ -34,10 +34,6 @@ describe('SettingsComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     describe('cell size', () => {
         function handle(): HTMLElement {
             return fixture.nativeElement.querySelector('[data-testid="gridSpacing"] [role="slider"]');

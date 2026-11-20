@@ -16,6 +16,8 @@ export interface Size {
     height: number;
 }
 
+export type PinDirection = 'horizontal' | 'vertical';
+
 /**
  * Makes the browser window bigger, and with it everything that fills it. Doesn't wait for the page to react: use
  * DiagramWorkspace.growWindow() to wait for the diagram, or wait for what the test is about.

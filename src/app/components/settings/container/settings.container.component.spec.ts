@@ -66,10 +66,6 @@ describe('SettingsContainerComponent', () => {
         vi.clearAllMocks();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     describe('store selection', () => {
         it('should select settingsState$ from the store', () => {
             let emittedValue: SettingsState | undefined;
@@ -118,7 +114,7 @@ describe('SettingsContainerComponent', () => {
     });
 
     describe('updateGridMode', () => {
-        it('should dispatch updateGridMode action with the emitted mode', async () => {
+        it('should dispatch updateGridMode once with the emitted mode', async () => {
             await fixture.whenStable();
 
             const mode: GridMode = 'dots';
@@ -128,25 +124,12 @@ describe('SettingsContainerComponent', () => {
 
             presenter.gridMode.emit(mode);
 
-            expect(store.dispatch).toHaveBeenCalledWith(actions.updateGridMode({ mode }));
-        });
-
-        it('should dispatch updateGridMode exactly once per emission', async () => {
-            await fixture.whenStable();
-
-            const presenter = fixture.debugElement.query(
-                By.directive(MockSettingsPresenterComponent)
-            ).componentInstance as MockSettingsPresenterComponent;
-
-            presenter.gridMode.emit('dots');
-            presenter.gridMode.emit('lines');
-
-            expect(store.dispatch).toHaveBeenCalledTimes(2);
+            expect(store.dispatch).toHaveBeenCalledExactlyOnceWith(actions.updateGridMode({ mode }));
         });
     });
 
     describe('updateGridSpacing', () => {
-        it('should dispatch updateGridSpacing action with the emitted spacing', async () => {
+        it('should dispatch updateGridSpacing once with the emitted spacing', async () => {
             await fixture.whenStable();
 
             const spacing = 20;
@@ -156,20 +139,7 @@ describe('SettingsContainerComponent', () => {
 
             presenter.gridSpacing.emit(spacing);
 
-            expect(store.dispatch).toHaveBeenCalledWith(actions.updateGridSpacing({ spacing }));
-        });
-
-        it('should dispatch updateGridSpacing exactly once per emission', async () => {
-            await fixture.whenStable();
-
-            const presenter = fixture.debugElement.query(
-                By.directive(MockSettingsPresenterComponent)
-            ).componentInstance as MockSettingsPresenterComponent;
-
-            presenter.gridSpacing.emit(10);
-            presenter.gridSpacing.emit(20);
-
-            expect(store.dispatch).toHaveBeenCalledTimes(2);
+            expect(store.dispatch).toHaveBeenCalledExactlyOnceWith(actions.updateGridSpacing({ spacing }));
         });
     });
 

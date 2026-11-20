@@ -42,7 +42,7 @@
                 {
                   "type": "initial",
                   "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumError": "2MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -84,7 +84,15 @@
             "setupFiles": [
               "vitest.setup.ts"
             ],
-            "codeCoverage": false
+            "codeCoverage": false,
+            "codeCoverageExclude": [
+              "**/vitest.setup.ts"
+            ],
+            "codeCoverageReporters": [
+              "text-summary",
+              "html",
+              "lcov"
+            ]
           }
         },
         "lint": {

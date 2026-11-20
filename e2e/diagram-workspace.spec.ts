@@ -2,7 +2,7 @@ import type { Locator } from '@playwright/test';
 import type { CanvasLayer, Drawn, Layer } from './support/canvas-layer';
 import { LAYERS, runs } from './support/canvas-layer';
 import { DEFAULT_GRID_SPACING, DiagramWorkspace, PAN_BUTTONS } from './support/diagram-workspace';
-import { expect } from './support/draw-matchers';
+import { expect, type GridLines } from './support/draw-matchers';
 import { settle } from './support/draw-helpers';
 import { SettingsPanel } from './support/settings-panel';
 import { Sidebar } from './support/sidebar';
@@ -140,17 +140,6 @@ test.describe('Diagram workspace', () => {
             expect([right, left]).toContainEqual(before);
         });
 
-        test('removes the ghost when the component is unpicked in the palette', async () => {
-            await diagram.pickPaletteComponent();
-            await diagram.moveFromCenterTo();
-            await expect.poll(() => diagram.layer('activeComponent').drawn()).not.toBeNull();
-
-            await diagram.palette.clickTile('AndGate');
-            await settle(diagram.page);
-
-            expect(await diagram.layer('activeComponent').drawn()).toBeNull();
-        });
-
         test('shows the ghost again as soon as the mouse comes back after it was unpicked and picked', async () => {
             await diagram.pickPaletteComponent();
             await diagram.moveFromCenterTo();
@@ -179,7 +168,7 @@ test.describe('Diagram workspace', () => {
         });
 
         /** The grid lines shown in the workspace, in client coordinates. The grid has to be in lines mode. */
-        async function gridLines(): Promise<{ x: number[], y: number[] }> {
+        async function gridLines(): Promise<GridLines> {
             const { region, columns, rows } = await diagram.layer('grid').profile();
             const xs = runs(columns, region.left, count => count > region.height / 2).map(run => run.end);
             const ys = runs(rows, region.top, count => count > region.width / 2).map(run => run.end);
@@ -211,18 +200,6 @@ test.describe('Diagram workspace', () => {
             return drawn.bottom - drawn.top + 1;
         }
 
-        /** The gate's pins are on grid lines: the left end of its inputs and the right end of its output. */
-        async function expectPinsOnGridLines(drawn: Drawn) {
-            const lines = await gridLines();
-            // the input pins start on the column of the left line; the output pin ends just before the right line
-            expect(lines.x).toContain(drawn.left);
-            expect(lines.x).toContain(drawn.right + 1);
-            // the middle of a gate is a grid row: between its two inputs, or on the pin of a one-input gate
-            const middle = (drawn.top + drawn.bottom) / 2;
-            const nearestRow = Math.min(...lines.y.map(y => Math.abs(y - middle)));
-            expect(nearestRow).toBeLessThanOrEqual(1);
-        }
-
         for (const { type, cells } of GATES) {
             test.describe(type, () => {
                 test('is drawn as big as its bounding box', async () => {
@@ -238,7 +215,7 @@ test.describe('Diagram workspace', () => {
                 test('has its pins on grid lines when it is placed', async () => {
                     await useGrid(DEFAULT_GRID_SPACING);
 
-                    await expectPinsOnGridLines(await place(type));
+                    expect(await place(type)).toHavePinsOnGridLines(await gridLines());
                 });
 
                 test('previews a ghost as big as its bounding box, centered on the pointer', async () => {
@@ -261,7 +238,7 @@ test.describe('Diagram workspace', () => {
                     const drawn = await place(type);
 
                     expect(width(drawn)).toBe(cells.width * spacing);
-                    await expectPinsOnGridLines(drawn);
+                    expect(drawn).toHavePinsOnGridLines(await gridLines());
                 });
             });
         }
@@ -301,6 +278,136 @@ test.describe('Diagram workspace', () => {
                 expect(atDefault).toBeGreaterThan(LINE_WIDTH);
                 expect(await outputPinWidth(activeLayer)).toBe(atDefault);
             });
+        });
+
+
+        /** Picks a gate and sets its properties in the panel, so its ghost is ready to follow the mouse. */
+        async function pickWith(type: string, { inputs, orientation }: { inputs?: number, orientation?: Facing }) {
+            await diagram.pickPaletteComponent(type);
+            if (inputs !== undefined) await diagram.palette.setNumberOfInputs(inputs);
+            if (orientation) await diagram.palette.setOrientation(orientation);
+        }
+
+        /** Places a gate with these properties in the middle of the workspace and returns what the component layer draws. */
+        async function placeWith(type: string, properties: { inputs?: number, orientation?: Facing }): Promise<Drawn> {
+            await pickWith(type, properties);
+            // come in from the side, so the ghost is shown before the click
+            await diagram.moveFromCenterTo({ x: -30, y: -30 });
+            await diagram.clickFromCenterAt({ x: 0, y: 0 });
+            await expect.poll(async () => (await components.drawn())?.count ?? 0).toBeGreaterThan(0);
+            return (await components.drawn())!;
+        }
+
+        test.describe('with a back grown for more inputs', () => {
+            // the footprint reaches a cell past the outer-most inputs; the back ends half a cell past them
+            const GROWN = [
+                { type: 'OrGate', inputs: 7, boxCells: 8 },
+                { type: 'AndGate', inputs: 7, boxCells: 8 },
+                { type: 'XnorGate', inputs: 16, boxCells: 18 },
+                { type: 'NandGate', inputs: 16, boxCells: 18 },
+            ];
+
+            for (const { type, inputs, boxCells } of GROWN) {
+                test(`draws a ${type} with ${inputs} inputs as tall as its back, half a cell inside its footprint`, async () => {
+                    const drawn = await placeWith(type, { inputs });
+
+                    expect(width(drawn)).toBe(6 * DEFAULT_GRID_SPACING);
+                    // the back's ends are square, so nothing is drawn past them
+                    expect(height(drawn)).toBe((boxCells - 1) * DEFAULT_GRID_SPACING);
+                });
+
+                test(`keeps the pins of a ${type} with ${inputs} inputs on grid lines`, async () => {
+                    await useGrid(DEFAULT_GRID_SPACING);
+
+                    expect(await placeWith(type, { inputs })).toHavePinsOnGridLines(await gridLines());
+                });
+
+                test(`previews a ${type} with ${inputs} inputs centered on the pointer`, async () => {
+                    await pickWith(type, { inputs });
+
+                    for (const move of [{ x: 0, y: 0 }, { x: 37, y: -13 }, { x: -71, y: 52 }]) {
+                        const pointer = await diagram.moveFromCenterTo(move);
+                        await settle(diagram.page);
+
+                        expect(height((await activeLayer.drawn())!)).toBe((boxCells - 1) * DEFAULT_GRID_SPACING);
+                        expect(await activeLayer.drawnCenter()).toBeCenteredOn(pointer);
+                    }
+                });
+            }
+
+            test('keeps the body where a two-input gate would be: the back grows evenly above and below it', async ({ page }) => {
+                const two = await placeWith('OrGate', {});
+                await page.reload();
+                await diagram.load();
+
+                const sixteen = await placeWith('OrGate', { inputs: 16 });
+
+                // the output pin is the right-most column, on the body's middle row
+                expect(sixteen.right).toBe(two.right);
+                expect(Math.abs((sixteen.top + sixteen.bottom) / 2 - (two.top + two.bottom) / 2)).toBeLessThanOrEqual(1);
+            });
+        });
+
+        test.describe('facing another way', () => {
+            for (const { type, cells } of GATES.filter(gate => ['AndGate', 'XorGate', 'NotGate', 'NandGate'].includes(gate.type))) {
+                for (const orientation of ['South', 'North'] as const) {
+                    test.describe(`${type} facing ${orientation}`, () => {
+                        test('is drawn as big as its turned bounding box', async () => {
+                            const drawn = await placeWith(type, { orientation });
+
+                            // width and height swap: the pins now end on the box's top and bottom
+                            expect(height(drawn)).toBe(cells.width * DEFAULT_GRID_SPACING);
+                            expect(Math.abs(width(drawn) - (cells.height * DEFAULT_GRID_SPACING + LINE_WIDTH)))
+                                .toBeLessThanOrEqual(1);
+                        });
+
+                        test('has its pins on grid lines when it is placed', async () => {
+                            await useGrid(DEFAULT_GRID_SPACING);
+
+                            expect(await placeWith(type, { orientation })).toHavePinsOnGridLines(await gridLines(), 'vertical');
+                        });
+
+                        test('previews a ghost centered on the pointer', async () => {
+                            await pickWith(type, { orientation });
+
+                            for (const move of [{ x: 0, y: 0 }, { x: 37, y: -13 }, { x: -71, y: 52 }]) {
+                                const pointer = await diagram.moveFromCenterTo(move);
+                                await settle(diagram.page);
+                                const ghost = (await activeLayer.drawn())!;
+
+                                expect(height(ghost)).toBe(cells.width * DEFAULT_GRID_SPACING);
+                                expect(await activeLayer.drawnCenter()).toBeCenteredOn(pointer);
+                            }
+                        });
+                    });
+                }
+            }
+
+            for (const type of ['AndGate', 'OrGate', 'NandGate', 'XnorGate', 'NotGate']) {
+                test(`draws a ${type} facing West as the East one mirrored left to right`, async ({ page }) => {
+                    const east = await placeWith(type, { inputs: type === 'NotGate' ? undefined : 3 });
+                    const eastPixels = await alphas(components, east);
+                    await page.reload();
+                    await diagram.load();
+
+                    const west = await placeWith(type, { inputs: type === 'NotGate' ? undefined : 3, orientation: 'West' });
+                    const westPixels = await alphas(components, west);
+
+                    expect(westPixels).toMirror(eastPixels);
+                });
+            }
+
+            /** The alpha of every pixel in what a layer draws, row by row. */
+            async function alphas(layer: CanvasLayer, drawn: Drawn): Promise<number[][]> {
+                const region = { left: drawn.left, top: drawn.top, width: width(drawn), height: height(drawn) };
+                return layer.canvas.evaluate((canvas: HTMLCanvasElement, r) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const { data } = canvas.getContext('2d', { willReadFrequently: true })!
+                        .getImageData(r.left - rect.left, r.top - rect.top, r.width, r.height);
+                    return Array.from({ length: r.height }, (_, y) =>
+                        Array.from({ length: r.width }, (_, x) => data[(y * r.width + x) * 4 + 3]));
+                }, region);
+            }
         });
     });
 

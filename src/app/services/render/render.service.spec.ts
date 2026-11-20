@@ -36,36 +36,9 @@ describe('RenderService', () => {
         vi.clearAllMocks();
     });
 
-    it('should create', () => {
-        expect(service).toBeTruthy();
-    });
-
-    describe('constants', () => {
-        it('should expose THIN_LINE_WIDTH as 1', () => {
-            expect(service.THIN_LINE_WIDTH).toBe(1);
-        });
-
-        it('should expose STANDARD_LINE_WIDTH as 2', () => {
-            expect(service.STANDARD_LINE_WIDTH).toBe(2);
-        });
-
-        it('should expose BOLD_LINE_WIDTH as 3', () => {
-            expect(service.BOLD_LINE_WIDTH).toBe(3);
-        });
-    });
-
     describe('add', () => {
-        it('should return the service instance for chaining', () => {
-            const layers = [buildMockLayer()];
-            expect(service.add('diagramA', layers)).toBe(service);
-        });
-
-        it('should allow chaining multiple adds', () => {
-            expect(() =>
-                service
-                    .add('diagramA', [buildMockLayer()])
-                    .add('diagramB', [buildMockLayer()])
-            ).not.toThrow();
+        it('should return the service instance from add and remove, for chaining', () => {
+            expect(service.add('diagramA', [buildMockLayer()]).add('diagramB', [buildMockLayer()]).remove('diagramA')).toBe(service);
         });
 
         it('should register the layers under the given id', () => {
@@ -83,11 +56,6 @@ describe('RenderService', () => {
     });
 
     describe('remove', () => {
-        it('should return the service instance for chaining', () => {
-            service.add('diagramA', [buildMockLayer()]);
-            expect(service.remove('diagramA')).toBe(service);
-        });
-
         it('should remove the entry for the given id', () => {
             service.add('diagramA', [buildMockLayer()]);
             service.remove('diagramA');
@@ -478,17 +446,6 @@ describe('RenderService', () => {
     });
 
     describe('resizeActiveDiagram', () => {
-        it('should call resize on all active layers with the new dimensions', () => {
-            const layerA = buildMockLayer();
-            const layerB = buildMockLayer();
-            service.add('diagramA', [layerA, layerB]);
-            service.activeId = 'diagramA';
-            service.resizeActiveDiagram(1024, 768);
-
-            expect(layerA.resize).toHaveBeenCalledWith(1024, 768);
-            expect(layerB.resize).toHaveBeenCalledWith(1024, 768);
-        });
-
         it('should not scale the layer contexts (scaling on every resize would compound)', () => {
             const layerA = buildMockLayer();
             const layerB = buildMockLayer();
@@ -500,28 +457,20 @@ describe('RenderService', () => {
             expect(layerB.context!.scale).not.toHaveBeenCalled();
         });
 
-        it('should call refresh on all active layers after resize to prevent flickering', () => {
-            const layerA = buildMockLayer();
-            const layerB = buildMockLayer();
+        it('should resize every active layer to the new dimensions, then refresh it once to prevent flickering', () => {
+            const callOrder: string[] = [];
+            const [layerA, layerB] = ['A', 'B'].map(name => buildMockLayer({
+                resize: vi.fn(() => callOrder.push(`resize ${name}`)),
+                refresh: vi.fn(() => callOrder.push(`refresh ${name}`)),
+            }));
             service.add('diagramA', [layerA, layerB]);
             service.activeId = 'diagramA';
             service.resizeActiveDiagram(1024, 768);
 
-            expect(layerA.refresh).toHaveBeenCalledTimes(1);
-            expect(layerB.refresh).toHaveBeenCalledTimes(1);
-        });
-
-        it('should call resize, then refresh, in that order', () => {
-            const callOrder: string[] = [];
-            const layer = buildMockLayer({
-                resize: vi.fn(() => callOrder.push('resize')),
-                refresh: vi.fn(() => callOrder.push('refresh')),
-            });
-            service.add('diagramA', [layer]);
-            service.activeId = 'diagramA';
-            service.resizeActiveDiagram(800, 600);
-
-            expect(callOrder).toEqual(['resize', 'refresh']);
+            expect(layerA.resize).toHaveBeenCalledWith(1024, 768);
+            expect(layerB.resize).toHaveBeenCalledWith(1024, 768);
+            expect(callOrder.filter(call => call.endsWith('A'))).toEqual(['resize A', 'refresh A']);
+            expect(callOrder.filter(call => call.endsWith('B'))).toEqual(['resize B', 'refresh B']);
         });
 
         it('should refresh with the active diagram\'s view transform', () => {

@@ -18,10 +18,6 @@ describe('GridCanvasLayerComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     describe('changing the grid settings', () => {
         let warnSpy: ReturnType<typeof vi.spyOn>;
         function grid() {

@@ -5,7 +5,9 @@ import * as io from './io';
 import * as decorations from './decorations';
 import { initialComponentsState } from '../../store/components/feature';
 import { ComponentType } from './Component';
+import { Selectable } from '../Selectable';
 import { BoundingBox } from '../Selectable';
+import { PropertyRecord } from '../Property';
 
 describe('ComponentFactory', () => {
     describe('createPlaceable', () => {
@@ -95,10 +97,23 @@ describe('ComponentFactory', () => {
         });
 
         it('should reject null, undefined and selectables that cannot be previewed', () => {
-            const defaultBoundingBox = new BoundingBox(0, 0);
+            // a selectable that can't be drawn or previewed: no draw, no isGhost
+            class NotPlaceable extends Selectable {
+                protected readonly displayName = 'NotPlaceable';
+                position = { x: 0, y: 0 };
+
+                constructor() {
+                    super(new PropertyRecord({}));
+                }
+
+                getBoundingBox(): BoundingBox {
+                    return new BoundingBox(0, 0);
+                }
+            }
+            const selectable = new NotPlaceable();
             expect(isPlaceable(null)).toBe(false);
             expect(isPlaceable(undefined)).toBe(false);
-            expect(isPlaceable({ isSelected: () => false, getBoundingBox: () => defaultBoundingBox })).toBe(false);
+            expect(isPlaceable(selectable)).toBe(false);
         });
     });
 

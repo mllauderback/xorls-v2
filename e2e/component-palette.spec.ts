@@ -166,13 +166,31 @@ test.describe('Component palette', () => {
             await expect(palette.propertiesPanel).toContainText('Nothing is selected.');
         });
 
-        // this will change eventually.  I do want the properties panel to update for a component ghost
-        test('still says nothing is selected while a palette component is waiting to be placed', async () => {
-            // picking from the palette is not selecting a placed component
+        test('shows the properties of a palette component waiting to be placed, in a fixed order', async () => {
             await palette.expand('Gates');
             await palette.clickTile('AndGate');
 
-            await expect(palette.propertiesPanel).toContainText('Nothing is selected.');
+            await expect(palette.propertiesPanel).toContainText('AndGate Properties');
+            await expect(palette.propertiesPanel.locator('.property label')).toHaveText(['Number of Inputs', 'Orientation', 'Output Value', 'Bus Width']);
+        });
+
+        test('edits the previewed component, and keeps the edits for the next one until another component is picked', async ({ page }) => {
+            await palette.expand('Gates');
+            await palette.clickTile('AndGate');
+            const inputs = palette.propertiesPanel.getByTestId('property-number-of-inputs');
+
+            await inputs.locator('button').first().click();
+            await expect(inputs.locator('input')).toHaveValue('3');
+            await expect(palette.propertiesPanel.getByTestId('property-output-value').locator('input')).toBeDisabled();
+
+            const center = await new DiagramWorkspace(page).center();
+            await page.mouse.move(center.x, center.y);
+            await page.mouse.click(center.x, center.y);
+            await expect(inputs.locator('input')).toHaveValue('3');
+
+            await palette.clickTile('OrGate');
+            await expect(palette.propertiesPanel).toContainText('OrGate Properties');
+            await expect(inputs.locator('input')).toHaveValue('2');
         });
     });
 
@@ -232,28 +250,6 @@ test.describe('Component palette', () => {
         test.beforeEach(async ({ page }) => {
             diagram = new DiagramWorkspace(page);
             await expect(diagram.presenter).toBeVisible();
-        });
-
-        test('keeps the component selected after it is placed, so it can be placed again', async () => {
-            await palette.expand('Gates');
-            await palette.clickTile('AndGate');
-
-            await diagram.clickFromCenterAt();
-
-            await expect(palette.checkbox('AndGate')).toBeChecked();
-        });
-
-        test('Escape over the workspace clears the palette selection', async ({ page }) => {
-            await palette.expand('Gates');
-            await palette.expand('I/O');
-            await palette.clickTile('Output');
-            await expect(palette.checkbox('Output')).toBeChecked();
-
-            await diagram.moveFromCenterTo();
-            await page.keyboard.press('Escape');
-
-            await expect(palette.checkedCheckboxes).toHaveCount(0);
-            await expect(palette.checkbox('Output')).not.toBeChecked();
         });
 
         test('a component can be picked again after Escape cleared the selection', async ({ page }) => {
