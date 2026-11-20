@@ -1,4 +1,5 @@
 import type { Point } from "../Point";
+import { Property, Orientation, type PropertyField } from "../Property";
 import { BoundingBox } from "../Selectable";
 import { ComponentType, type Component, type Node } from "./Component";
 
@@ -9,12 +10,19 @@ export class Input implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point) {
         this.position = position;
         this.inodes = [];
         this.onodes = []; // TODO: 1 onode;
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Bus Width': new Property(1),
+            'Label': new Property(''),
+            'Output Value': new Property(0)
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -36,12 +44,19 @@ export class Output implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point) {
         this.position = position;
         this.inodes = []; // TODO: 1 inode;
         this.onodes = [];
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Bus Width': new Property(1, true),
+            'Label': new Property(''),
+            'Input Value': new Property(0, true)
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -64,16 +79,19 @@ export class SevenSegmentDisplay implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
-    busWidth: number;
-
-    constructor(position: Point, busWidth: number) {
+    constructor(position: Point) {
         this.position = position;
         this.inodes = [];
         this.onodes = []; // TODO: 1 onode
         this.isGhost = false;
-
-        this.busWidth = busWidth;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Bus Width': new Property(1, true),
+            'Label': new Property(''),
+            'Input Value': new Property(0, true)
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {

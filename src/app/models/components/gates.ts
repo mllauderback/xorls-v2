@@ -1,5 +1,6 @@
 import { arcFromEndPoints } from "../drawing-helpers";
 import type { Point } from "../Point";
+import { Property, Orientation, type PropertyField } from "../Property";
 import { BoundingBox } from "../Selectable";
 import type { Component, Node } from "./Component";
 import { ComponentType, createInputNodes } from "./Component";
@@ -21,12 +22,19 @@ export class AndGate implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
         this.position = position;
         this.inodes = this.getInputNodeListFromSize(iNodeSize);
         this.onodes = [];  // TODO: just 1
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(this.onodes[0].state, true),
+        };
     }
 
     /** Draws in diagram coordinates: the layer's context transform puts it in the right place on the canvas. */
@@ -72,12 +80,19 @@ export class OrGate implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
         this.position = position;
         this.inodes = this.getInputNodeListFromSize(iNodeSize);
         this.onodes = [];  // TODO: just 1
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(this.onodes[0].state, true),
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -126,12 +141,19 @@ export class XorGate implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
         this.position = position;
         this.inodes = this.getInputNodeListFromSize(iNodeSize);
         this.onodes = []; // TODO just 1
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(this.onodes[0].state, true),
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -183,12 +205,19 @@ export class NotGate implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point) {
         this.position = position;
         this.inodes = [];  // TODO: just 1
         this.onodes = [];  // TODO: just 1
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(1),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(this.onodes[0].state, true),
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -227,12 +256,19 @@ export class Buffer implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point) {
         this.position = position;
         this.inodes = [];
         this.onodes = [];
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(1),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(this.onodes[0].state, true),
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -268,12 +304,19 @@ export class NandGate implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
         this.position = position;
         this.inodes = this.getInputNodeListFromSize(iNodeSize);
         this.onodes = []; // TODO just 1
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(this.onodes[0].state, true),
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -320,12 +363,19 @@ export class NorGate implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
         this.position = position;
         this.inodes = this.getInputNodeListFromSize(iNodeSize);
         this.onodes = []; // TODO just 1
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(this.onodes[0].state, true),
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -376,12 +426,19 @@ export class XnorGate implements Component {
     inodes: Node[];
     onodes: Node[];
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
         this.position = position;
         this.inodes = this.getInputNodeListFromSize(iNodeSize);
         this.onodes = []; // TODO just 1
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(this.onodes[0].state, true),
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {

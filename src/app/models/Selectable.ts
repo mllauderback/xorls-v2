@@ -1,4 +1,5 @@
 import type { Point } from "./Point";
+import type { Property, PropertyField } from "./Property";
 
 /**
  * The size of a selectable's footprint. The box's top-left corner is always the owner's `position`: x = 0 is the
@@ -47,6 +48,8 @@ export class BoundingBox {
 }
 
 export interface Selectable {
+    properties: Partial<Record<PropertyField, Property>>;
+
     /**
      * Returns true when mousePosition is inside the selectable's bounding box.
      * @param mousePosition 

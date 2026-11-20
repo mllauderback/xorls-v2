@@ -2,6 +2,7 @@ import type { Point } from "../Point";
 import type { Decoration } from "./Decoration";
 import { ComponentType } from "./Component";
 import { BoundingBox } from "../Selectable";
+import { Property, Orientation, type PropertyField } from "../Property";
 
 export class Text implements Decoration {
     position: Point;
@@ -10,12 +11,18 @@ export class Text implements Decoration {
     font: string; // type may change to an enum who knows
     size: number;
     isGhost: boolean;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point) {
         this.position = position;
         this.font = "";
         this.size = 12;
         this.isGhost = false;
+        this.properties = {
+            'Orientation': new Property(Orientation.east),
+            'Label': new Property(''),
+            'Font Size': new Property(14)
+        };
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
