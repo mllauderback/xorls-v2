@@ -10,9 +10,8 @@ import * as decorations from "./decorations";
 /** Anything the palette can put into a diagram. */
 export type Placeable = Component | Decoration;
 
-// Placeholders until the properties panel supplies these values.
+/** The number of inputs a new multi-input gate starts with. The properties panel changes it from there. */
 const DEFAULT_INPUT_NODE_COUNT = 2;
-const DEFAULT_BUS_WIDTH = 4;
 
 const factories: Record<ComponentType, (position: Point) => Placeable> = {
     [ComponentType.AndGate]: p => new gates.AndGate(p, DEFAULT_INPUT_NODE_COUNT),
@@ -25,7 +24,7 @@ const factories: Record<ComponentType, (position: Point) => Placeable> = {
     [ComponentType.XnorGate]: p => new gates.XnorGate(p, DEFAULT_INPUT_NODE_COUNT),
     [ComponentType.Input]: p => new io.Input(p),
     [ComponentType.Output]: p => new io.Output(p),
-    [ComponentType.SevenSeg]: p => new io.SevenSegmentDisplay(p, DEFAULT_BUS_WIDTH),
+    [ComponentType.SevenSeg]: p => new io.SevenSegmentDisplay(p),
     [ComponentType.Text]: p => new decorations.Text(p),
 };
 

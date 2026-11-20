@@ -8,7 +8,7 @@ import { MouseButton } from '../../../../services/pointer/pointer.service';
 import type { DiagramView } from './diagram-view';
 import { RenderService } from '../../../../services/render/render.service';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
-import type { SelectedSelectable } from '../../../../store/components/state';
+import type { SelectableProperties, SelectedSelectable } from '../../../../store/components/state';
 import type { PaletteComponent } from '../../../../models/components/PaletteComponent';
 import type { Placeable } from '../../../../models/components/ComponentFactory';
 import type { Drawable } from '../../../../models/Drawable';
@@ -187,6 +187,28 @@ describe('DiagramController', () => {
 
             moveTo(200, 100);
 
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
+        });
+
+        it('should keep the middle of a turned ghost under the cursor', () => {
+            select(ComponentType.AndGate);
+            // facing south the box is 4 x 6 cells, 1 cell right of and 1 cell above the ghost's position
+            ghost()!.updateProperty('Orientation', 'South');
+
+            moveTo(200, 100);
+
+            expect(ghost()!.getBoundingBox()).toMatchObject({ left: 1, top: -1, width: 4, height: 6 });
+            expect(ghost()!.position).toEqual({ x: 7, y: 3 });
+        });
+
+        it("should center a box that starts above the ghost's position, so the body stays under the cursor", () => {
+            select(ComponentType.AndGate);
+            // 16 inputs: the box is 18 cells high and starts 7 cells above the body, so its middle is still the body's
+            ghost()!.updateProperty('Number of Inputs', 16);
+
+            moveTo(200, 100);
+
+            expect(ghost()!.getBoundingBox().top).toBe(-7);
             expect(ghost()!.position).toEqual({ x: 7, y: 3 });
         });
 
@@ -552,6 +574,143 @@ describe('DiagramController', () => {
             // 211 snaps one grid point further than where the ghost was
             expect(view.place).toHaveBeenCalledWith(placed);
             expect(placed.position).toEqual({ x: 8, y: 3 });
+        });
+    });
+
+    describe('properties', () => {
+        let loaded: SelectableProperties[];
+
+        beforeEach(() => {
+            attach();
+            loaded = [];
+            controller.propertiesLoaded$.subscribe(properties => loaded.push(properties));
+        });
+
+        /** The store holding the properties the controller reported, the way the container passes them back. */
+        function storeLoaded() {
+            expect(loaded).not.toHaveLength(0);
+            controller.setSelectableProperties(loaded.at(-1)!);
+        }
+        function preview(type: ComponentType, values: SelectableProperties['values'], workspaceId = 'workspace-1'): SelectableProperties {
+            return { target: { kind: 'preview', workspaceId, type }, values };
+        }
+
+        it("should report a new ghost's own properties, for this workspace's preview", () => {
+            select(ComponentType.AndGate);
+
+            expect(loaded).toEqual([preview(ComponentType.AndGate, ghost()!.properties.serialize())]);
+        });
+
+        it('should not report anything while it is not the workspace being shown', () => {
+            renderService.activeId = 'workspace-2';
+
+            select(ComponentType.AndGate);
+
+            expect(loaded).toEqual([]);
+        });
+
+        it('should give the ghost the values edited in the store, and redraw it', () => {
+            select(ComponentType.AndGate);
+            moveTo(200, 100);
+            storeLoaded();
+            view.showPreview.mockClear();
+
+            controller.setSelectableProperties(preview(ComponentType.AndGate, {
+                'Number of Inputs': { value: 4, readonly: false },
+                'Orientation': { value: 'South', readonly: false },
+            }));
+
+            expect(ghost()!.properties.get('Number of Inputs')?.value).toBe(4);
+            expect(ghost()!.properties.get('Orientation')?.value).toBe('South');
+            expect((ghost() as AndGate).inodes).toHaveLength(4);
+            expect(view.showPreview).toHaveBeenCalledWith(ghost());
+        });
+
+        it('should turn a bigint held as a string back into a bigint', () => {
+            select(ComponentType.Input);
+            storeLoaded();
+
+            controller.setSelectableProperties(preview(ComponentType.Input, { 'Output Value': { value: '5', readonly: false } }));
+
+            expect(ghost()!.properties.get('Output Value')?.value).toBe(5n);
+        });
+
+        it('should not redraw when nothing changed', () => {
+            select(ComponentType.AndGate);
+            moveTo(200, 100);
+            storeLoaded();
+            view.showPreview.mockClear();
+
+            storeLoaded();
+
+            expect(view.showPreview).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['another workspace', preview(ComponentType.AndGate, { 'Number of Inputs': { value: 4, readonly: false } }, 'workspace-2')],
+            ['another kind of component', preview(ComponentType.OrGate, { 'Number of Inputs': { value: 4, readonly: false } })],
+            ['a placed component', {
+                target: { kind: 'selected', workspaceId: 'workspace-1', id: 'gate-1', type: ComponentType.AndGate },
+                values: { 'Number of Inputs': { value: 4, readonly: false } },
+            } as SelectableProperties],
+        ])("should leave the ghost alone for the properties of %s", (_case, properties) => {
+            select(ComponentType.AndGate);
+
+            controller.setSelectableProperties(properties);
+
+            expect(ghost()!.properties.get('Number of Inputs')?.value).toBe(2);
+        });
+
+        it('should leave readonly properties and values the field does not accept alone', () => {
+            select(ComponentType.AndGate);
+
+            controller.setSelectableProperties(preview(ComponentType.AndGate, {
+                'Output Value': { value: '1', readonly: false },
+                'Number of Inputs': { value: 99, readonly: false },
+            }));
+
+            expect(ghost()!.properties.get('Output Value')?.value).toBe(0n);
+            expect(ghost()!.properties.get('Number of Inputs')?.value).toBe(2);
+        });
+
+        it('should keep the edited values for the next ghost after a placement, without reporting it', () => {
+            select(ComponentType.AndGate);
+            controller.setSelectableProperties(preview(ComponentType.AndGate, { 'Number of Inputs': { value: 5, readonly: false } }));
+            loaded = [];
+
+            click(200, 100);
+
+            expect(ghost()!.properties.get('Number of Inputs')?.value).toBe(5);
+            expect((ghost() as AndGate).inodes).toHaveLength(5);
+            expect(loaded).toEqual([]);
+        });
+
+        it('should report the defaults of a different palette component', () => {
+            select(ComponentType.AndGate);
+            controller.setSelectableProperties(preview(ComponentType.AndGate, { 'Number of Inputs': { value: 5, readonly: false } }));
+
+            select(ComponentType.OrGate);
+
+            expect(loaded.at(-1)).toEqual(preview(ComponentType.OrGate, ghost()!.properties.serialize()));
+            expect(ghost()!.properties.get('Number of Inputs')?.value).toBe(2);
+        });
+
+        it('should start from the defaults again once the store drops the properties, e.g. when the palette is cleared', () => {
+            select(ComponentType.AndGate);
+            controller.setSelectableProperties(preview(ComponentType.AndGate, { 'Number of Inputs': { value: 5, readonly: false } }));
+            select(null);
+            controller.setSelectableProperties(null);
+            loaded = [];
+
+            select(ComponentType.AndGate);
+
+            expect(ghost()!.properties.get('Number of Inputs')?.value).toBe(2);
+            expect(loaded).toHaveLength(1);
+        });
+
+        it('should do nothing without a ghost', () => {
+            expect(() => controller.setSelectableProperties(preview(ComponentType.AndGate, {}))).not.toThrow();
+            expect(view.showPreview).not.toHaveBeenCalled();
         });
     });
 

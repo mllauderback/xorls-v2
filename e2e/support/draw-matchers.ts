@@ -1,7 +1,7 @@
 import { expect as baseExpect } from '@playwright/test';
 import type { Color, ColorCount, Drawn } from './canvas-layer';
 import { DEFAULT_GRID_SPACING } from './diagram-workspace';
-import { Point } from './draw-helpers';
+import { PinDirection, Point } from './draw-helpers';
 
 /** How far antialiasing can move the edge of a drawing in pixels */
 const ANTIALIASING = 1;
@@ -9,6 +9,18 @@ const ANTIALIASING = 1;
 const SIDES = ['left', 'top', 'right', 'bottom'] as const;
 
 const CHANNELS = ['r', 'g', 'b'] as const;
+
+/**
+ * How far a pixel's alpha can differ between a drawing and its mirror image, 0-255. The canvas antialiases a curve a
+ * little differently when it is mirrored: the gates differ by up to 16. A missing or misplaced line differs by about 255.
+ */
+const MIRROR_ALPHA_TOLERANCE = 32;
+
+/** The grid lines shown in the workspace, in client coordinates: the columns' x and the rows' y. */
+export interface GridLines {
+    x: number[];
+    y: number[];
+}
 
 function formatPoint(point: Point) {
     return `(${point.x}, ${point.y})`;
@@ -108,6 +120,76 @@ export const expect = baseExpect.extend({
         }
 
         return { pass, message, name, expected: spacing, actual: received };
+    },
+
+    /**
+     * A gate's pins are on grid lines. Facing east or west ('across'), its pins end on the columns of its left and
+     * right sides, and its middle is on a grid row: between its two inputs, or on the pin of a one-input gate. Facing
+     * north or south ('down'), its pins end on the rows of its top and bottom sides, and its middle is on a column.
+     * A pin that starts a run of pixels starts on the line's column or row; one that ends a run ends just before the line.
+     *
+     * @param received What the gate draws
+     * @param lines The grid lines, which have to be drawn in lines mode
+     * @param direction Which way the gate's pins point
+     */
+    toHavePinsOnGridLines(received: Drawn, lines: GridLines, direction: PinDirection = 'horizontal') {
+        const name = 'toHavePinsOnGridLines';
+        const isHorizontal = direction === 'horizontal';
+        const [ends, endLines] = isHorizontal
+            ? [[received.left, received.right + 1], lines.x]
+            : [[received.top, received.bottom + 1], lines.y];
+        const [middle, middleLines] = isHorizontal
+            ? [(received.top + received.bottom) / 2, lines.y]
+            : [(received.left + received.right) / 2, lines.x];
+        const offLine = ends.filter(end => !endLines.includes(end));
+        const middleOff = Math.min(...middleLines.map(line => Math.abs(line - middle)));
+        const pass = offLine.length === 0 && middleOff <= ANTIALIASING;
+
+        const { isNot, utils } = this;
+        function message() {
+            const [endAxis, middleAxis] = isHorizontal ? ['columns', 'row'] : ['rows', 'column'];
+            return `${utils.matcherHint(name, 'drawing', 'lines', { isNot })}\n\n` +
+                `Expected the pins ${isNot ? 'not ' : ''}to end on grid ${endAxis} and the middle to be on a grid ` +
+                `${middleAxis} (within ${ANTIALIASING}px).\n` +
+                `Pin ends: ${ends.join(', ')}${offLine.length ? `, off the lines: ${offLine.join(', ')}` : ''}\n` +
+                `Middle:   ${middle}, ${middleOff}px from the nearest ${middleAxis}`;
+        }
+
+        return { pass, message, name, expected: true, actual: { ends, middle } };
+    },
+
+    /**
+     * One drawing is another mirrored left to right: the same size, and every pixel's alpha within
+     * MIRROR_ALPHA_TOLERANCE of the pixel on the other side.
+     *
+     * @param received The alpha of every pixel of a drawing, row by row
+     * @param expected The alpha of every pixel of the drawing it should mirror, row by row
+     */
+    toMirror(received: number[][], expected: number[][]) {
+        const name = 'toMirror';
+        const size = (pixels: number[][]) => `${pixels[0]?.length ?? 0}x${pixels.length}`;
+        const sameSize = size(received) === size(expected);
+        let worst = { x: 0, y: 0, alpha: 0, mirrored: 0, difference: 0 };
+        if (sameSize) {
+            received.forEach((row, y) => row.forEach((alpha, x) => {
+                const mirrored = expected[y][row.length - 1 - x];
+                const difference = Math.abs(alpha - mirrored);
+                if (difference > worst.difference) worst = { x, y, alpha, mirrored, difference };
+            }));
+        }
+        const pass = sameSize && worst.difference <= MIRROR_ALPHA_TOLERANCE;
+
+        const { isNot, utils } = this;
+        function message() {
+            const hint = utils.matcherHint(name, 'drawing', 'other', { isNot });
+            if (!sameSize) return `${hint}\n\nThe drawings are different sizes: ${size(received)} and ${size(expected)}.`;
+            return `${hint}\n\n` +
+                `Expected every pixel ${isNot ? 'not ' : ''}to be within ${MIRROR_ALPHA_TOLERANCE} alpha of its mirror image.\n` +
+                `Worst at (${worst.x}, ${worst.y}) from the top-left: alpha ${worst.alpha}, mirrored ${worst.mirrored}, ` +
+                `off by ${worst.difference}`;
+        }
+
+        return { pass, message, name, expected: MIRROR_ALPHA_TOLERANCE, actual: worst.difference };
     },
 
     /**

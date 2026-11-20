@@ -120,6 +120,27 @@ export class ComponentPalette {
         await this.tile(type).click();
     }
 
+    /** The editor of one property in the properties panel, by its field, e.g. 'Number of Inputs'. */
+    property(field: string): Locator {
+        return this.propertiesPanel.getByTestId(`property-${field.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
+    }
+
+    /** Types a number of inputs into the properties panel, and waits until the panel shows it. */
+    async setNumberOfInputs(inputs: number): Promise<void> {
+        const input = this.property('Number of Inputs').locator('input');
+        await input.fill(String(inputs));
+        await input.press('Enter');
+        await expect(input).toHaveValue(String(inputs));
+    }
+
+    /** Picks which way the component faces in the properties panel, and waits until the panel shows it. */
+    async setOrientation(orientation: 'North' | 'East' | 'South' | 'West'): Promise<void> {
+        const select = this.property('Orientation').locator('p-select');
+        await select.click();
+        await this.page.getByRole('option', { name: orientation, exact: true }).click();
+        await expect(select).toContainText(orientation);
+    }
+
     /** The type of every checked component, in palette order. */
     async checkedTypes(): Promise<string[]> {
         return this.checkedCheckboxes.evaluateAll(inputs => inputs.map(input => input.id));

@@ -77,7 +77,7 @@ export class Grid implements Drawable {
             ctx.lineWidth = dot;
             // each column is a dashed line whose dashes are the dots, one per cell, starting with the first grid row
             ctx.setLineDash([dot, GRID_SPACING - dot]);
-            const startingY = firstY - dot / 2; // centres each dot on its grid row
+            const startingY = firstY - dot / 2; // centers each dot on its grid row
             for (let x = firstX; x < right; x += GRID_SPACING) {
                 ctx.moveTo(x, startingY);
                 ctx.lineTo(x, bottom);

@@ -1,8 +1,8 @@
 import { arcFromEndPoints } from "../drawing-helpers";
 import type { Point } from "../Point";
+import { Property, Orientation, PropertyRecord } from "../Property";
 import { BoundingBox } from "../Selectable";
-import type { Component, Node } from "./Component";
-import { ComponentType, createInputNodes } from "./Component";
+import { ComponentType, Gate } from "./Component";
 
 /*
  * Gates are drawn in diagram units, which are grid cells (see GRID_SPACING): a two-input gate is 6 x 4 cells and a
@@ -12,186 +12,321 @@ import { ComponentType, createInputNodes } from "./Component";
 
 /** The radius of the inverting bubble on NOT, NAND, NOR and XNOR gates, in cells. */
 const BUBBLE_RADIUS = 0.3;
+/** The width of a gate with two or more inputs, in cells: input stubs, body and output stub. */
+const BODY_WIDTH = 6;
+/** The radius of the curved back of OR, NOR, XOR and XNOR gates, in cells. */
+const BACK_RADIUS = 4;
+/** How many inputs the body of an OR, NOR, XOR or XNOR gate holds, and a full extension of its back. */
+const INPUTS_PER_BACK = 5;
+/** The height of a gate's body, and of a full curve of a curved back, in cells: an input fits on each whole cell, both ends included. */
+const BACK_CURVE_HEIGHT = INPUTS_PER_BACK - 1;
 
+/** A stretch of a gate's back that inputs sit on: its ends, in cells down from the gate's position. */
+interface BackSegment {
+    top: number;
+    bottom: number;
+}
 
-export class AndGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+/**
+ * A gate with two or more inputs, whose back grows with them. The inputs are placed
+ * like every gate's (see Gate): centered, with the middle cell left empty for an even number.
+ */
+export abstract class ExtendedBackGate extends Gate {
+    /** The output stub ends at the right of the body, level with its middle. */
+    override getOutputHandlePositions(): Point[] {
+        return [{ x: BODY_WIDTH, y: BACK_CURVE_HEIGHT / 2 }];
+    }
+
+    /**
+     * The footprint covers the body and the whole back: it reaches a whole cell past the outer-most inputs, so a gate
+     * placed on a grid point still has its inputs on grid points, and gates stacked edge to edge keep their inputs two
+     * cells apart. It is 6 x 4 cells while every input fits on the body without reaching its top or bottom. The gate's
+     * position is always the body's top-left corner, so the body stays put as inputs are added, and the footprint
+     * starts above it when the back reaches above the body.
+     */
+    protected eastBoundingBox(): BoundingBox {
+        const { top, bottom } = this.footprintRows();
+        return new BoundingBox(BODY_WIDTH, bottom - top, top);
+    }
+
+    /** The top and bottom of the footprint, in cells down from the body's top. */
+    private footprintRows(): { top: number, bottom: number } {
+        const handles = this.getNodeHandlePositions();
+        return {
+            top: Math.min(0, Math.min(...handles) - 1),
+            bottom: Math.max(BACK_CURVE_HEIGHT, Math.max(...handles) + 1),
+        };
+    }
+
+    /** The segments of the back, the body's first. */
+    protected abstract backSegments(): BackSegment[];
+
+    /** Draws one segment of the back, from (x, top) down to (x, bottom), in diagram coordinates. */
+    protected abstract drawBackSegment(ctx: OffscreenCanvasRenderingContext2D, x: number, top: number, bottom: number): void;
+
+    /** How far right of the segment's ends the back is at a height, so an input stub there ends on the back. */
+    protected abstract backDepth(segment: BackSegment, handleY: number): number;
+
+    /** Draws the back, running through backX in cells from the gate's position. */
+    protected drawBack(ctx: OffscreenCanvasRenderingContext2D, backX: number) {
+        const { x, y } = this.position;
+        const segments = [...this.backSegments()].sort((a, b) => a.top - b.top);
+        segments.forEach((segment, i) => {
+            this.drawBackSegment(ctx, x + backX, y + segment.top, y + segment.bottom);
+            const next = segments[i + 1];
+            if (next && next.top > segment.bottom) {
+                ctx.moveTo(x + backX, y + segment.bottom);
+                ctx.lineTo(x + backX, y + next.top);
+            }
+        });
+
+        const handles = this.getNodeHandlePositions();
+        const top = segments[0].top;
+        const bottom = segments[segments.length - 1].bottom;
+        if (Math.min(...handles) === top) {
+            ctx.moveTo(x + backX, y + top);
+            ctx.lineTo(x + backX, y + top - 0.5);
+        }
+        if (Math.max(...handles) === bottom) {
+            ctx.moveTo(x + backX, y + bottom);
+            ctx.lineTo(x + backX, y + bottom + 0.5);
+        }
+    }
+
+    /** Draws the input stubs, from the left edge to a back that runs through backX. */
+    protected drawInputs(ctx: OffscreenCanvasRenderingContext2D, backX: number) {
+        const { x, y } = this.position;
+        const segments = this.backSegments();
+        for (const handleY of this.getNodeHandlePositions()) {
+            const segment = segments.find(s => handleY >= s.top && handleY <= s.bottom);
+            const depth = segment ? this.backDepth(segment, handleY) : 0;
+            ctx.moveTo(x + backX + depth, y + handleY);
+            ctx.lineTo(x, y + handleY);
+        }
+    }
+}
+
+/**
+ * An AND or NAND gate, whose back is a straight line. It covers the body, and reaches further to cover any inputs
+ * above or below it.
+ */
+export abstract class StraightBackGate extends ExtendedBackGate {
+
+    protected backSegments(): BackSegment[] {
+        const handles = this.getNodeHandlePositions();
+        return [{ top: Math.min(0, ...handles), bottom: Math.max(BACK_CURVE_HEIGHT, ...handles) }];
+    }
+
+    protected drawBackSegment(ctx: OffscreenCanvasRenderingContext2D, x: number, top: number, bottom: number) {
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+    }
+
+    protected backDepth(): number {
+        return 0;
+    }
+}
+
+/**
+ * An OR, NOR, XOR or XNOR gate, whose back is a curve. The body's curve covers 5 inputs. Past that, the back grows
+ * extensions above and below the body, as many inputs on each side: curves of the same radius, each holding up to 5
+ * more inputs and joined to the next by a straight cell. 15 inputs is a full body with a full extension on each side.
+ * Once an extension is full, the next inputs start a new one beyond it. An extension that isn't full yet ends half a
+ * cell past its outer-most input, so it is only as big as it needs to be.
+ */
+export abstract class CurvedBackGate extends ExtendedBackGate {
+
+    /** The curves of the back, the body's first, then the extensions. */
+    protected backSegments(): BackSegment[] {
+        const curves: BackSegment[] = [{ top: 0, bottom: BACK_CURVE_HEIGHT }];
+        // the inputs that don't fit on the body: Gate places as many above it as below
+        const handles = this.getNodeHandlePositions();
+        const above = handles.filter(handleY => handleY < 0).length;
+        const below = handles.filter(handleY => handleY > BACK_CURVE_HEIGHT).length;
+        for (let filled = 0; filled < above; filled += INPUTS_PER_BACK) {
+            // starts a cell above the curve below it, and reaches up to its outer-most input
+            const inner = -filled - 1;
+            curves.push({ top: inner - extensionHeight(above - filled), bottom: inner });
+        }
+        for (let filled = 0; filled < below; filled += INPUTS_PER_BACK) {
+            const inner = BACK_CURVE_HEIGHT + filled + 1;
+            curves.push({ top: inner, bottom: inner + extensionHeight(below - filled) });
+        }
+        return curves;
+    }
+
+    /** Draws one curve of the back, bulging to the right. */
+    protected drawBackSegment(ctx: OffscreenCanvasRenderingContext2D, x: number, top: number, bottom: number) {
+        const args = arcFromEndPoints(x, top, x, bottom, BACK_RADIUS);
+        if (!args) return;
+        ctx.moveTo(x, top);
+        ctx.arc(...args);
+    }
+
+    protected backDepth(curve: BackSegment, handleY: number): number {
+        const halfHeight = (curve.bottom - curve.top) / 2;
+        const fromMiddle = handleY - curve.top - halfHeight;
+        return Math.sqrt(BACK_RADIUS ** 2 - fromMiddle ** 2) - Math.sqrt(BACK_RADIUS ** 2 - halfHeight ** 2);
+    }
+}
+
+/**
+ * How tall an extension with this many inputs left to hold is: a full curve once it has 5, otherwise from its inner-most
+ * input to half a cell past its outer-most one.
+ */
+function extensionHeight(inputs: number): number {
+    return inputs >= INPUTS_PER_BACK ? BACK_CURVE_HEIGHT : inputs - 0.5;
+}
+
+export class AndGate extends StraightBackGate {
     readonly type: ComponentType = ComponentType.AndGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            // for now, output value is 0.  Eventually, the simulation state will update this property
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = this.createInputNodes();
+        this.onodes = this.createOutputNodes();
     }
+
 
     /** Draws in diagram coordinates: the layer's context transform puts it in the right place on the canvas. */
-    draw(ctx: OffscreenCanvasRenderingContext2D) {
+    protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         // body
         const { x, y } = this.position;
-        ctx.moveTo(x + 3, y);
-        ctx.lineTo(x + 1, y);
-        ctx.lineTo(x + 1, y + 4);
-        ctx.lineTo(x + 3, y + 4);
-        ctx.moveTo(x + 3, y);
+
+        ctx.moveTo(x + 1, y);
+        ctx.lineTo(x + 3, y);
         ctx.arc(x + 3, y + 2, 2, 1.5 * Math.PI, 0.5 * Math.PI);
+        ctx.lineTo(x + 1, y + 4);
+
+        // gate back
+        this.drawBack(ctx, 1);
 
         // output node
         ctx.moveTo(x + 5, y + 2);
         ctx.lineTo(x + 6, y + 2);
 
-        // input nodes (the left-most drawn pixels, at x = 0)... TODO: auto create based on inodes size
-        ctx.moveTo(x + 1, y + 1);
-        ctx.lineTo(x, y + 1);
-        ctx.moveTo(x + 1, y + 3);
-        ctx.lineTo(x, y + 3);
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
-    getBoundingBox(): BoundingBox {
-        return new BoundingBox(6, 4);
-    }
-
-    /* set the number of inodes and automatically calculate their positions */
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
+        // input nodes (the left-most drawn pixels, at x = 0)
+        this.drawInputs(ctx, 1);
     }
 }
 
-export class OrGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class OrGate extends CurvedBackGate {
     readonly type: ComponentType = ComponentType.OrGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = this.createInputNodes();
+        this.onodes = this.createOutputNodes();
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D) {
+    protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
-        const backArgs = arcFromEndPoints(x + 1, y, x + 1, y + 4, 4);
-        if (!backArgs) return;
 
         // body
-        ctx.moveTo(x + 2.5, y);
-        ctx.lineTo(x + 1, y);
-        ctx.arc(...backArgs);
+        ctx.moveTo(x + 1, y);
+        ctx.lineTo(x + 2.5, y);
+        ctx.bezierCurveTo(x + 2.5, y, x + 4.5, y, x + 5, y + 2);
+        ctx.moveTo(x + 1, y + 4);
         ctx.lineTo(x + 2.5, y + 4);
         ctx.bezierCurveTo(x + 2.5, y + 4, x + 4.5, y + 4, x + 5, y + 2);
-        ctx.moveTo(x + 2.5, y);
-        ctx.bezierCurveTo(x + 2.5, y, x + 4.5, y, x + 5, y + 2);
+
+        // gate back
+        this.drawBack(ctx, 1);
 
         // output node
         ctx.moveTo(x + 5, y + 2);
         ctx.lineTo(x + 6, y + 2);
 
-        // input nodes (the left-most drawn pixels, at x = 0)... TODO: auto create based on inodes size
-        ctx.moveTo(x + 1.35, y + 1);
-        ctx.lineTo(x, y + 1);
-        ctx.moveTo(x + 1.35, y + 3);
-        ctx.lineTo(x, y + 3);
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
-    getBoundingBox(): BoundingBox {
-        return new BoundingBox(6, 4);
-    }
-
-    /* set the number of inodes and automatically calculate their positions */
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
+        // input nodes (the left-most drawn pixels, at x = 0)
+        this.drawInputs(ctx, 1);
     }
 }
 
-export class XorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class XorGate extends CurvedBackGate {
     readonly type: ComponentType = ComponentType.XorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = this.createInputNodes();
+        this.onodes = this.createOutputNodes();
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D) {
+    protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
-        const backArgs = arcFromEndPoints(x + 1, y, x + 1, y + 4, 4);
-        const doubleArgs = arcFromEndPoints(x + 0.5, y, x + 0.5, y + 4, 4);
-        if (!backArgs || !doubleArgs) return;
 
         // body
-        ctx.moveTo(x + 2.5, y);
-        ctx.lineTo(x + 1, y);
-        ctx.arc(...backArgs);
+        ctx.moveTo(x + 1, y);
+        ctx.lineTo(x + 2.5, y);
+        ctx.bezierCurveTo(x + 2.5, y, x + 4.5, y, x + 5, y + 2);
+        ctx.moveTo(x + 1, y + 4);
         ctx.lineTo(x + 2.5, y + 4);
         ctx.bezierCurveTo(x + 2.5, y + 4, x + 4.5, y + 4, x + 5, y + 2);
-        ctx.moveTo(x + 2.5, y);
-        ctx.bezierCurveTo(x + 2.5, y, x + 4.5, y, x + 5, y + 2);
 
-        ctx.moveTo(x + 0.5, y);
-        ctx.arc(...doubleArgs);
+        // gate back
+        this.drawBack(ctx, 1);
+
+        // the second back, in front of the inputs
+        this.drawBack(ctx, 0.5);
 
         // output node
         ctx.moveTo(x + 5, y + 2);
         ctx.lineTo(x + 6, y + 2);
 
-        // input nodes (the left-most drawn pixels, at x = 0)... TODO: auto create based on inodes size
-        ctx.moveTo(x + 0.85, y + 1);
-        ctx.lineTo(x, y + 1);
-        ctx.moveTo(x + 0.85, y + 3);
-        ctx.lineTo(x, y + 3);
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
-    getBoundingBox(): BoundingBox {
-        return new BoundingBox(6, 4);
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
+        // input nodes (the left-most drawn pixels, at x = 0)
+        this.drawInputs(ctx, 0.5);
     }
 }
 
-export class NotGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
-    readonly type: ComponentType = ComponentType.NotGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
-
+/**
+ * A gate with one input, the NOT gate and the buffer: a 4 x 2 cell triangle with its input handle in the middle of its
+ * back, one cell down from its position.
+ */
+export abstract class SingleInputGate extends Gate {
     constructor(position: Point) {
-        this.position = position;
-        this.inodes = [];  // TODO: just 1
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(1, true),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = this.createInputNodes();
+        this.onodes = this.createOutputNodes();
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D) {
+    override getNodeHandlePositions(): number[] {
+        return [1];
+    }
+
+    /** The output stub ends at the tip of the triangle, level with the input. */
+    override getOutputHandlePositions(): Point[] {
+        return [{ x: 4, y: 1 }];
+    }
+
+    protected eastBoundingBox(): BoundingBox {
+        return new BoundingBox(4, 2);
+    }
+}
+
+export class NotGate extends SingleInputGate {
+    readonly type: ComponentType = ComponentType.NotGate;
+
+    protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         // body
         const { x, y } = this.position;
         ctx.moveTo(x + 1, y);
@@ -210,32 +345,12 @@ export class NotGate implements Component {
         ctx.moveTo(x + 1, y + 1);
         ctx.lineTo(x, y + 1);
     }
-
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
-    getBoundingBox(): BoundingBox {
-        return new BoundingBox(4, 2);
-    }
 }
 
-export class Buffer implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class Buffer extends SingleInputGate {
     readonly type: ComponentType = ComponentType.Buffer;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
-    constructor(position: Point) {
-        this.position = position;
-        this.inodes = [];
-        this.onodes = [];
-        this.isGhost = false;
-    }
-
-    draw(ctx: OffscreenCanvasRenderingContext2D) {
+    protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         // body
         const { x, y } = this.position;
         ctx.moveTo(x + 1, y);
@@ -251,41 +366,35 @@ export class Buffer implements Component {
         ctx.moveTo(x + 1, y + 1);
         ctx.lineTo(x, y + 1);
     }
-
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
-    getBoundingBox(): BoundingBox {
-        return new BoundingBox(4, 2);
-    }
 }
 
-export class NandGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class NandGate extends StraightBackGate {
     readonly type: ComponentType = ComponentType.NandGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = this.createInputNodes();
+        this.onodes = this.createOutputNodes();
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D) {
+    protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         // body
         const { x, y } = this.position;
-        ctx.moveTo(x + 3, y);
-        ctx.lineTo(x + 1, y);
-        ctx.lineTo(x + 1, y + 4);
-        ctx.lineTo(x + 3, y + 4);
-        ctx.moveTo(x + 3, y);
+
+        ctx.moveTo(x + 1, y);
+        ctx.lineTo(x + 3, y);
         ctx.arc(x + 3, y + 2, 2, 1.5 * Math.PI, 0.5 * Math.PI);
+        ctx.lineTo(x + 1, y + 4);
 
+        // gate back
+        this.drawBack(ctx, 1);
+
+        // negate circle
         ctx.moveTo(x + 5.55, y + 2);
         ctx.arc(x + 5.3, y + 2, BUBBLE_RADIUS, 0, 2 * Math.PI);
 
@@ -293,54 +402,38 @@ export class NandGate implements Component {
         ctx.moveTo(x + 5.55, y + 2);
         ctx.lineTo(x + 6, y + 2);
 
-        // input nodes (the left-most drawn pixels, at x = 0)... TODO: auto create based on inodes size
-        ctx.moveTo(x + 1, y + 1);
-        ctx.lineTo(x, y + 1);
-        ctx.moveTo(x + 1, y + 3);
-        ctx.lineTo(x, y + 3);
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
-    getBoundingBox(): BoundingBox {
-        return new BoundingBox(6, 4);
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
+        // input nodes (the left-most drawn pixels, at x = 0)
+        this.drawInputs(ctx, 1);
     }
 }
 
-export class NorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class NorGate extends CurvedBackGate {
     readonly type: ComponentType = ComponentType.NorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = this.createInputNodes();
+        this.onodes = this.createOutputNodes();
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D) {
+    protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
-        const backArgs = arcFromEndPoints(x + 1, y, x + 1, y + 4, 4);
-        if (!backArgs) return;
 
         // body
-        ctx.moveTo(x + 2.5, y);
-        ctx.lineTo(x + 1, y);
-        ctx.arc(...backArgs);
+        ctx.moveTo(x + 1, y);
+        ctx.lineTo(x + 2.5, y);
+        ctx.bezierCurveTo(x + 2.5, y, x + 4.5, y, x + 5, y + 2);
+        ctx.moveTo(x + 1, y + 4);
         ctx.lineTo(x + 2.5, y + 4);
         ctx.bezierCurveTo(x + 2.5, y + 4, x + 4.5, y + 4, x + 5, y + 2);
-        ctx.moveTo(x + 2.5, y);
-        ctx.bezierCurveTo(x + 2.5, y, x + 4.5, y, x + 5, y + 2);
+
+        // gate back
+        this.drawBack(ctx, 1);
 
         ctx.moveTo(x + 5.55, y + 2);
         ctx.arc(x + 5.3, y + 2, BUBBLE_RADIUS, 0, 2 * Math.PI);
@@ -349,58 +442,41 @@ export class NorGate implements Component {
         ctx.moveTo(x + 5.55, y + 2);
         ctx.lineTo(x + 6, y + 2);
 
-        // input nodes (the left-most drawn pixels, at x = 0)... TODO: auto create based on inodes size
-        ctx.moveTo(x + 1.35, y + 1);
-        ctx.lineTo(x, y + 1);
-        ctx.moveTo(x + 1.35, y + 3);
-        ctx.lineTo(x, y + 3);
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
-    getBoundingBox(): BoundingBox {
-        return new BoundingBox(6, 4);
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
+        // input nodes (the left-most drawn pixels, at x = 0)
+        this.drawInputs(ctx, 1);
     }
 }
 
-export class XnorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class XnorGate extends CurvedBackGate {
     readonly type: ComponentType = ComponentType.XnorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = this.createInputNodes();
+        this.onodes = this.createOutputNodes();
     }
 
-    draw(ctx: OffscreenCanvasRenderingContext2D) {
+    protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
-        const backArgs = arcFromEndPoints(x + 1, y, x + 1, y + 4, 4);
-        const doubleArgs = arcFromEndPoints(x + 0.5, y, x + 0.5, y + 4, 4);
-        if (!backArgs || !doubleArgs) return;
 
         // body
-        ctx.moveTo(x + 2.5, y);
-        ctx.lineTo(x + 1, y);
-        ctx.arc(...backArgs);
+        ctx.moveTo(x + 1, y);
+        ctx.lineTo(x + 2.5, y);
+        ctx.bezierCurveTo(x + 2.5, y, x + 4.5, y, x + 5, y + 2);
+        ctx.moveTo(x + 1, y + 4);
         ctx.lineTo(x + 2.5, y + 4);
         ctx.bezierCurveTo(x + 2.5, y + 4, x + 4.5, y + 4, x + 5, y + 2);
-        ctx.moveTo(x + 2.5, y);
-        ctx.bezierCurveTo(x + 2.5, y, x + 4.5, y, x + 5, y + 2);
 
-        ctx.moveTo(x + 0.5, y);
-        ctx.arc(...doubleArgs);
+        // gate back
+        this.drawBack(ctx, 1);
+
+        // the second back, in front of the inputs
+        this.drawBack(ctx, 0.5);
 
         ctx.moveTo(x + 5.55, y + 2);
         ctx.arc(x + 5.3, y + 2, BUBBLE_RADIUS, 0, 2 * Math.PI);
@@ -409,22 +485,7 @@ export class XnorGate implements Component {
         ctx.moveTo(x + 5.55, y + 2);
         ctx.lineTo(x + 6, y + 2);
 
-        // input nodes (the left-most drawn pixels, at x = 0)... TODO: auto create based on inodes size
-        ctx.moveTo(x + 0.85, y + 1);
-        ctx.lineTo(x, y + 1);
-        ctx.moveTo(x + 0.85, y + 3);
-        ctx.lineTo(x, y + 3);
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
-    getBoundingBox(): BoundingBox {
-        return new BoundingBox(6, 4);
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
+        // input nodes (the left-most drawn pixels, at x = 0)
+        this.drawInputs(ctx, 0.5);
     }
 }

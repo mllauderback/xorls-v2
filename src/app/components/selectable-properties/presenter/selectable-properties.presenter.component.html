@@ -1,4 +1,4 @@
-@if (!selectable) {
+@if (!type) {
 <div class="flex items-center justify-center h-full">
     <p>Nothing is selected.</p>
 </div>
@@ -6,11 +6,37 @@
 @else {
 <p-scrollpanel class="w-full">
     <div class="flex flex-row justify-between py-2">
-        <h3 class="pl-2 m-0 flex self-center">{{ selectable.type }} Properties</h3>
+        <h3 class="pl-2 m-0 flex self-center font-bold">{{ type }} Properties</h3>
     </div>
     <p-divider />
-    <div class="flex flex-col p-2">
-        <!-- string together @ifs for applicable properties -->
+    <div class="flex flex-col gap-3 p-2">
+        @for (property of properties; track property.field) {
+        <div class="property flex flex-col gap-1" [attr.data-testid]="inputId(property.field)">
+            <label class="text-sm" [for]="inputId(property.field)">{{ property.field }}</label>
+            @switch (property.definition.kind) {
+            @case ('boolean') {
+            <p-checkbox [inputId]="inputId(property.field)" [binary]="true" [ngModel]="property.value"
+                (ngModelChange)="onValueChange(property, $event)" [disabled]="property.readonly" />
+            }
+            @case ('text') {
+            <input pInputText type="text" class="w-full" [id]="inputId(property.field)" [value]="property.value"
+                [disabled]="property.readonly" (blur)="onTextCommit(property, $any($event.target).value)"
+                (keydown.enter)="onTextCommit(property, $any($event.target).value)" />
+            }
+            @case ('enum') {
+            <p-select class="w-full" [inputId]="inputId(property.field)" [options]="options(property)"
+                [ngModel]="property.value" (ngModelChange)="onValueChange(property, $event)"
+                [disabled]="property.readonly" />
+            }
+            @default {
+            <!-- integer and bigint -->
+            <p-inputnumber class="w-full" [inputId]="inputId(property.field)" [showButtons]="true" [useGrouping]="false"
+                [min]="min(property)" [max]="max(property)" [ngModel]="numberValue(property)"
+                (ngModelChange)="onNumberChange(property, $event)" [disabled]="property.readonly" />
+            }
+            }
+        </div>
+        }
     </div>
 </p-scrollpanel>
 }

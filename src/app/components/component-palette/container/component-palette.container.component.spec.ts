@@ -88,10 +88,6 @@ describe('ComponentPaletteContainerComponent', () => {
 
     afterEach(() => vi.clearAllMocks());
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     describe('store selection', () => {
         it('should select categoryPaletteComponents$ from the store', () => {
             let emittedValue: PaletteComponentRecord | undefined;
@@ -159,34 +155,22 @@ describe('ComponentPaletteContainerComponent', () => {
     });
 
     describe('updateCategoryPaletteComponents', () => {
-        it('should dispatch setPaletteComponents with the emitted map', async () => {
+        it('should dispatch setPaletteComponents with the emitted map, once per emission', async () => {
             await fixture.whenStable();
 
             const presenter = fixture.debugElement.query(
                 By.directive(MockComponentPalettePresenterComponent)
             ).componentInstance as MockComponentPalettePresenterComponent;
 
-            presenter.categoryPaletteComponentsChange.emit(mockRecord);
-
-            expect(store.dispatch).toHaveBeenCalledWith(
-                actions.setPaletteComponents({ paletteComponents: mockRecord })
-            );
-        });
-
-        it('should dispatch setPaletteComponentMap exactly once per emission', async () => {
-            await fixture.whenStable();
-
-            const presenter = fixture.debugElement.query(
-                By.directive(MockComponentPalettePresenterComponent)
-            ).componentInstance as MockComponentPalettePresenterComponent;
-
+            // the same map twice, so a dispatch that skips repeats would show
             presenter.categoryPaletteComponentsChange.emit(mockRecord);
             presenter.categoryPaletteComponentsChange.emit(mockRecord);
 
             const recordDispatches = dispatchedActions(store).filter(
                 action => action.type === actions.setPaletteComponents.type
             );
-            expect(recordDispatches).toHaveLength(2);
+            const dispatched = actions.setPaletteComponents({ paletteComponents: mockRecord });
+            expect(recordDispatches).toEqual([dispatched, dispatched]);
         });
 
         describe('when a palette component is selected', () => {

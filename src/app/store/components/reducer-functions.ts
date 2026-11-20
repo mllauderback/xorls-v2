@@ -1,5 +1,7 @@
 import type { PaletteComponent } from "../../models/components/PaletteComponent";
-import type { PaletteComponentsState, PaletteComponentRecord, SelectedSelectable } from "./state";
+import type { PaletteComponentsState, PaletteComponentRecord, SelectableProperties, SelectedSelectable } from "./state";
+import type { PropertyField, SerializedPropertyRecord, SerializedPropertyValue } from "../../models/Property";
+import { fromSerializedValue, validatePropertyValue } from "../../models/Property";
 
 export function setSelectedPaletteComponentList(state: PaletteComponentsState, paletteComponents: PaletteComponentRecord): PaletteComponentsState {
     // console.log("componentsFeature: ", paletteComponentMap);
@@ -11,13 +13,17 @@ export function setSelectedPaletteComponentList(state: PaletteComponentsState, p
 
 /**
  * Records the palette component that was picked, ready to be placed. Selecting something to place deselects whatever
- * was selected in a diagram.
+ * was selected in a diagram. The properties go back to the new component's defaults, which its workspace loads when it
+ * makes the ghost, unless the same component was picked again while it is still being previewed.
  */
 export function setSelectedPaletteComponent(state: PaletteComponentsState, paletteComponent: PaletteComponent): PaletteComponentsState {
+    const target = state.selectableProperties?.target;
+    const samePreview = target?.kind === 'preview' && target.type === paletteComponent.type;
     return {
         ...state,
         selectedPaletteComponent: paletteComponent,
-        selectedSelectable: null
+        selectedSelectable: null,
+        selectableProperties: samePreview ? state.selectableProperties : null
     };
 }
 
@@ -25,12 +31,14 @@ export function setSelectedPaletteComponent(state: PaletteComponentsState, palet
  * Selects a component that is already placed. Selecting a component ends the palette selection, because only one
  * thing is selected at a time and a click on the diagram means something different when something is being placed.
  */
-export function setSelectedSelectable(state: PaletteComponentsState, selectedSelectable: SelectedSelectable): PaletteComponentsState {
+export function setSelectedSelectable(state: PaletteComponentsState, selectedSelectable: SelectedSelectable, properties?: SerializedPropertyRecord): PaletteComponentsState {
+    const { workspaceId, id, type } = selectedSelectable;
     return {
         ...state,
         paletteComponents: clearPaletteHighlights(state.paletteComponents),
         selectedPaletteComponent: null,
-        selectedSelectable
+        selectedSelectable,
+        selectableProperties: properties ? { target: { kind: 'selected', workspaceId, id, type }, values: properties } : null
     };
 }
 
@@ -39,10 +47,13 @@ export function setSelectedSelectable(state: PaletteComponentsState, selectedSel
  * A component that was already placed stays selected.
  */
 export function clearSelectedPaletteComponent(state: PaletteComponentsState): PaletteComponentsState {
+    const previewing = state.selectableProperties?.target.kind === 'preview';
     return {
         ...state,
         paletteComponents: clearPaletteHighlights(state.paletteComponents),
-        selectedPaletteComponent: null
+        selectedPaletteComponent: null,
+        // the preview's properties go with it, so the next one starts from its defaults
+        selectableProperties: previewing ? null : state.selectableProperties
     };
 }
 
@@ -52,13 +63,45 @@ export function clearSelectedPaletteComponent(state: PaletteComponentsState): Pa
  * Returns the same state object when nothing is selected.
  */
 export function clearSelection(state: PaletteComponentsState): PaletteComponentsState {
-    if (!state.selectedSelectable && !state.selectedPaletteComponent) return state;
+    if (!state.selectedSelectable && !state.selectedPaletteComponent && !state.selectableProperties) return state;
     return {
         ...state,
         paletteComponents: clearPaletteHighlights(state.paletteComponents),
         selectedPaletteComponent: null,
-        selectedSelectable: null
+        selectedSelectable: null,
+        selectableProperties: null
     };
+}
+
+/** Shows the properties a workspace reported for the component it is previewing or has selected. */
+export function setSelectableProperties(state: PaletteComponentsState, selectableProperties: SelectableProperties): PaletteComponentsState {
+    return {
+        ...state,
+        selectableProperties
+    };
+}
+
+/**
+ * Changes the value of one of the shown properties. Returns the same state when nothing is shown, or the property is
+ * missing, readonly or doesn't accept the value, so a bad edit never reaches the component.
+ */
+export function updateSelectableProperty(state: PaletteComponentsState, field: PropertyField, value: SerializedPropertyValue): PaletteComponentsState {
+    const shown = state.selectableProperties;
+    const property = shown?.values[field];
+    if (!shown || !property || property.readonly || !acceptsValue(field, value)) return state;
+    if (property.value === value) return state;
+    return {
+        ...state,
+        selectableProperties: {
+            ...shown,
+            values: { ...shown.values, [field]: { ...property, value } }
+        }
+    };
+}
+
+function acceptsValue(field: PropertyField, value: SerializedPropertyValue): boolean {
+    const converted = fromSerializedValue(field, value);
+    return converted !== null && validatePropertyValue(field, converted);
 }
 
 function clearPaletteHighlights(record: PaletteComponentRecord): PaletteComponentRecord {
