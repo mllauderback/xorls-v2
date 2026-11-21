@@ -21,8 +21,8 @@ export interface SelectedSelectable {
     workspaceId: string;
     /** The component's id. */
     id: string;
-    /** The component's class name, so the UI can show what kind of component it is without looking it up. */
-    type: string;
+    /** The kind of component, so the UI can show what it is without looking it up. */
+    type: ComponentType;
 
     // TODO: add serialized object data for each selectable type (component/io/decoration/etc)
 }
@@ -33,7 +33,7 @@ export interface SelectedSelectable {
  */
 export type PropertiesTarget =
     | { kind: 'preview', workspaceId: string, type: ComponentType }
-    | { kind: 'selected', workspaceId: string, id: string, type: string };
+    | { kind: 'selected', workspaceId: string, id: string, type: ComponentType };
 
 
 /** The properties shown in the properties panel, and what they belong to. */

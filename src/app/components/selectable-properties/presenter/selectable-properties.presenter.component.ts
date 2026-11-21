@@ -57,7 +57,7 @@ export class SelectablePropertiesPresenterComponent {
         return property.definition.kind === 'integer' ? property.definition.max : undefined;
     }
 
-    protected options(property: PropertyListItem): readonly string[] {
+    protected options(property: PropertyListItem): string[] {
         return property.definition.kind === 'enum' ? property.definition.options : [];
     }
 

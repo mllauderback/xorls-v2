@@ -20,7 +20,7 @@ export enum Orientation {
     west = 'West'
 }
 
-export type PropertyType = number | string | boolean | Orientation | bigint;
+export type PropertyType = number | string | boolean | bigint;
 
 /** How a property's value is edited, and which values it accepts. */
 export type PropertyDefinition =
@@ -29,7 +29,7 @@ export type PropertyDefinition =
     /** A signal value: a bus can be wider than a number holds exactly, so it is a bigint. */
     | { kind: 'bigint' }
     /** One of a fixed list of strings. */
-    | { kind: 'enum', options: readonly string[] }
+    | { kind: 'enum', options: string[] }
     | { kind: 'text' }
     /** On or off. */
     | { kind: 'boolean' };
@@ -94,10 +94,12 @@ export class Property {
         return this._value;
     }
 
-    /** @throws If the property is readonly, or the value isn't the same type as the current one */
+    /**
+     * Sets the value as it is: the selectable's setPropertyValue has already checked it against the field's definition.
+     * @throws If the property is readonly
+     */
     public set value(value: PropertyType) {
         if (this.isReadonly) throw new Error(`Property is readonly`);
-        if (typeof value !== typeof this._value) throw new Error(`Mismatched property types: trying to set ${typeof value} to ${typeof this._value}`);
         this._value = value;
     }
 
@@ -111,23 +113,18 @@ export class Property {
 }
 
 /** The properties of a selectable: only the fields it has. */
-// export type PropertyRecord = Partial<Record<PropertyField, Property>>;
 export class PropertyRecord {
 
     private _record: Partial<Record<PropertyField, Property>>;
 
+    /** @param initialRecord The properties. The record keeps a copy, so changing this object later doesn't change it. */
     constructor(initialRecord: Partial<Record<PropertyField, Property>>) {
-        this._record = initialRecord;
+        this._record = { ...initialRecord };
     }
 
     public get(field: PropertyField): Property | undefined {
         if (!Object.hasOwn(this._record, field)) return undefined;
         return this._record[field];
-    }
-
-    public set(field: PropertyField, value: Property) {
-        if (!Object.hasOwn(this._record, field)) throw new Error(`No field ${field}`);
-        this._record[field] = value;
     }
 
     public serialize(): SerializedPropertyRecord {
@@ -140,10 +137,23 @@ export class PropertyRecord {
     }
 }
 
+/** A property as code outside its selectable sees it: it can read the value but not set it. */
+export interface ReadonlyProperty {
+    readonly value: PropertyType;
+    readonly isReadonly: boolean;
+    getSerializedValue(): SerializedPropertyValue;
+}
+
+/** A selectable's properties as code outside it sees them. Change a value with the selectable's updateProperty. */
+export interface ReadonlyPropertyRecord {
+    get(field: PropertyField): ReadonlyProperty | undefined;
+    serialize(): SerializedPropertyRecord;
+}
+
 /**
  * A property value as the store holds it. A bigint is held as its decimal string, because the store has to stay
  * JSON-serializable (the devtools serialize it) and JSON can't hold a bigint. The field's definition says which
- * strings are bigints: see property-state.ts.
+ * strings are bigints: see fromSerializedValue.
  */
 export type SerializedPropertyValue = number | string | boolean;
 

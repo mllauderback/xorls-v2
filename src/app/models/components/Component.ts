@@ -7,18 +7,13 @@ import { AbstractSelectable, BoundingBox } from "../Selectable";
 export class Node extends AbstractSelectable {
     public position: Point;
     public state: bigint;
-    properties: PropertyRecord;
 
     constructor(position: Point) {
-        super();
+        super(new PropertyRecord({
+            'Bus Width': new Property(1, true)
+        }));
         this.position = { x: position.x, y: position.y };
         this.state = 0n;
-        // this.properties = {
-        //     'Bus Width': new Property(1, true),
-        // };
-        this.properties = new PropertyRecord({
-            'Bus Width': new Property(1, true)
-        });
     }
 
     isSelected(): boolean {
@@ -63,13 +58,12 @@ export abstract class Component extends AbstractSelectable implements Drawable, 
     inodes: Node[] = [];
     onodes: Node[] = [];
     isGhost = false;
-    abstract override properties: PropertyRecord;
-
     /**
      * @param position The position of the component's top-left corner, in diagram coordinates
+     * @param properties The component's properties: only the fields it has
      */
-    constructor(position: Point) {
-        super();
+    constructor(position: Point, properties: PropertyRecord) {
+        super(properties);
         this.position = position;
     }
 

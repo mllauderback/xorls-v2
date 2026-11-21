@@ -1,5 +1,5 @@
 import type { Point } from "./Point";
-import { describeAcceptedValues, validatePropertyValue, type PropertyField, type PropertyRecord, type PropertyType } from "./Property";
+import { describeAcceptedValues, validatePropertyValue, type PropertyField, type PropertyRecord, type PropertyType, type ReadonlyPropertyRecord } from "./Property";
 
 /**
  * The size of a selectable's footprint. The box's top-left corner is always the owner's `position`: x = 0 is the
@@ -48,8 +48,8 @@ export class BoundingBox {
 }
 
 export interface Selectable {
-    /** The selectable's properties: only the fields it has. */
-    properties: PropertyRecord;
+    /** The selectable's properties, to read: only the fields it has. Change one with updateProperty. */
+    readonly properties: ReadonlyPropertyRecord;
 
     /**
      * Returns true when mousePosition is inside the selectable's bounding box.
@@ -70,15 +70,28 @@ export interface Selectable {
 }
 
 /**
- * The base of every selectable. Outside code changes a property through updateProperty, which a subclass overrides
- * when a change has more to update. setPropertyValue is the checked write that updateProperty is built on, and only
- * subclasses can reach it.
+ * The base of every selectable. Outside code reads properties through the read-only view `properties`, and changes
+ * them only through updateProperty, which a subclass overrides when a change has more to update. setPropertyValue
+ * is the checked write that updateProperty is built on, and only subclasses can reach it.
  */
 export abstract class AbstractSelectable implements Selectable {
-    abstract properties: PropertyRecord;
+    /** The writable record. Only this class and its subclasses can change a value through it. */
+    protected readonly _properties: PropertyRecord;
 
     /** Names the selectable in error messages, e.g. its component type. */
     protected abstract readonly displayName: string;
+
+    /**
+     * @param properties The selectable's properties: only the fields it has
+     */
+    constructor(properties: PropertyRecord) {
+        this._properties = properties;
+    }
+
+    /** The selectable's properties, to read. Change one with updateProperty. */
+    get properties(): ReadonlyPropertyRecord {
+        return this._properties;
+    }
 
     abstract isSelected(mousePosition: Point): boolean;
 
@@ -99,7 +112,7 @@ export abstract class AbstractSelectable implements Selectable {
      * @throws If a check fails
      */
     protected setPropertyValue(field: PropertyField, value: PropertyType): void {
-        const property = this.properties.get(field);
+        const property = this._properties.get(field);
         if (!property) throw new Error(`${this.displayName} does not have property ${field}`);
         if (property.isReadonly) throw new Error(`${field} of ${this.displayName} is readonly`);
         if (!validatePropertyValue(field, value)) throw new Error(`${field} must be ${describeAcceptedValues(field)}, not ${String(value)}`);

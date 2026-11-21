@@ -5,17 +5,15 @@ import { Component, ComponentType } from "./Component";
 
 export class Input extends Component {
     readonly type: ComponentType = ComponentType.Input;
-    properties: PropertyRecord;
 
     constructor(position: Point) {
-        super(position);
-        // TODO onodes: 1 onode;
-        this.properties = new PropertyRecord({
+        super(position, new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Bus Width': new Property(1),
             'Label': new Property(''),
             'Output Value': new Property(0n)
-        });
+        }));
+        // TODO onodes: 1 onode;
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -28,17 +26,15 @@ export class Input extends Component {
 
 export class Output extends Component {
     readonly type: ComponentType = ComponentType.Output;
-    properties: PropertyRecord;
 
     constructor(position: Point) {
-        super(position);
-        // TODO inodes: 1 inode;
-        this.properties = new PropertyRecord({
+        super(position, new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Bus Width': new Property(1, true),
             'Label': new Property(''),
             'Input Value': new Property(0n, true)
-        });
+        }));
+        // TODO inodes: 1 inode;
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -51,17 +47,15 @@ export class Output extends Component {
 
 export class SevenSegmentDisplay extends Component {
     readonly type: ComponentType = ComponentType.SevenSeg;
-    properties: PropertyRecord;
 
     constructor(position: Point) {
-        super(position);
-        // TODO onodes: 1 onode
-        this.properties = new PropertyRecord({
+        super(position, new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Bus Width': new Property(1, true),
             'Label': new Property(''),
             'Input Value': new Property(0n, true)
-        });
+        }));
+        // TODO onodes: 1 onode
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {

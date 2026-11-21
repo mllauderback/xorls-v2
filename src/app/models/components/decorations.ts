@@ -9,21 +9,17 @@ export class Text extends AbstractSelectable implements Decoration {
     readonly id: string = crypto.randomUUID();
     readonly type: ComponentType = ComponentType.Text;
     font: string; // type may change to an enum who knows
-    size: number;
     isGhost: boolean;
-    properties: PropertyRecord;
 
     constructor(position: Point) {
-        super();
-        this.position = position;
-        this.font = "";
-        this.size = 12;
-        this.isGhost = false;
-        this.properties = new PropertyRecord({
+        super(new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Label': new Property(''),
             'Font Size': new Property(14)
-        });
+        }));
+        this.position = position;
+        this.font = "";
+        this.isGhost = false;
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -35,6 +31,11 @@ export class Text extends AbstractSelectable implements Decoration {
 
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 1); // should reflect text font size instead
+    }
+
+    /** The font size, from the Font Size property, so the panel and the drawing agree. */
+    get fontSize(): number {
+        return this.properties.get('Font Size')!.value as number;
     }
 
     protected get displayName(): string {

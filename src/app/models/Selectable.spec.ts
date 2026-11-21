@@ -5,11 +5,14 @@ import { PropertyRecord } from './Property';
 import { AbstractSelectable, BoundingBox } from './Selectable';
 
 class Thing extends AbstractSelectable {
-    properties = new PropertyRecord({ 'Label': new Property('a'), 'Output Value': new Property(0n, true) });
     /** What the override saw, to check that it runs after the value is set. */
     seen: PropertyType[] = [];
 
     protected readonly displayName = 'Thing';
+
+    constructor() {
+        super(new PropertyRecord({ 'Label': new Property('a'), 'Output Value': new Property(0n, true) }));
+    }
 
     isSelected(): boolean {
         return false;
@@ -67,5 +70,29 @@ describe('AbstractSelectable', () => {
         thing.setPropertyValue('Label', 'd');
 
         expect(thing.properties.get('Label')?.value).toBe('d');
+    });
+
+    it('should hand outside code properties it can read but not write', () => {
+        const thing = new Thing();
+        const label = thing.properties.get('Label')!;
+
+        expect(label.value).toBe('a');
+        expect(label.isReadonly).toBe(false);
+        expect(thing.properties.serialize()).toEqual({
+            'Label': { value: 'a', readonly: false },
+            'Output Value': { value: '0', readonly: true },
+        });
+        // Only the types stop this, so it is checked at compile time and never run.
+        const writeOutside = () => {
+            // @ts-expect-error a property's value is read-only outside its selectable: outside code has to call updateProperty
+            label.value = 'b';
+        };
+        expect(writeOutside).toBeTypeOf('function');
+        // @ts-expect-error the record can't be replaced either
+        expect(() => thing.properties = new PropertyRecord({})).toThrow();
+    });
+
+    it('should not offer a way to swap a whole property', () => {
+        expect('set' in new PropertyRecord({})).toBe(false);
     });
 });

@@ -10,7 +10,7 @@ import * as decorations from "./decorations";
 /** Anything the palette can put into a diagram. */
 export type Placeable = Component | Decoration;
 
-// Placeholders until the properties panel supplies these values.
+/** The number of inputs a new multi-input gate starts with. The properties panel changes it from there. */
 const DEFAULT_INPUT_NODE_COUNT = 2;
 
 const factories: Record<ComponentType, (position: Point) => Placeable> = {

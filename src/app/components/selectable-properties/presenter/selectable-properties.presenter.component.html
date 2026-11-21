@@ -6,7 +6,7 @@
 @else {
 <p-scrollpanel class="w-full">
     <div class="flex flex-row justify-between py-2">
-        <h3 class="pl-2 m-0 flex self-center"><b>{{ type }} Properties</b></h3>
+        <h3 class="pl-2 m-0 flex self-center font-bold">{{ type }} Properties</h3>
     </div>
     <p-divider />
     <div class="flex flex-col gap-3 p-2">
@@ -24,7 +24,7 @@
                 (keydown.enter)="onTextCommit(property, $any($event.target).value)" />
             }
             @case ('enum') {
-            <p-select class="w-full" [inputId]="inputId(property.field)" [options]="$any(options(property))"
+            <p-select class="w-full" [inputId]="inputId(property.field)" [options]="options(property)"
                 [ngModel]="property.value" (ngModelChange)="onValueChange(property, $event)"
                 [disabled]="property.readonly" />
             }

@@ -48,7 +48,7 @@ describe('Component', () => {
             const component = create();
 
             expect(() => component.updateProperty('Font Size', 10)).toThrow(`${component.type} does not have property Font Size`);
-            expect(Object.hasOwn(component.properties, 'Font Size')).toBe(false);
+            expect(component.properties.get('Font Size')).toBeUndefined();
         });
 
         it('should refuse a value its field does not accept, and keep the old one', () => {
@@ -116,7 +116,6 @@ describe('Component', () => {
     it('should let a subclass override the default behaviour', () => {
         class Fixed extends Component {
             readonly type = ComponentType.Buffer;
-            properties = new PropertyRecord({});
             draw() { /* nothing to draw */ }
             getBoundingBox() {
                 return new BoundingBox(4, 2);
@@ -126,6 +125,6 @@ describe('Component', () => {
             }
         }
 
-        expect(new Fixed({ x: 0, y: 0 }).isSelected()).toBe(false);
+        expect(new Fixed({ x: 0, y: 0 }, new PropertyRecord({})).isSelected()).toBe(false);
     });
 });

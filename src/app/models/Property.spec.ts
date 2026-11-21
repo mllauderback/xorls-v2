@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { Orientation, Property, PROPERTY_DEFINITIONS, PROPERTY_FIELDS, describeAcceptedValues, validatePropertyValue } from './Property';
+import { Orientation, Property, PROPERTY_DEFINITIONS, PROPERTY_FIELDS, PropertyRecord, describeAcceptedValues, validatePropertyValue } from './Property';
 import { Node } from './components/Component';
 import { Text } from './components/decorations';
 
 describe('Property', () => {
-    it('should change to a value of the same type', () => {
+    it('should change its value', () => {
         const property = new Property(2);
 
         property.value = 3;
@@ -12,11 +12,14 @@ describe('Property', () => {
         expect(property.value).toBe(3);
     });
 
-    it('should refuse a value of another type', () => {
-        const property = new Property(0n);
+    it('should keep a copy of the record it is made from', () => {
+        const fields = { 'Label': new Property('a') };
+        const record = new PropertyRecord(fields);
 
-        expect(() => property.value = 1).toThrow('Mismatched property types: trying to set number to bigint');
-        expect(property.value).toBe(0n);
+        Object.assign(fields, { 'Font Size': new Property(10) });
+
+        expect(record.get('Font Size')).toBeUndefined();
+        expect(record.get('Label')?.value).toBe('a');
     });
 
     it('should refuse any change when it is readonly', () => {
@@ -100,6 +103,7 @@ describe('updateProperty on selectables that are not components', () => {
         text.updateProperty('Font Size', 20);
 
         expect(text.properties.get('Font Size')?.value).toBe(20);
+        expect(text.fontSize).toBe(20);
         expect(() => text.updateProperty('Number of Inputs', 2)).toThrow('Text does not have property Number of Inputs');
     });
 });
