@@ -2,7 +2,7 @@ import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
 import { describe, beforeEach, it, expect, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, NgZone, Output } from '@angular/core';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { firstValueFrom, Subject } from 'rxjs';
 
@@ -12,10 +12,10 @@ import { DiagramController } from '../controller/diagram.controller';
 import type { DiagramView } from '../controller/diagram-view';
 import { DEFAULT_ZOOM_SETTINGS, selectWorkspaceSettings } from '../../../../store/settings/feature';
 import { selectDiagramWorkspaceState } from '../../../../store/workspace/feature';
-import { selectSelectedPaletteComponent, selectSelectedSelectable } from '../../../../store/components/feature';
+import { selectSelectableProperties, selectSelectedPaletteComponent, selectSelectedSelectable } from '../../../../store/components/feature';
 import * as componentActions from '../../../../store/components/actions';
 import * as workspaceActions from '../../../../store/workspace/actions';
-import type { SelectedSelectable } from '../../../../store/components/state';
+import type { SelectableProperties, SelectedSelectable } from '../../../../store/components/state';
 import type { PaletteComponent } from '../../../../models/components/PaletteComponent';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
 import type { CodeWorkspaceState, DiagramWorkspaceState } from '../../../../store/workspace/state';
@@ -38,7 +38,9 @@ class MockDiagramController {
     setPaletteComponent = vi.fn();
     setSelectedSelectable = vi.fn();
     setWorkspaceSettings = vi.fn();
+    setSelectableProperties = vi.fn();
     selectionCleared$ = new Subject<void>();
+    propertiesLoaded$ = new Subject<SelectableProperties>();
 }
 
 const mockSettings: WorkspaceSettingsState = {} as unknown as WorkspaceSettingsState;
@@ -66,6 +68,7 @@ describe('DiagramWorkspaceContainerComponent', () => {
                         { selector: selectDiagramWorkspaceState, value: mockWorkspaceState },
                         { selector: selectSelectedSelectable, value: mockSelectedSelectable },
                         { selector: selectSelectedPaletteComponent, value: null },
+                        { selector: selectSelectableProperties, value: null },
                     ],
                 }),
             ],
@@ -316,6 +319,43 @@ describe('DiagramWorkspaceContainerComponent', () => {
             store.refreshState();
 
             expect(controller.setPaletteComponent).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('properties', () => {
+        const properties: SelectableProperties = {
+            target: { kind: 'preview', workspaceId: 'test-diagram-id', type: ComponentType.AndGate },
+            values: { 'Number of Inputs': { value: 3, readonly: false } },
+        };
+
+        it('should tell the controller which properties the store shows', () => {
+            expect(controller.setSelectableProperties).toHaveBeenCalledWith(null);
+
+            store.overrideSelector(selectSelectableProperties, properties);
+            store.refreshState();
+
+            expect(controller.setSelectableProperties).toHaveBeenLastCalledWith(properties);
+        });
+
+        it('should load the properties the controller reports into the store, inside the Angular zone', () => {
+            const dispatch = vi.spyOn(store, 'dispatch');
+            const zone = TestBed.inject(NgZone);
+            let inZone = false;
+            dispatch.mockImplementation((() => { inZone = NgZone.isInAngularZone(); }) as unknown as typeof store.dispatch);
+
+            zone.runOutsideAngular(() => controller.propertiesLoaded$.next(properties));
+
+            expect(dispatch).toHaveBeenCalledWith(componentActions.loadSelectableProperties({ properties }));
+            expect(inZone).toBe(true);
+        });
+
+        it('should stop loading properties once destroyed', () => {
+            fixture.destroy();
+            const dispatch = vi.spyOn(store, 'dispatch');
+
+            controller.propertiesLoaded$.next(properties);
+
+            expect(dispatch).not.toHaveBeenCalled();
         });
     });
 

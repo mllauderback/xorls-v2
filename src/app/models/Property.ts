@@ -30,7 +30,9 @@ export type PropertyDefinition =
     | { kind: 'bigint' }
     /** One of a fixed list of strings. */
     | { kind: 'enum', options: readonly string[] }
-    | { kind: 'text' };
+    | { kind: 'text' }
+    /** On or off. */
+    | { kind: 'boolean' };
 
 /** What each property field accepts. Every selectable that has a field shares its definition. */
 export const PROPERTY_DEFINITIONS: Readonly<Record<PropertyField, PropertyDefinition>> = {
@@ -55,6 +57,8 @@ export function validatePropertyValue(field: PropertyField, value: PropertyType)
             return typeof value === 'string' && definition.options.includes(value);
         case 'text':
             return typeof value === 'string';
+        case 'boolean':
+            return typeof value === 'boolean';
     }
 }
 
@@ -70,6 +74,8 @@ export function describeAcceptedValues(field: PropertyField): string {
             return `one of ${definition.options.join(', ')}`;
         case 'text':
             return 'a string';
+        case 'boolean':
+            return 'true or false';
     }
 }
 
