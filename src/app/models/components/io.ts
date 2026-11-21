@@ -1,27 +1,22 @@
 import type { Point } from "../Point";
+import { Property, Orientation, PropertyRecord } from "../Property";
 import { BoundingBox } from "../Selectable";
-import { ComponentType, type Component, type Node } from "./Component";
+import { Component, ComponentType } from "./Component";
 
-export class Input implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class Input extends Component {
     readonly type: ComponentType = ComponentType.Input;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point) {
-        this.position = position;
-        this.inodes = [];
-        this.onodes = []; // TODO: 1 onode;
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Bus Width': new Property(1),
+            'Label': new Property(''),
+            'Output Value': new Property(0n)
+        }));
+        // TODO onodes: 1 onode;
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        throw new Error("Method not implemented.");
     }
 
     getBoundingBox(): BoundingBox {
@@ -29,62 +24,44 @@ export class Input implements Component {
     }
 }
 
-export class Output implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class Output extends Component {
     readonly type: ComponentType = ComponentType.Output;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point) {
-        this.position = position;
-        this.inodes = []; // TODO: 1 inode;
-        this.onodes = [];
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Bus Width': new Property(1, true),
+            'Label': new Property(''),
+            'Input Value': new Property(0n, true)
+        }));
+        // TODO inodes: 1 inode;
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        throw new Error("Method not implemented.");
     }
 
     getBoundingBox(): BoundingBox {
         return new BoundingBox(3, 2);
     }
-
 }
 
-export class SevenSegmentDisplay implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class SevenSegmentDisplay extends Component {
     readonly type: ComponentType = ComponentType.SevenSeg;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
-    busWidth: number;
-
-    constructor(position: Point, busWidth: number) {
-        this.position = position;
-        this.inodes = [];
-        this.onodes = []; // TODO: 1 onode
-        this.isGhost = false;
-
-        this.busWidth = busWidth;
+    constructor(position: Point) {
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Bus Width': new Property(1, true),
+            'Label': new Property(''),
+            'Input Value': new Property(0n, true)
+        }));
+        // TODO onodes: 1 onode
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
-    }
-
-    isSelected(mousePosition: Point): boolean {
-        throw new Error("Method not implemented.");
     }
 
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 6);
     }
-
 }

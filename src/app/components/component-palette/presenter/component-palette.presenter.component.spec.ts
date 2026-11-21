@@ -192,7 +192,7 @@ describe('ComponentPalettePresenterComponent', () => {
     });
 
     describe('categoryPaletteComponentMapChange', () => {
-        it('should emit categoryPaletteComponentMapChange when the grid selection panel emits', () => {
+        it('should emit categoryPaletteComponentMapChange once each time the grid selection panel emits', () => {
             const record = buildRecord([[GATES_CATEGORY, [buildPaletteComponent()]]]);
             component.categoryPaletteComponents = record;
             fixture.detectChanges();
@@ -206,24 +206,7 @@ describe('ComponentPalettePresenterComponent', () => {
 
             panel.categoryPaletteComponentsChange.emit(updatedRecord);
 
-            expect(emitSpy).toHaveBeenCalledWith(updatedRecord);
-        });
-
-        it('should emit exactly once per grid selection panel emission', () => {
-            const record = buildRecord([[GATES_CATEGORY, [buildPaletteComponent()]]]);
-            component.categoryPaletteComponents = record;
-            fixture.detectChanges();
-
-            const emitSpy = vi.spyOn(component.categoryPaletteComponentsChange, 'emit');
-
-            const panel = fixture.debugElement.query(
-                By.directive(MockGridSelectionPanelComponent)
-            ).componentInstance as MockGridSelectionPanelComponent;
-
-            panel.categoryPaletteComponentsChange.emit(record);
-            panel.categoryPaletteComponentsChange.emit(record);
-
-            expect(emitSpy).toHaveBeenCalledTimes(2);
+            expect(emitSpy).toHaveBeenCalledExactlyOnceWith(updatedRecord);
         });
 
         it('should update categoryPaletteComponentMap via two-way binding when grid selection panel emits', () => {

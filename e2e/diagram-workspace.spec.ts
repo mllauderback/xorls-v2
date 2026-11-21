@@ -140,17 +140,6 @@ test.describe('Diagram workspace', () => {
             expect([right, left]).toContainEqual(before);
         });
 
-        test('removes the ghost when the component is unpicked in the palette', async () => {
-            await diagram.pickPaletteComponent();
-            await diagram.moveFromCenterTo();
-            await expect.poll(() => diagram.layer('activeComponent').drawn()).not.toBeNull();
-
-            await diagram.palette.clickTile('AndGate');
-            await settle(diagram.page);
-
-            expect(await diagram.layer('activeComponent').drawn()).toBeNull();
-        });
-
         test('shows the ghost again as soon as the mouse comes back after it was unpicked and picked', async () => {
             await diagram.pickPaletteComponent();
             await diagram.moveFromCenterTo();

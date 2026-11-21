@@ -87,7 +87,7 @@ describe('zoomAfterScroll', () => {
             expect(zoomAfterScroll(1, pinch, inverted, 600)).toBeGreaterThan(1);
         });
 
-        it('should stay within the zoom limits', () => {
+        it('should stay within the zoom limits when inverted', () => {
             expect(zoomAfterScroll(1, scroll(100000), inverted, 600)).toBe(config.maxZoom);
             expect(zoomAfterScroll(1, scroll(-100000), inverted, 600)).toBe(config.minZoom);
         });

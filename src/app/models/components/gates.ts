@@ -1,8 +1,8 @@
 import { arcFromEndPoints } from "../drawing-helpers";
 import type { Point } from "../Point";
+import { Property, Orientation, PropertyRecord } from "../Property";
 import { BoundingBox } from "../Selectable";
-import type { Component, Node } from "./Component";
-import { ComponentType, createInputNodes } from "./Component";
+import { Component, ComponentType, createInputNodes } from "./Component";
 
 /*
  * Gates are drawn in diagram units, which are grid cells (see GRID_SPACING): a two-input gate is 6 x 4 cells and a
@@ -14,19 +14,19 @@ import { ComponentType, createInputNodes } from "./Component";
 const BUBBLE_RADIUS = 0.3;
 
 
-export class AndGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class AndGate extends Component {
     readonly type: ComponentType = ComponentType.AndGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            // for now, output value is 0.  Eventually, the simulation state will upadte this property
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
     }
 
     /** Draws in diagram coordinates: the layer's context transform puts it in the right place on the canvas. */
@@ -51,33 +51,23 @@ export class AndGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    /* set the number of inodes and automatically calculate their positions */
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class OrGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class OrGate extends Component {
     readonly type: ComponentType = ComponentType.OrGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -105,33 +95,23 @@ export class OrGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    /* set the number of inodes and automatically calculate their positions */
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class XorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class XorGate extends Component {
     readonly type: ComponentType = ComponentType.XorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -163,32 +143,23 @@ export class XorGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class NotGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class NotGate extends Component {
     readonly type: ComponentType = ComponentType.NotGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point) {
-        this.position = position;
-        this.inodes = [];  // TODO: just 1
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(1, true),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        // TODO inodes: just 1
+        // TODO onodes: just 1
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -211,28 +182,21 @@ export class NotGate implements Component {
         ctx.lineTo(x, y + 1);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 2);
     }
 }
 
-export class Buffer implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class Buffer extends Component {
     readonly type: ComponentType = ComponentType.Buffer;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point) {
-        this.position = position;
-        this.inodes = [];
-        this.onodes = [];
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(1, true),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -252,28 +216,23 @@ export class Buffer implements Component {
         ctx.lineTo(x, y + 1);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 2);
     }
 }
 
-export class NandGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class NandGate extends Component {
     readonly type: ComponentType = ComponentType.NandGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -300,32 +259,23 @@ export class NandGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class NorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class NorGate extends Component {
     readonly type: ComponentType = ComponentType.NorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -356,32 +306,23 @@ export class NorGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class XnorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class XnorGate extends Component {
     readonly type: ComponentType = ComponentType.XnorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position, new PropertyRecord({
+            'Orientation': new Property(Orientation.east),
+            'Number of Inputs': new Property(iNodeSize),
+            'Bus Width': new Property(1),
+            'Output Value': new Property(0n, true),
+        }));
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -416,15 +357,7 @@ export class XnorGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
     }
 }

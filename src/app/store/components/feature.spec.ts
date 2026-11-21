@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { provideStore, Store } from '@ngrx/store';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { componentsFeature, selectSelectedPaletteComponent, selectSelectedSelectable } from './feature';
+import { componentsFeature, selectOrderedSelectableProperties, selectSelectableProperties, selectSelectedPaletteComponent, selectSelectedSelectable } from './feature';
+import { Input } from '../../models/components/io';
 import * as actions from './actions';
 import { firstValueFrom } from 'rxjs';
 import { ComponentType } from '../../models/components/Component';
+// import { toSerializedPropertyRecord } from '../../models/Property';
 
 /**
  * Runs the feature in a real store with NgRx's default runtime checks, which deep-freeze the state and every action
@@ -41,5 +43,31 @@ describe('componentsFeature in a store with the runtime checks on', () => {
         store.dispatch(actions.clearSelection());
 
         expect(await firstValueFrom(store.select(selectSelectedSelectable))).toBeNull();
+    });
+    it('should hold a component\'s properties as frozen plain data, and edit them', async () => {
+        const values = new Input({ x: 0, y: 0 }).properties.serialize();
+        store.dispatch(actions.loadSelectableProperties({ properties: { target: { kind: 'preview', workspaceId: 'w', type: ComponentType.Input }, values } }));
+
+        store.dispatch(actions.updateSelectableProperty({ field: 'Output Value', value: '7' }));
+        const properties = (await firstValueFrom(store.select(selectSelectableProperties)))!;
+
+        expect(properties.values['Output Value']).toEqual({ value: '7', readonly: false });
+        expect(Object.isFrozen(properties.values['Output Value'])).toBe(true);
+        expect(JSON.parse(JSON.stringify(properties))).toEqual(properties);
+    });
+
+    it('should list the properties in order, whatever order the store holds them in', async () => {
+        expect(await firstValueFrom(store.select(selectOrderedSelectableProperties))).toEqual([]);
+
+        store.dispatch(actions.loadSelectableProperties({
+            properties: {
+                target: { kind: 'preview', workspaceId: 'w', type: ComponentType.Text },
+                values: { 'Font Size': { value: 14, readonly: false }, 'Orientation': { value: 'East', readonly: false } },
+            },
+        }));
+
+        const list = await firstValueFrom(store.select(selectOrderedSelectableProperties));
+
+        expect(list.map(item => item.field)).toEqual(['Orientation', 'Font Size']);
     });
 });

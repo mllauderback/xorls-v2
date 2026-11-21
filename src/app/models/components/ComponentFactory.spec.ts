@@ -6,6 +6,7 @@ import * as decorations from './decorations';
 import { initialComponentsState } from '../../store/components/feature';
 import { ComponentType } from './Component';
 import { BoundingBox } from '../Selectable';
+import { PropertyRecord } from '../Property';
 
 describe('ComponentFactory', () => {
     describe('createPlaceable', () => {
@@ -96,9 +97,15 @@ describe('ComponentFactory', () => {
 
         it('should reject null, undefined and selectables that cannot be previewed', () => {
             const defaultBoundingBox = new BoundingBox(0, 0);
+            const placeable = {
+                properties: new PropertyRecord({}),
+                isSelected: () => false,
+                getBoundingBox: () => defaultBoundingBox,
+                updateProperty: () => { }
+            };
             expect(isPlaceable(null)).toBe(false);
             expect(isPlaceable(undefined)).toBe(false);
-            expect(isPlaceable({ isSelected: () => false, getBoundingBox: () => defaultBoundingBox })).toBe(false);
+            expect(isPlaceable(placeable)).toBe(false);
         });
     });
 

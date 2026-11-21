@@ -1,4 +1,4 @@
-import { Component, inject, Input } from "@angular/core";
+import { Component, inject, Input, NgZone } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { AbstractWorkspaceComponent } from "../../abstract-workspace.component";
 import { Store } from "@ngrx/store";
@@ -9,9 +9,9 @@ import { filter } from "rxjs";
 import type { CodeWorkspaceState, DiagramWorkspaceState, WorkspaceState } from "../../../../store/workspace/state";
 import { selectDiagramWorkspaceState } from "../../../../store/workspace/feature";
 import * as workspaceActions from "../../../../store/workspace/actions";
-import { selectSelectedPaletteComponent, selectSelectedSelectable } from "../../../../store/components/feature";
+import { selectSelectableProperties, selectSelectedPaletteComponent, selectSelectedSelectable } from "../../../../store/components/feature";
 import * as componentActions from "../../../../store/components/actions";
-import type { PaletteComponentsState } from "../../../../store/components/state";
+import type { PaletteComponentsState, SelectableProperties } from "../../../../store/components/state";
 import { DiagramWorkspacePresenterComponent } from "../presenter/diagram-workspace.presenter.component";
 import { CommonModule } from "@angular/common";
 import { DiagramController } from "../controller/diagram.controller";
@@ -39,6 +39,7 @@ export class DiagramWorkspaceContainerComponent extends AbstractWorkspaceCompone
     protected override workspaceSettings$: Observable<WorkspaceSettingsState>;
     protected override workspaceState$: Observable<DiagramWorkspaceState | CodeWorkspaceState>;
     private controller = inject(DiagramController);
+    private zone = inject(NgZone);
 
     constructor() {
         super();
@@ -54,6 +55,10 @@ export class DiagramWorkspaceContainerComponent extends AbstractWorkspaceCompone
             .subscribe(paletteComponent => this.controller.setPaletteComponent(paletteComponent));
         this.componentsStore.select(selectSelectedSelectable).pipe(takeUntilDestroyed())
             .subscribe(selectable => this.controller.setSelectedSelectable(selectable));
+        this.componentsStore.select(selectSelectableProperties).pipe(takeUntilDestroyed())
+            .subscribe(properties => this.controller.setSelectableProperties(properties));
+        this.controller.propertiesLoaded$.pipe(takeUntilDestroyed())
+            .subscribe(properties => this.onPropertiesLoaded(properties));
         this.workspaceSettings$.pipe(takeUntilDestroyed())
             .subscribe(settings => this.controller.setWorkspaceSettings(settings));
         this.controller.selectionCleared$.pipe(takeUntilDestroyed())
@@ -63,6 +68,14 @@ export class DiagramWorkspaceContainerComponent extends AbstractWorkspaceCompone
     /** The presenter's layers exist: let the controller take over the interactions with it. */
     protected onViewReady(view: DiagramView) {
         this.controller.attach(view, this.id);
+    }
+
+    /**
+     * The controller made a ghost the store has no properties for: show its properties. It can make one while
+     * following the mouse, outside the Angular zone, so the panel is told inside it.
+     */
+    protected onPropertiesLoaded(properties: SelectableProperties) {
+        this.zone.run(() => this.componentsStore.dispatch(componentActions.loadSelectableProperties({ properties })));
     }
 
     /** Esc was pressed: end the placement and deselect the placed component, un-highlight the palette, and go back to selecting. */

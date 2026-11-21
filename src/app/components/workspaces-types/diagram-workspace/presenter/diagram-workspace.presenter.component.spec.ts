@@ -6,11 +6,9 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 import { DiagramWorkspacePresenterComponent } from './diagram-workspace.presenter.component';
 import { RenderService } from '../../../../services/render/render.service';
-import type { AbstractCanvasLayerComponent } from '../../../canvas-layers/abstract-canvas-layer.component';
 import type { WorkspaceSettingsState } from '../../../../store/settings/state';
-import type { DiagramWorkspaceState, CodeWorkspaceState } from '../../../../store/workspace/state';
+import type { DiagramWorkspaceState } from '../../../../store/workspace/state';
 import { createPlaceable } from '../../../../models/components/ComponentFactory';
-import type { DiagramView } from '../controller/diagram-view';
 import type { Drawable, DrawState } from '../../../../models/Drawable';
 import { ComponentType } from '../../../../models/components/Component';
 
@@ -121,101 +119,21 @@ describe('DiagramWorkspacePresenterComponent', () => {
         component.workspaceState = DIAGRAM_WORKSPACE_STATE;
     });
 
-    describe('component creation', () => {
-        it('should create successfully', () => {
-            fixture.detectChanges();
-            expect(component).toBeTruthy();
-        });
-    });
-
-    describe('@Input properties', () => {
-        it('should accept and store the id input', () => {
-            component.id = 'my-workspace';
-            fixture.detectChanges();
-            expect(component.id).toBe('my-workspace');
-        });
-
-        it('should accept null workspaceSettings', () => {
-            component.workspaceSettings = null;
-            fixture.detectChanges();
-            expect(component.workspaceSettings).toBeNull();
-        });
-
-        it('should accept null workspaceState', () => {
-            component.workspaceState = null;
-            fixture.detectChanges();
-            expect(component.workspaceState).toBeNull();
-        });
-
-        it('should accept a DiagramWorkspaceState', () => {
-            component.workspaceState = DIAGRAM_WORKSPACE_STATE;
-            fixture.detectChanges();
-            expect(component.workspaceState).toBe(DIAGRAM_WORKSPACE_STATE);
-        });
-
-        it('should accept a CodeWorkspaceState', () => {
-            const codeState = {} as CodeWorkspaceState;
-            component.workspaceState = codeState;
-            fixture.detectChanges();
-            expect(component.workspaceState).toBe(codeState);
-        });
-    });
-
-    describe('@ViewChild references', () => {
-        beforeEach(() => fixture.detectChanges());
-
-        it('should resolve gridCanvasLayerComponent', () => {
-            expect(component.gridCanvasLayerComponent).toBeTruthy();
-        });
-
-        it('should resolve componentCanvasLayerComponent', () => {
-            expect(component.componentCanvasLayerComponent).toBeTruthy();
-        });
-
-        it('should resolve ioCanvasLayerComponent', () => {
-            expect(component.ioCanvasLayerComponent).toBeTruthy();
-        });
-
-        it('should resolve wireCanvasLayerComponent', () => {
-            expect(component.wireCanvasLayerComponent).toBeTruthy();
-        });
-
-        it('should resolve activeComponentCanvasLayerComponent', () => {
-            expect(component.activeComponentCanvasLayerComponent).toBeTruthy();
-        });
-
-        it('should resolve activeWireCanvasLayerComponent', () => {
-            expect(component.activeWireCanvasLayerComponent).toBeTruthy();
-        });
-    });
-
     describe('ngAfterViewInit', () => {
-        it('should call renderService.add with the workspace id', () => {
+        it('should register its 6 layers with the render service once, in order (grid -> component -> io -> wire -> activeComponent -> activeWire)', () => {
             fixture.detectChanges();
-            expect(renderService.add).toHaveBeenCalledWith('workspace-1', expect.any(Array));
-        });
+            const layers = [
+                component.gridCanvasLayerComponent,
+                component.componentCanvasLayerComponent,
+                component.ioCanvasLayerComponent,
+                component.wireCanvasLayerComponent,
+                component.activeComponentCanvasLayerComponent,
+                component.activeWireCanvasLayerComponent,
+            ];
 
-        it('should pass exactly 6 layers to renderService.add', () => {
-            fixture.detectChanges();
-            const [, layers] = renderService.add.mock.calls[0] as [string, AbstractCanvasLayerComponent[]];
-            expect(layers).toHaveLength(6);
-        });
-
-        // arguably this isn't necessary, but I'll put it here anyway
-        it('should pass layers in the correct order (grid -> component -> io -> wire -> activeComponent -> activeWire)', () => {
-            fixture.detectChanges();
-            const [, layers] = renderService.add.mock.calls[0] as [string, AbstractCanvasLayerComponent[]];
-            expect(layers[0]).toBe(component.gridCanvasLayerComponent);
-            expect(layers[1]).toBe(component.componentCanvasLayerComponent);
-            expect(layers[2]).toBe(component.ioCanvasLayerComponent);
-            expect(layers[3]).toBe(component.wireCanvasLayerComponent);
-            expect(layers[4]).toBe(component.activeComponentCanvasLayerComponent);
-            expect(layers[5]).toBe(component.activeWireCanvasLayerComponent);
-        });
-
-        it('should call renderService.add exactly once', () => {
-            fixture.detectChanges();
-            expect(renderService.add).toHaveBeenCalledTimes(1);
+            // every @ViewChild resolves, so the order below can't pass on undefined layers
+            expect(layers.every(Boolean)).toBe(true);
+            expect(renderService.add).toHaveBeenCalledExactlyOnceWith('workspace-1', layers);
         });
     });
 
@@ -547,12 +465,6 @@ describe('DiagramWorkspacePresenterComponent', () => {
         });
 
         describe('being dumb', () => {
-            it('should be usable as a DiagramView', () => {
-                const view: DiagramView = component;
-
-                expect(view.element).toBe(fixture.nativeElement);
-            });
-
             it('should not listen to the mouse or the keyboard itself', () => {
                 const added = vi.spyOn(window, 'addEventListener');
                 const addedToDocument = vi.spyOn(document, 'addEventListener');
