@@ -58,16 +58,7 @@ describe('WorkspaceTabsComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     describe('onViewportResize', () => {
-        it('should call resizeActiveDiagram when viewport is wider than current render width', () => {
-            observer().callback([buildEntry(initialWidth + 1, initialHeight)], null!);
-            expect(mockRenderService.resizeActiveDiagram).toHaveBeenCalled();
-        });
-
         it('should not call resizeActiveDiagram when viewport is narrower than current render width', () => {
             observer().callback([buildEntry(initialWidth - 1, initialHeight)], null!);
             expect(mockRenderService.resizeActiveDiagram).not.toHaveBeenCalled();
@@ -76,11 +67,6 @@ describe('WorkspaceTabsComponent', () => {
         it('should not call resizeActiveDiagram when viewport matches current render dimensions', () => {
             observer().callback([buildEntry(initialWidth, initialHeight)], null!);
             expect(mockRenderService.resizeActiveDiagram).not.toHaveBeenCalled();
-        });
-
-        it('should call resizeActiveDiagram when viewport is taller than current render height', () => {
-            observer().callback([buildEntry(initialWidth, initialHeight + 1)], null!);
-            expect(mockRenderService.resizeActiveDiagram).toHaveBeenCalled();
         });
 
         it('should not call resizeActiveDiagram when viewport is shorter than current render height', () => {

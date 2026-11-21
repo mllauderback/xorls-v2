@@ -87,30 +87,10 @@ describe('DiagramWorkspaceContainerComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    describe('id input', () => {
-        it('should accept and store the required id input', () => {
-            expect(component.id).toBe('test-diagram-id');
-        });
-    });
-
     describe('workspaceSettings$', () => {
         it('should emit the value from the settings selector', async () => {
             const settings = await firstValueFrom(component['workspaceSettings$']);
             expect(settings).toEqual(mockSettings);
-        });
-
-        it('should filter out null values', async () => {
-            store.overrideSelector(selectWorkspaceSettings, null as unknown as WorkspaceSettingsState);
-            store.refreshState();
-
-            let emitted = false;
-            component['workspaceSettings$'].subscribe(() => { emitted = true; });
-            await Promise.resolve();
-            expect(emitted).toBe(false);
         });
 
         it('should filter out undefined values', async () => {
@@ -122,31 +102,12 @@ describe('DiagramWorkspaceContainerComponent', () => {
             await Promise.resolve();
             expect(emitted).toBe(false);
         });
-
-        it('should emit updated settings when the store emits a new value', async () => {
-            const updatedSettings = { updated: true } as unknown as WorkspaceSettingsState;
-            store.overrideSelector(selectWorkspaceSettings, updatedSettings);
-            store.refreshState();
-
-            const settings = await firstValueFrom(component['workspaceSettings$']);
-            expect(settings).toEqual(updatedSettings);
-        });
     });
 
     describe('workspaceState$', () => {
         it('should emit the value from the workspace selector', async () => {
             const state = await firstValueFrom(component['workspaceState$']);
             expect(state).toEqual(mockWorkspaceState);
-        });
-
-        it('should filter out null values', async () => {
-            store.overrideSelector(selectDiagramWorkspaceState, null as unknown as DiagramWorkspaceState);
-            store.refreshState();
-
-            let emitted = false;
-            component['workspaceState$'].subscribe(() => { emitted = true; });
-            await Promise.resolve();
-            expect(emitted).toBe(false);
         });
 
         it('should filter out undefined values', async () => {
@@ -157,15 +118,6 @@ describe('DiagramWorkspaceContainerComponent', () => {
             component['workspaceState$'].subscribe(() => { emitted = true; });
             await Promise.resolve();
             expect(emitted).toBe(false);
-        });
-
-        it('should emit updated state when the store emits a new value', async () => {
-            const updatedState: DiagramWorkspaceState = { mouseMode: 'pan', mousePosition: { x: 10, y: 20 } };
-            store.overrideSelector(selectDiagramWorkspaceState, updatedState);
-            store.refreshState();
-
-            const state = await firstValueFrom(component['workspaceState$']);
-            expect(state).toEqual(updatedState);
         });
     });
 

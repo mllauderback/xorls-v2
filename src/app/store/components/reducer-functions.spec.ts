@@ -172,11 +172,6 @@ describe('components reducer functions', () => {
             expect(anyHighlighted(before)).toBe(true);
             expect(before.selectedSelectable).not.toBeNull();
         });
-
-        it('should clear through the reducer with the clearSelection action', () => {
-            const state = componentsReducer(buildState({ selectedSelectable: placedGate() }), actions.clearSelection());
-            expect(state.selectedSelectable).toBeNull();
-        });
     });
 
     describe('componentsReducer', () => {
@@ -185,25 +180,18 @@ describe('components reducer functions', () => {
             expect(initialComponentsState.selectedSelectable).toBeNull();
         });
 
-        it('should select a palette component with the selectPaletteComponent action', () => {
-            const paletteComponent = { type: ComponentType.AndGate, selected: true };
+        it.each([
+            ['selectPaletteComponent', () => actions.selectPaletteComponent({ paletteComponent: { type: ComponentType.OrGate, selected: true } }),
+                (state: PaletteComponentsState) => functions.setSelectedPaletteComponent(state, { type: ComponentType.OrGate, selected: true })],
+            ['selectSelectable', () => actions.selectSelectable({ selectable: placedGate() }),
+                (state: PaletteComponentsState) => functions.setSelectedSelectable(state, placedGate())],
+            ['clearSelectedPaletteComponent', () => actions.clearSelectedPaletteComponent(), functions.clearSelectedPaletteComponent],
+            ['clearSelection', () => actions.clearSelection(), functions.clearSelection],
+        ] as const)('should run %s through its reducer function', (_name, action, reduce) => {
+            // with a placed component selected, no two of these actions give the same state
+            const state = buildState({ selectedSelectable: placedGate(), selectableProperties: selectedProperties() });
 
-            const state = componentsReducer(buildState(), actions.selectPaletteComponent({ paletteComponent }));
-
-            expect(state.selectedPaletteComponent).toBe(paletteComponent);
-            expect(state.selectedSelectable).toBeNull();
-        });
-
-        it('should select a placed component with the selectSelectable action', () => {
-            const selectable = placedGate();
-
-            const state = componentsReducer(buildState({
-                paletteComponents: buildRecord(ComponentType.AndGate),
-                selectedPaletteComponent: { type: ComponentType.AndGate, selected: true },
-            }), actions.selectSelectable({ selectable }));
-
-            expect(state.selectedSelectable).toBe(selectable);
-            expect(state.selectedPaletteComponent).toBeNull();
+            expect(componentsReducer(state, action())).toEqual(reduce(state));
         });
 
         it('should keep the palette component selected until the selection is cleared, however many are placed', () => {
@@ -215,24 +203,6 @@ describe('components reducer functions', () => {
 
             expect(state.selectedPaletteComponent).toBe(paletteComponent);
             expect(Object.values(state.paletteComponents).flat().filter(c => c.selected).map(c => c.type)).toEqual([ComponentType.AndGate]);
-        });
-
-        it('should end a placement with clearSelection', () => {
-            const paletteComponent = { type: ComponentType.AndGate, selected: true };
-            let state = componentsReducer(buildState({ paletteComponents: buildRecord(ComponentType.AndGate) }), actions.selectPaletteComponent({ paletteComponent }));
-
-            state = componentsReducer(state, actions.clearSelection());
-
-            expect(state.selectedPaletteComponent).toBeNull();
-            expect(state.selectedSelectable).toBeNull();
-            expect(anyHighlighted(state)).toBe(false);
-        });
-
-        it('should cancel a placement with clearSelectedPaletteComponent', () => {
-            const paletteComponent = { type: ComponentType.AndGate, selected: true };
-            let state = componentsReducer(buildState(), actions.selectPaletteComponent({ paletteComponent }));
-            state = componentsReducer(state, actions.clearSelectedPaletteComponent());
-            expect(state.selectedPaletteComponent).toBeNull();
         });
 
         it('should keep the selection plain data, so it survives a JSON round trip unchanged', () => {

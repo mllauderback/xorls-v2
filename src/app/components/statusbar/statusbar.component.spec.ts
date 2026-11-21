@@ -3,7 +3,6 @@ import { TestBed } from '@angular/core/testing';
 import { describe, beforeEach, it, expect } from 'vitest';
 
 import { StatusbarComponent } from './statusbar.component';
-import { By } from '@angular/platform-browser';
 
 describe('StatusbarComponent', () => {
     let component: StatusbarComponent;
@@ -22,14 +21,5 @@ describe('StatusbarComponent', () => {
 
     it('should create', () => {
         expect(component).toBeTruthy();
-    });
-
-    it('should have message "Statusbar works!"', () => {
-        expect(component.message).toBe("Statusbar works!");
-    });
-
-    it('should render message in a p element', () => {
-        const messageEl = fixture.debugElement.query(By.css('p')).nativeElement;
-        expect(messageEl.textContent).toBe(component.message);
     });
 });

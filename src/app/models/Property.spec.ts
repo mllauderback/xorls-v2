@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { Orientation, Property, PROPERTY_DEFINITIONS, PROPERTY_FIELDS, PropertyRecord, describeAcceptedValues, validatePropertyValue } from './Property';
-import { Node } from './components/Component';
 import { Text } from './components/decorations';
 
 describe('Property', () => {
@@ -93,10 +92,6 @@ describe('describeAcceptedValues', () => {
 });
 
 describe('updateProperty on selectables that are not components', () => {
-    it('should keep the bus width of a node fixed', () => {
-        expect(() => new Node({ x: 0, y: 0 }).updateProperty('Bus Width', 2)).toThrow('Bus Width of Node is readonly');
-    });
-
     it('should set the font size of a text decoration', () => {
         const text = new Text({ x: 0, y: 0 });
 

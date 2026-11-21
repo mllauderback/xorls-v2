@@ -6,7 +6,6 @@ import { Input } from '../../models/components/io';
 import * as actions from './actions';
 import { firstValueFrom } from 'rxjs';
 import { ComponentType } from '../../models/components/Component';
-import type { PropertyListItem } from '../../models/Property';
 // import { toSerializedPropertyRecord } from '../../models/Property';
 
 /**
@@ -57,16 +56,9 @@ describe('componentsFeature in a store with the runtime checks on', () => {
         expect(JSON.parse(JSON.stringify(properties))).toEqual(properties);
     });
 
-    it('should list the properties in order', async () => {
-        const values = new Input({ x: 0, y: 0 }).properties.serialize();
-        store.dispatch(actions.loadSelectableProperties({ properties: { target: { kind: 'preview', workspaceId: 'w', type: ComponentType.Input }, values } }));
+    it('should list the properties in order, whatever order the store holds them in', async () => {
+        expect(await firstValueFrom(store.select(selectOrderedSelectableProperties))).toEqual([]);
 
-        const list: PropertyListItem[] = await firstValueFrom(store.select(selectOrderedSelectableProperties));
-
-        expect(list.map(item => item.field)).toEqual(['Orientation', 'Output Value', 'Bus Width', 'Label']);
-    });
-
-    it('should list properties in order even when the store holds them in another order', async () => {
         store.dispatch(actions.loadSelectableProperties({
             properties: {
                 target: { kind: 'preview', workspaceId: 'w', type: ComponentType.Text },
@@ -77,9 +69,5 @@ describe('componentsFeature in a store with the runtime checks on', () => {
         const list = await firstValueFrom(store.select(selectOrderedSelectableProperties));
 
         expect(list.map(item => item.field)).toEqual(['Orientation', 'Font Size']);
-    });
-
-    it('should list no properties when nothing is shown', async () => {
-        expect(await firstValueFrom(store.select(selectOrderedSelectableProperties))).toEqual([]);
     });
 });

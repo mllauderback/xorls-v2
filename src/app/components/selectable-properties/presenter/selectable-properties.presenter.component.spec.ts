@@ -54,10 +54,6 @@ describe('SelectablePropertiesComponent', () => {
     }
     const label: PropertyListItem = { field: 'Label', value: 'clk', readonly: false, definition: PROPERTY_DEFINITIONS['Label'] };
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     it('should say nothing is selected when no properties are shown', () => {
         show(null, []);
 

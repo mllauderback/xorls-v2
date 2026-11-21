@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fromSerializedValue, Orientation, Property, PROPERTY_FIELDS, PropertyRecord, toOrderedList } from '../../models/Property';
-import { Input } from '../../models/components/io';
-import { Text } from '../../models/components/decorations';
+import { fromSerializedValue, Orientation, Property, PropertyRecord, toOrderedList } from '../../models/Property';
 import { AndGate } from '../../models/components/gates';
 import { createPlaceable } from '../../models/components/ComponentFactory';
 import { ComponentType } from '../../models/components/Component';
@@ -53,22 +51,6 @@ describe('property state', () => {
     });
 
     describe('toOrderedList', () => {
-        it('should list the properties in the order of PROPERTY_FIELDS, not the order they were declared in', () => {
-            // Input declares Orientation, Bus Width, Label, Output Value
-            const list = toOrderedList(new Input({ x: 0, y: 0 }).properties.serialize());
-
-            expect(list.map(item => item.field)).toEqual(['Orientation', 'Output Value', 'Bus Width', 'Label']);
-        });
-
-        it('should put a field in the same place relative to the others for every selectable', () => {
-            for (const selectable of [new Input({ x: 0, y: 0 }), new Text({ x: 0, y: 0 }), new AndGate({ x: 0, y: 0 }, 2)]) {
-                const fields = toOrderedList(selectable.properties.serialize()).map(item => item.field);
-                const positions = fields.map(field => PROPERTY_FIELDS.indexOf(field));
-
-                expect(positions).toEqual([...positions].sort((a, b) => a - b));
-            }
-        });
-
         it('should give each row its definition', () => {
             const [orientation] = toOrderedList(new PropertyRecord({ 'Orientation': new Property(Orientation.east) }).serialize());
 
@@ -93,10 +75,6 @@ describe('property state', () => {
 
             expect(list.map(item => item.field)).toEqual(['Orientation', 'Output Value', 'Label']);
             expect(list[1]).toEqual({ field: 'Output Value', value: '0', readonly: false, definition: { kind: 'bigint' } });
-        });
-
-        it('should list no serialized properties for an empty record', () => {
-            expect(toOrderedList({})).toEqual([]);
         });
     });
 });

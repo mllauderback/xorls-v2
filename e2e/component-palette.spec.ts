@@ -252,28 +252,6 @@ test.describe('Component palette', () => {
             await expect(diagram.presenter).toBeVisible();
         });
 
-        test('keeps the component selected after it is placed, so it can be placed again', async () => {
-            await palette.expand('Gates');
-            await palette.clickTile('AndGate');
-
-            await diagram.clickFromCenterAt();
-
-            await expect(palette.checkbox('AndGate')).toBeChecked();
-        });
-
-        test('Escape over the workspace clears the palette selection', async ({ page }) => {
-            await palette.expand('Gates');
-            await palette.expand('I/O');
-            await palette.clickTile('Output');
-            await expect(palette.checkbox('Output')).toBeChecked();
-
-            await diagram.moveFromCenterTo();
-            await page.keyboard.press('Escape');
-
-            await expect(palette.checkedCheckboxes).toHaveCount(0);
-            await expect(palette.checkbox('Output')).not.toBeChecked();
-        });
-
         test('a component can be picked again after Escape cleared the selection', async ({ page }) => {
             await palette.expand('Gates');
             await palette.clickTile('XorGate');

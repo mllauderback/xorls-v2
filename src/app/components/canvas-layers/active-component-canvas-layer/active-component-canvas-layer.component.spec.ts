@@ -30,10 +30,6 @@ describe('ActiveComponentCanvasLayerComponent', () => {
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
     describe('add', () => {
         it('should add a drawable once, even right after redrawAll()', () => {
             const drawable = buildDrawable(true);
