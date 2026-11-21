@@ -1,9 +1,8 @@
 import { arcFromEndPoints } from "../drawing-helpers";
 import type { Point } from "../Point";
-import { Property, Orientation, type PropertyField, PropertyType } from "../Property";
+import { Property, Orientation, type PropertyField } from "../Property";
 import { BoundingBox } from "../Selectable";
-import type { Component, Node } from "./Component";
-import { ComponentType, createInputNodes } from "./Component";
+import { Component, ComponentType, createInputNodes } from "./Component";
 
 /*
  * Gates are drawn in diagram units, which are grid cells (see GRID_SPACING): a two-input gate is 6 x 4 cells and a
@@ -15,20 +14,14 @@ import { ComponentType, createInputNodes } from "./Component";
 const BUBBLE_RADIUS = 0.3;
 
 
-export class AndGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class AndGate extends Component {
     readonly type: ComponentType = ComponentType.AndGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
     properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position);
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
         this.properties = {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
@@ -60,38 +53,19 @@ export class AndGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    updateProperty(field: PropertyField, property: Property): void {
-        this.properties[field] = property;
-    }
-
-    /* set the number of inodes and automatically calculate their positions */
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class OrGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class OrGate extends Component {
     readonly type: ComponentType = ComponentType.OrGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
     properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position);
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
         this.properties = {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
@@ -125,39 +99,19 @@ export class OrGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    updateProperty(field: PropertyField, property: Property): void {
-        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
-        this.properties[field] = property;
-    }
-
-    /* set the number of inodes and automatically calculate their positions */
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class XorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class XorGate extends Component {
     readonly type: ComponentType = ComponentType.XorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
     properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position);
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
         this.properties = {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
@@ -195,38 +149,19 @@ export class XorGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    updateProperty(field: PropertyField, property: Property): void {
-        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
-        this.properties[field] = property;
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class NotGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class NotGate extends Component {
     readonly type: ComponentType = ComponentType.NotGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
     properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point) {
-        this.position = position;
-        this.inodes = [];  // TODO: just 1
-        this.onodes = [];  // TODO: just 1
-        this.isGhost = false;
+        super(position);
+        // TODO inodes: just 1
+        // TODO onodes: just 1
         this.properties = {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(1),
@@ -255,34 +190,17 @@ export class NotGate implements Component {
         ctx.lineTo(x, y + 1);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 2);
     }
-
-    updateProperty(field: PropertyField, property: Property): void {
-        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
-        this.properties[field] = property;
-    }
 }
 
-export class Buffer implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class Buffer extends Component {
     readonly type: ComponentType = ComponentType.Buffer;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
     properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point) {
-        this.position = position;
-        this.inodes = [];
-        this.onodes = [];
-        this.isGhost = false;
+        super(position);
         this.properties = {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(1),
@@ -308,34 +226,19 @@ export class Buffer implements Component {
         ctx.lineTo(x, y + 1);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 2);
     }
-
-    updateProperty(field: PropertyField, property: Property): void {
-        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
-        this.properties[field] = property;
-    }
 }
 
-export class NandGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class NandGate extends Component {
     readonly type: ComponentType = ComponentType.NandGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
     properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position);
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
         this.properties = {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
@@ -368,38 +271,19 @@ export class NandGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    updateProperty(field: PropertyField, property: Property): void {
-        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
-        this.properties[field] = property;
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class NorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class NorGate extends Component {
     readonly type: ComponentType = ComponentType.NorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
     properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position);
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
         this.properties = {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
@@ -436,38 +320,19 @@ export class NorGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
     }
-
-    updateProperty(field: PropertyField, property: Property): void {
-        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
-        this.properties[field] = property;
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
-    }
 }
 
-export class XnorGate implements Component {
-    position: Point;
-    readonly id: string = crypto.randomUUID();
+export class XnorGate extends Component {
     readonly type: ComponentType = ComponentType.XnorGate;
-    inodes: Node[];
-    onodes: Node[];
-    isGhost: boolean;
     properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point, iNodeSize: number) {
-        this.position = position;
-        this.inodes = this.getInputNodeListFromSize(iNodeSize);
-        this.onodes = []; // TODO just 1
-        this.isGhost = false;
+        super(position);
+        this.inodes = createInputNodes(iNodeSize);
+        // TODO onodes: just 1
         this.properties = {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
@@ -508,20 +373,7 @@ export class XnorGate implements Component {
         ctx.lineTo(x, y + 3);
     }
 
-    isSelected(mousePosition: Point): boolean {
-        return this.getBoundingBox().containsPoint(mousePosition, this.position);
-    }
-
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
-    }
-
-    updateProperty(field: PropertyField, property: Property): void {
-        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
-        this.properties[field] = property;
-    }
-
-    private getInputNodeListFromSize(size: number): Node[] {
-        return createInputNodes(size);
     }
 }

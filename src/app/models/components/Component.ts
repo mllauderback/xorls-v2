@@ -1,4 +1,4 @@
-import type { Drawable } from "../Drawable";
+import type { Drawable, DrawState } from "../Drawable";
 import type { Ghostable } from "../Ghostable";
 import type { Point } from "../Point";
 import { Property, type PropertyField } from "../Property";
@@ -48,16 +48,47 @@ export enum ComponentType {
     Text = "Text"
 }
 
-export interface Component extends Drawable, Selectable, Ghostable {
+/**
+ * The base of every component that can be placed in a diagram. It holds what all components share, and the default
+ * behaviour a subclass overrides when it needs something different.
+ */
+export abstract class Component implements Drawable, Selectable, Ghostable {
     /**
      * Identifies this component for as long as it exists, including while it is still a ghost. The store refers to
      * a selected component by this id instead of holding the instance, so that its state is plain data.
      */
-    readonly id: string;
-    readonly type: ComponentType;
+    readonly id: string = crypto.randomUUID();
+    abstract readonly type: ComponentType;
     position: Point;
-    inodes: Node[];
-    onodes: Node[];
+    inodes: Node[] = [];
+    onodes: Node[] = [];
+    isGhost = false;
+    abstract properties: Partial<Record<PropertyField, Property>>;
+
+    /**
+     * @param position The position of the component's top-left corner, in diagram coordinates
+     */
+    constructor(position: Point) {
+        this.position = position;
+    }
+
+    abstract draw(ctx: OffscreenCanvasRenderingContext2D, state: DrawState): void;
+
+    abstract getBoundingBox(): BoundingBox;
+
+    /** True when the point is inside the component's bounding box, edges included. */
+    isSelected(mousePosition: Point): boolean {
+        return this.getBoundingBox().containsPoint(mousePosition, this.position);
+    }
+
+    /**
+     * Replaces one of the component's properties.
+     * @throws If the component doesn't have that property
+     */
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
 }
 
 /**
