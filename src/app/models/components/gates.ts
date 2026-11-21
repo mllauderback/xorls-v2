@@ -1,6 +1,6 @@
 import { arcFromEndPoints } from "../drawing-helpers";
 import type { Point } from "../Point";
-import { Property, Orientation, type PropertyField } from "../Property";
+import { Property, Orientation, type PropertyField, PropertyType } from "../Property";
 import { BoundingBox } from "../Selectable";
 import type { Component, Node } from "./Component";
 import { ComponentType, createInputNodes } from "./Component";
@@ -33,7 +33,8 @@ export class AndGate implements Component {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
-            'Output Value': new Property(this.onodes[0].state, true),
+            // for now, output value is 0.  Eventually, the simulation state will upadte this property
+            'Output Value': new Property(0n, true),
         };
     }
 
@@ -67,6 +68,10 @@ export class AndGate implements Component {
         return new BoundingBox(6, 4);
     }
 
+    updateProperty(field: PropertyField, property: Property): void {
+        this.properties[field] = property;
+    }
+
     /* set the number of inodes and automatically calculate their positions */
     private getInputNodeListFromSize(size: number): Node[] {
         return createInputNodes(size);
@@ -91,7 +96,7 @@ export class OrGate implements Component {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
-            'Output Value': new Property(this.onodes[0].state, true),
+            'Output Value': new Property(0n, true),
         };
     }
 
@@ -128,6 +133,11 @@ export class OrGate implements Component {
         return new BoundingBox(6, 4);
     }
 
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
+
     /* set the number of inodes and automatically calculate their positions */
     private getInputNodeListFromSize(size: number): Node[] {
         return createInputNodes(size);
@@ -152,7 +162,7 @@ export class XorGate implements Component {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
-            'Output Value': new Property(this.onodes[0].state, true),
+            'Output Value': new Property(0n, true),
         };
     }
 
@@ -193,6 +203,11 @@ export class XorGate implements Component {
         return new BoundingBox(6, 4);
     }
 
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
+
     private getInputNodeListFromSize(size: number): Node[] {
         return createInputNodes(size);
     }
@@ -216,7 +231,7 @@ export class NotGate implements Component {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(1),
             'Bus Width': new Property(1),
-            'Output Value': new Property(this.onodes[0].state, true),
+            'Output Value': new Property(0n, true),
         };
     }
 
@@ -247,6 +262,11 @@ export class NotGate implements Component {
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 2);
     }
+
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
 }
 
 export class Buffer implements Component {
@@ -267,7 +287,7 @@ export class Buffer implements Component {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(1),
             'Bus Width': new Property(1),
-            'Output Value': new Property(this.onodes[0].state, true),
+            'Output Value': new Property(0n, true),
         };
     }
 
@@ -295,6 +315,11 @@ export class Buffer implements Component {
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 2);
     }
+
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
 }
 
 export class NandGate implements Component {
@@ -315,7 +340,7 @@ export class NandGate implements Component {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
-            'Output Value': new Property(this.onodes[0].state, true),
+            'Output Value': new Property(0n, true),
         };
     }
 
@@ -351,6 +376,11 @@ export class NandGate implements Component {
         return new BoundingBox(6, 4);
     }
 
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
+
     private getInputNodeListFromSize(size: number): Node[] {
         return createInputNodes(size);
     }
@@ -374,7 +404,7 @@ export class NorGate implements Component {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
-            'Output Value': new Property(this.onodes[0].state, true),
+            'Output Value': new Property(0n, true),
         };
     }
 
@@ -414,6 +444,11 @@ export class NorGate implements Component {
         return new BoundingBox(6, 4);
     }
 
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
+
     private getInputNodeListFromSize(size: number): Node[] {
         return createInputNodes(size);
     }
@@ -437,7 +472,7 @@ export class XnorGate implements Component {
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
-            'Output Value': new Property(this.onodes[0].state, true),
+            'Output Value': new Property(0n, true),
         };
     }
 
@@ -479,6 +514,11 @@ export class XnorGate implements Component {
 
     getBoundingBox(): BoundingBox {
         return new BoundingBox(6, 4);
+    }
+
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
     }
 
     private getInputNodeListFromSize(size: number): Node[] {

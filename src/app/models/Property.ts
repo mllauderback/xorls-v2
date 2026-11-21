@@ -1,4 +1,4 @@
-const PROPERT_FIELDS = [
+export const PROPERTY_FIELDS = [
     'Number of Inputs',
     'Orientation',
     'Output Value',
@@ -7,7 +7,7 @@ const PROPERT_FIELDS = [
     'Label',
     'Font Size',
 ] as const;
-export type PropertyField = (typeof PROPERT_FIELDS)[number];
+export type PropertyField = (typeof PROPERTY_FIELDS)[number];
 
 export enum Orientation {
     north = 'North',
@@ -16,14 +16,14 @@ export enum Orientation {
     west = 'West'
 }
 
-export type PropertyType = number | string | boolean | Orientation;
+export type PropertyType = number | string | boolean | Orientation | BigInt;
 
 export class Property {
 
     private readonly isReadonly: boolean;
     private _value: PropertyType;
 
-    constructor(value: PropertyType, readonly: boolean = false) {
+    constructor(value: PropertyType, readonly = false) {
         this.isReadonly = readonly;
         this._value = value;
     }

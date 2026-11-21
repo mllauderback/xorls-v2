@@ -35,4 +35,9 @@ export class Text implements Decoration {
     getBoundingBox(): BoundingBox {
         return new BoundingBox(4, 1); // should reflect text font size instead
     }
+
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
 }

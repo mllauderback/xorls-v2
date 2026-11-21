@@ -7,23 +7,23 @@ import { componentsFeature } from '../../../store/components/feature';
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'app-selectable-properties-container',
-  imports: [
-    SelectablePropertiesPresenterComponent,
-    CommonModule
-  ],
-  template: `
+    selector: 'app-selectable-properties-container',
+    imports: [
+        SelectablePropertiesPresenterComponent,
+        CommonModule
+    ],
+    template: `
     <app-selectable-properties-presenter
       [selectable]="selectable$ | async"
     ></app-selectable-properties-presenter>
   `,
 })
 export class SelectablePropertiesContainerComponent {
-  private store = inject<Store<PaletteComponentsState>>(Store);
+    private store = inject<Store<PaletteComponentsState>>(Store);
 
-  protected selectable$!: Observable<SelectedSelectable | null>;
+    protected selectable$!: Observable<SelectedSelectable | null>;
 
-  constructor() {
-    this.selectable$ = this.store.select(componentsFeature.selectSelectedSelectable);
-  }
+    constructor() {
+        this.selectable$ = this.store.select(componentsFeature.selectSelectedSelectable);
+    }
 }

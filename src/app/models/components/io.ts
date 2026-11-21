@@ -35,6 +35,11 @@ export class Input implements Component {
     getBoundingBox(): BoundingBox {
         return new BoundingBox(3, 2);
     }
+
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
 }
 
 export class Output implements Component {
@@ -70,6 +75,10 @@ export class Output implements Component {
         return new BoundingBox(3, 2);
     }
 
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
 }
 
 export class SevenSegmentDisplay implements Component {
@@ -105,4 +114,8 @@ export class SevenSegmentDisplay implements Component {
         return new BoundingBox(4, 6);
     }
 
+    updateProperty(field: PropertyField, property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
+        this.properties[field] = property;
+    }
 }

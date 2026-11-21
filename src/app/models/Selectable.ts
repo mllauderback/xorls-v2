@@ -1,5 +1,5 @@
 import type { Point } from "./Point";
-import type { Property, PropertyField } from "./Property";
+import type { Property, PropertyField, PropertyType } from "./Property";
 
 /**
  * The size of a selectable's footprint. The box's top-left corner is always the owner's `position`: x = 0 is the
@@ -55,6 +55,14 @@ export interface Selectable {
      * @param mousePosition 
      */
     isSelected(mousePosition: Point): boolean;
+
     /** Bounding box whose top-left corner is the object's `position`, including pins/nodes. */
     getBoundingBox(): BoundingBox;
+
+    /**
+     * Updates a property in a Selectable's properties Record
+     * @param field The field of the property to update
+     * @param property The value of the property to udpate
+     */
+    updateProperty(field: PropertyField, property: Property): void;
 }

@@ -1,25 +1,35 @@
 import type { Drawable } from "../Drawable";
 import type { Ghostable } from "../Ghostable";
 import type { Point } from "../Point";
+import { Property, type PropertyField } from "../Property";
 import type { Selectable } from "../Selectable";
 import { BoundingBox } from "../Selectable";
 
 export class Node implements Selectable {
     public position: Point;
-    public state: boolean;
+    public state: BigInt;
+    properties: Partial<Record<PropertyField, Property>>;
 
     constructor(position: Point) {
         this.position = { x: position.x, y: position.y };
-        this.state = false;
+        this.state = 0n;
+        this.properties = {
+            'Bus Width': new Property(1, true),
+        };
     }
 
     isSelected(): boolean {
-        return this.state
+        return false;
     }
 
     getBoundingBox(): BoundingBox {
         // this will change
         return new BoundingBox(0, 0);
+    }
+
+    updateProperty(field: PropertyField = 'Bus Width', property: Property): void {
+        if (!Object.hasOwn(this.properties, field)) throw new Error(`Node does not have property ${field}`);
+        this.properties[field] = property;
     }
 }
 
