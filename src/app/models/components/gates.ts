@@ -1,6 +1,6 @@
 import { arcFromEndPoints } from "../drawing-helpers";
 import type { Point } from "../Point";
-import { Property, Orientation, type PropertyField } from "../Property";
+import { Property, Orientation, PropertyRecord } from "../Property";
 import { BoundingBox } from "../Selectable";
 import { Component, ComponentType, createInputNodes } from "./Component";
 
@@ -16,19 +16,19 @@ const BUBBLE_RADIUS = 0.3;
 
 export class AndGate extends Component {
     readonly type: ComponentType = ComponentType.AndGate;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point, iNodeSize: number) {
         super(position);
         this.inodes = createInputNodes(iNodeSize);
         // TODO onodes: just 1
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
             // for now, output value is 0.  Eventually, the simulation state will upadte this property
             'Output Value': new Property(0n, true),
-        };
+        });
     }
 
     /** Draws in diagram coordinates: the layer's context transform puts it in the right place on the canvas. */
@@ -60,18 +60,18 @@ export class AndGate extends Component {
 
 export class OrGate extends Component {
     readonly type: ComponentType = ComponentType.OrGate;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point, iNodeSize: number) {
         super(position);
         this.inodes = createInputNodes(iNodeSize);
         // TODO onodes: just 1
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
             'Output Value': new Property(0n, true),
-        };
+        });
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -106,18 +106,18 @@ export class OrGate extends Component {
 
 export class XorGate extends Component {
     readonly type: ComponentType = ComponentType.XorGate;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point, iNodeSize: number) {
         super(position);
         this.inodes = createInputNodes(iNodeSize);
         // TODO onodes: just 1
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
             'Output Value': new Property(0n, true),
-        };
+        });
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -156,18 +156,18 @@ export class XorGate extends Component {
 
 export class NotGate extends Component {
     readonly type: ComponentType = ComponentType.NotGate;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point) {
         super(position);
         // TODO inodes: just 1
         // TODO onodes: just 1
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
-            'Number of Inputs': new Property(1),
+            'Number of Inputs': new Property(1, true),
             'Bus Width': new Property(1),
             'Output Value': new Property(0n, true),
-        };
+        });
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -197,16 +197,16 @@ export class NotGate extends Component {
 
 export class Buffer extends Component {
     readonly type: ComponentType = ComponentType.Buffer;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point) {
         super(position);
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
-            'Number of Inputs': new Property(1),
+            'Number of Inputs': new Property(1, true),
             'Bus Width': new Property(1),
             'Output Value': new Property(0n, true),
-        };
+        });
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -233,18 +233,18 @@ export class Buffer extends Component {
 
 export class NandGate extends Component {
     readonly type: ComponentType = ComponentType.NandGate;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point, iNodeSize: number) {
         super(position);
         this.inodes = createInputNodes(iNodeSize);
         // TODO onodes: just 1
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
             'Output Value': new Property(0n, true),
-        };
+        });
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -278,18 +278,18 @@ export class NandGate extends Component {
 
 export class NorGate extends Component {
     readonly type: ComponentType = ComponentType.NorGate;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point, iNodeSize: number) {
         super(position);
         this.inodes = createInputNodes(iNodeSize);
         // TODO onodes: just 1
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
             'Output Value': new Property(0n, true),
-        };
+        });
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -327,18 +327,18 @@ export class NorGate extends Component {
 
 export class XnorGate extends Component {
     readonly type: ComponentType = ComponentType.XnorGate;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point, iNodeSize: number) {
         super(position);
         this.inodes = createInputNodes(iNodeSize);
         // TODO onodes: just 1
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Number of Inputs': new Property(iNodeSize),
             'Bus Width': new Property(1),
             'Output Value': new Property(0n, true),
-        };
+        });
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {

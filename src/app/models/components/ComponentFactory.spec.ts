@@ -6,7 +6,7 @@ import * as decorations from './decorations';
 import { initialComponentsState } from '../../store/components/feature';
 import { ComponentType } from './Component';
 import { BoundingBox } from '../Selectable';
-import { Property, PropertyField } from '../Property';
+import { PropertyRecord } from '../Property';
 
 describe('ComponentFactory', () => {
     describe('createPlaceable', () => {
@@ -98,7 +98,7 @@ describe('ComponentFactory', () => {
         it('should reject null, undefined and selectables that cannot be previewed', () => {
             const defaultBoundingBox = new BoundingBox(0, 0);
             const placeable = {
-                properties: {},
+                properties: new PropertyRecord({}),
                 isSelected: () => false,
                 getBoundingBox: () => defaultBoundingBox,
                 updateProperty: () => { }

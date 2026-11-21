@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as functions from './reducer-functions';
-import type { PaletteComponentsState, PaletteComponentRecord, SelectedSelectable } from './state';
+import type { PaletteComponentsState, PaletteComponentRecord, SelectableProperties, SelectedSelectable } from './state';
 import { PaletteComponentCategories } from './state';
 import { initialComponentsState } from './feature';
 import { componentsReducer } from './feature';
@@ -28,6 +28,22 @@ function buildState(overrides: Partial<PaletteComponentsState> = {}): PaletteCom
 
 function placedGate(): SelectedSelectable {
     return { workspaceId: 'workspace-1', id: 'gate-1', type: ComponentType.AndGate };
+}
+function previewProperties(type = ComponentType.AndGate): SelectableProperties {
+    return {
+        target: { kind: 'preview', workspaceId: 'workspace-1', type },
+        values: {
+            'Number of Inputs': { value: 3, readonly: false },
+            'Output Value': { value: '0', readonly: true },
+        },
+    };
+}
+
+function selectedProperties(): SelectableProperties {
+    return {
+        target: { kind: 'selected', workspaceId: 'workspace-1', id: 'gate-1', type: ComponentType.AndGate },
+        values: { 'Label': { value: 'a', readonly: false } },
+    };
 }
 function anyHighlighted(state: PaletteComponentsState) {
     return Object.values(state.paletteComponents).flat().some(c => c.selected);
@@ -257,6 +273,133 @@ describe('components reducer functions', () => {
                 expect(mapped).not.toBe(record);
                 expect(mapped[PaletteComponentCategories.gates].every(c => c.selected)).toBe(true);
                 expect(record[PaletteComponentCategories.gates].some(c => c.selected)).toBe(false);
+            });
+        });
+    });
+    describe('selectableProperties', () => {
+        it('should start with no properties shown', () => {
+            expect(initialComponentsState.selectableProperties).toBeNull();
+        });
+
+        it('should show the properties a workspace loads', () => {
+            const properties = previewProperties();
+
+            const state = componentsReducer(buildState(), actions.loadSelectableProperties({ properties }));
+
+            expect(state.selectableProperties).toBe(properties);
+        });
+
+        it('should reset when a different palette component is selected', () => {
+            const state = functions.setSelectedPaletteComponent(
+                buildState({ selectableProperties: previewProperties(ComponentType.AndGate) }),
+                { type: ComponentType.OrGate, selected: true }
+            );
+
+            expect(state.selectableProperties).toBeNull();
+        });
+
+        it('should keep the edited values when the palette component being previewed is selected again', () => {
+            const selectableProperties = previewProperties(ComponentType.AndGate);
+
+            const state = functions.setSelectedPaletteComponent(
+                buildState({ selectableProperties }),
+                { type: ComponentType.AndGate, selected: true }
+            );
+
+            expect(state.selectableProperties).toBe(selectableProperties);
+        });
+
+        it('should reset when a palette component is selected while a placed component is shown', () => {
+            const state = functions.setSelectedPaletteComponent(
+                buildState({ selectableProperties: selectedProperties() }),
+                { type: ComponentType.AndGate, selected: true }
+            );
+
+            expect(state.selectableProperties).toBeNull();
+        });
+
+        it('should reset when the palette is cleared, so the next preview starts from its defaults', () => {
+            const state = functions.clearSelectedPaletteComponent(buildState({ selectableProperties: previewProperties() }));
+
+            expect(state.selectableProperties).toBeNull();
+        });
+
+        it('should keep the properties of a placed component when the palette is cleared', () => {
+            const selectableProperties = selectedProperties();
+
+            const state = functions.clearSelectedPaletteComponent(buildState({ selectedSelectable: placedGate(), selectableProperties }));
+
+            expect(state.selectableProperties).toBe(selectableProperties);
+        });
+
+        it('should clear with the rest of the selection', () => {
+            const state = functions.clearSelection(buildState({ selectableProperties: previewProperties() }));
+
+            expect(state.selectableProperties).toBeNull();
+        });
+
+        it('should show the properties that come with a selected component', () => {
+            const values = { 'Label': { value: 'a', readonly: false } };
+
+            const state = componentsReducer(buildState({ selectableProperties: previewProperties() }), actions.selectSelectable({ selectable: placedGate(), properties: values }));
+
+            expect(state.selectableProperties).toEqual({
+                target: { kind: 'selected', workspaceId: 'workspace-1', id: 'gate-1', type: ComponentType.AndGate },
+                values,
+            });
+        });
+
+        it('should show no properties for a selected component that comes without them', () => {
+            const state = componentsReducer(buildState({ selectableProperties: previewProperties() }), actions.selectSelectable({ selectable: placedGate() }));
+
+            expect(state.selectableProperties).toBeNull();
+        });
+
+        describe('updateSelectableProperty', () => {
+            it('should change the value without changing the previous state', () => {
+                const before = buildState({ selectableProperties: previewProperties() });
+
+                const state = componentsReducer(before, actions.updateSelectableProperty({ field: 'Number of Inputs', value: 5 }));
+
+                expect(state.selectableProperties?.values['Number of Inputs']).toEqual({ value: 5, readonly: false });
+                expect(state.selectableProperties?.target).toBe(before.selectableProperties?.target);
+                expect(before.selectableProperties?.values['Number of Inputs']?.value).toBe(3);
+            });
+
+            it.each([
+                ['a value out of range', 'Number of Inputs', 33],
+                ['a value of the wrong type', 'Number of Inputs', '5'],
+                ['a readonly property', 'Output Value', '1'],
+                ['a property that is not shown', 'Label', 'x'],
+            ] as const)('should ignore %s', (_case, field, value) => {
+                const before = buildState({ selectableProperties: previewProperties() });
+
+                expect(functions.updateSelectableProperty(before, field, value)).toBe(before);
+            });
+
+            it('should ignore an edit when nothing is shown', () => {
+                const before = buildState();
+
+                expect(functions.updateSelectableProperty(before, 'Label', 'x')).toBe(before);
+            });
+
+            it('should return the same state when the value does not change', () => {
+                const before = buildState({ selectableProperties: previewProperties() });
+
+                expect(functions.updateSelectableProperty(before, 'Number of Inputs', 3)).toBe(before);
+            });
+
+            it('should accept a bigint as its decimal string, and refuse a string that is not one', () => {
+                const before = buildState({
+                    selectableProperties: {
+                        target: { kind: 'preview', workspaceId: 'workspace-1', type: ComponentType.Input },
+                        values: { 'Output Value': { value: '0', readonly: false } },
+                    },
+                });
+
+                expect(functions.updateSelectableProperty(before, 'Output Value', '255').selectableProperties?.values['Output Value']?.value).toBe('255');
+                expect(functions.updateSelectableProperty(before, 'Output Value', 'ff')).toBe(before);
+                expect(functions.updateSelectableProperty(before, 'Output Value', 255)).toBe(before);
             });
         });
     });

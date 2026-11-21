@@ -1,28 +1,29 @@
 import type { Point } from "../Point";
 import type { Decoration } from "./Decoration";
 import { ComponentType } from "./Component";
-import { BoundingBox } from "../Selectable";
-import { Property, Orientation, type PropertyField } from "../Property";
+import { AbstractSelectable, BoundingBox } from "../Selectable";
+import { Property, Orientation, PropertyRecord } from "../Property";
 
-export class Text implements Decoration {
+export class Text extends AbstractSelectable implements Decoration {
     position: Point;
     readonly id: string = crypto.randomUUID();
     readonly type: ComponentType = ComponentType.Text;
     font: string; // type may change to an enum who knows
     size: number;
     isGhost: boolean;
-    properties: Partial<Record<PropertyField, Property>>;
+    properties: PropertyRecord;
 
     constructor(position: Point) {
+        super();
         this.position = position;
         this.font = "";
         this.size = 12;
         this.isGhost = false;
-        this.properties = {
+        this.properties = new PropertyRecord({
             'Orientation': new Property(Orientation.east),
             'Label': new Property(''),
             'Font Size': new Property(14)
-        };
+        });
     }
 
     draw(ctx: OffscreenCanvasRenderingContext2D) {
@@ -36,8 +37,7 @@ export class Text implements Decoration {
         return new BoundingBox(4, 1); // should reflect text font size instead
     }
 
-    updateProperty(field: PropertyField, property: Property): void {
-        if (!Object.hasOwn(this.properties, field)) throw new Error(`${this.type} does not have property ${field}`);
-        this.properties[field] = property;
+    protected get displayName(): string {
+        return this.type;
     }
 }
