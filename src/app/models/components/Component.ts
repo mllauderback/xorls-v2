@@ -83,10 +83,34 @@ export abstract class Component extends Selectable implements Drawable, Ghostabl
     }
 
     /**
+     * Creates the component's input nodes, one for each of its inputs, each at the end of its handle for the way the
+     * component faces. Set the Number of Inputs property first: the handles are laid out for it.
+     */
+    abstract createInputNodes(): Node[];
+
+    /**
+     * Creates the component's output nodes, one for each of its output handles, each at the end of its handle for the way
+     * the component faces.
+     */
+    abstract createOutputNodes(): Node[];
+
+    /**
+     * Where each input node goes: the end of its handle, on the component's back, turned to face the component's
+     * orientation. In the same order as getNodeHandlePositions.
+     */
+    abstract inputNodePositions(): Point[];
+
+    /**
+     * Where each output node goes: the end of its handle, turned to face the component's orientation. In the same
+     * order as getOutputHandlePositions.
+     */
+    abstract outputNodePositions(): Point[];
+
+    /**
      * Returns a list of Y coordinates for an East orientation
      * for component node handles based on the instance's number of inputs.
      */
-    abstract getNodeHandlePositions(): number[];
+    abstract getInputHandlePositions(): number[];
 
     /**
      * How many inputs the component has: its Number of Inputs property, or as many input nodes as it has if it has no
@@ -97,46 +121,10 @@ export abstract class Component extends Selectable implements Drawable, Ghostabl
     }
 
     /**
-     * Where each input node goes: the end of its handle, on the component's back, turned to face the component's
-     * orientation. In the same order as getNodeHandlePositions.
-     */
-    inputNodePositions(): Point[] {
-        const { x, y } = this.position;
-        return this.getNodeHandlePositions().map(handleY => this.toDiagram({ x, y: y + handleY }));
-    }
-
-    /**
      * The ends of the component's output handles when it faces east, from its position. A component with no outputs
      * has none, which is the default.
      */
-    getOutputHandlePositions(): Point[] {
-        return [];
-    }
-
-    /**
-     * Where each output node goes: the end of its handle, turned to face the component's orientation. In the same
-     * order as getOutputHandlePositions.
-     */
-    outputNodePositions(): Point[] {
-        const { x, y } = this.position;
-        return this.getOutputHandlePositions().map(handle => this.toDiagram({ x: x + handle.x, y: y + handle.y }));
-    }
-
-    /**
-     * Creates the component's input nodes, one for each of its inputs, each at the end of its handle for the way the
-     * component faces. Set the Number of Inputs property first: the handles are laid out for it.
-     */
-    createInputNodes(): Node[] {
-        return this.inputNodePositions().map(position => new Node(position));
-    }
-
-    /**
-     * Creates the component's output nodes, one for each of its output handles, each at the end of its handle for the way
-     * the component faces.
-     */
-    createOutputNodes(): Node[] {
-        return this.outputNodePositions().map(position => new Node(position));
-    }
+    abstract getOutputHandlePositions(): Point[];
 
     /**
      * Moves the input and output nodes to the ends of their handles, after the component moves, turns, or its box
@@ -229,7 +217,29 @@ export abstract class Gate extends Component {
         super(position, properties);
     }
 
-    override getNodeHandlePositions(): number[] {
+    override createInputNodes(): Node[] {
+        return this.inputNodePositions().map(position => new Node(position));
+    }
+
+    override createOutputNodes(): Node[] {
+        return this.outputNodePositions().map(position => new Node(position));
+    }
+
+    override inputNodePositions(): Point[] {
+        const { x, y } = this.position;
+        return this.getInputHandlePositions().map(handleY => this.toDiagram({ x, y: y + handleY }));
+    }
+
+    override outputNodePositions(): Point[] {
+        const { x, y } = this.position;
+        return this.getOutputHandlePositions().map(handle => this.toDiagram({ x: x + handle.x, y: y + handle.y }));
+    }
+
+    override getOutputHandlePositions(): Point[] {
+        return [];
+    }
+
+    override getInputHandlePositions(): number[] {
 
         const inputCount = this.inputCount;
         const handleYs: number[] = [];
@@ -251,22 +261,7 @@ export abstract class Gate extends Component {
 
 export abstract class IO extends Component {
 
-    // not correct for IO
-    override getNodeHandlePositions(): number[] {
-        const inputCount = this.inputCount;
-        const handleYs: number[] = [];
-        const center = 2;
-
-        const half = Math.floor(inputCount / 2);
-
-        for (let i = 0; i < half; i++) {
-            handleYs.push(center - half + i);
-        }
-        if (inputCount % 2 === 1) handleYs.push(center);
-        for (let i = 0; i < half; i++) {
-            handleYs.push(center + 1 + i);
-        }
-
-        return handleYs;
+    constructor(position: Point, properties: PropertyRecord) {
+        super(position, properties);
     }
 }

@@ -51,7 +51,7 @@ export abstract class ExtendedBackGate extends Gate {
 
     /** The top and bottom of the footprint, in cells down from the body's top. */
     private footprintRows(): { top: number, bottom: number } {
-        const handles = this.getNodeHandlePositions();
+        const handles = this.getInputHandlePositions();
         return {
             top: Math.min(0, Math.min(...handles) - 1),
             bottom: Math.max(BACK_CURVE_HEIGHT, Math.max(...handles) + 1),
@@ -80,7 +80,7 @@ export abstract class ExtendedBackGate extends Gate {
             }
         });
 
-        const handles = this.getNodeHandlePositions();
+        const handles = this.getInputHandlePositions();
         const top = segments[0].top;
         const bottom = segments[segments.length - 1].bottom;
         if (Math.min(...handles) === top) {
@@ -97,7 +97,7 @@ export abstract class ExtendedBackGate extends Gate {
     protected drawInputs(ctx: OffscreenCanvasRenderingContext2D, backX: number) {
         const { x, y } = this.position;
         const segments = this.backSegments();
-        for (const handleY of this.getNodeHandlePositions()) {
+        for (const handleY of this.getInputHandlePositions()) {
             const segment = segments.find(s => handleY >= s.top && handleY <= s.bottom);
             const depth = segment ? this.backDepth(segment, handleY) : 0;
             ctx.moveTo(x + backX + depth, y + handleY);
@@ -113,7 +113,7 @@ export abstract class ExtendedBackGate extends Gate {
 export abstract class StraightBackGate extends ExtendedBackGate {
 
     protected backSegments(): BackSegment[] {
-        const handles = this.getNodeHandlePositions();
+        const handles = this.getInputHandlePositions();
         return [{ top: Math.min(0, ...handles), bottom: Math.max(BACK_CURVE_HEIGHT, ...handles) }];
     }
 
@@ -140,7 +140,7 @@ export abstract class CurvedBackGate extends ExtendedBackGate {
     protected backSegments(): BackSegment[] {
         const curves: BackSegment[] = [{ top: 0, bottom: BACK_CURVE_HEIGHT }];
         // the inputs that don't fit on the body: Gate places as many above it as below
-        const handles = this.getNodeHandlePositions();
+        const handles = this.getInputHandlePositions();
         const above = handles.filter(handleY => handleY < 0).length;
         const below = handles.filter(handleY => handleY > BACK_CURVE_HEIGHT).length;
         for (let filled = 0; filled < above; filled += INPUTS_PER_BACK) {
@@ -309,7 +309,7 @@ export abstract class SingleInputGate extends Gate {
         this.onodes = this.createOutputNodes();
     }
 
-    override getNodeHandlePositions(): number[] {
+    override getInputHandlePositions(): number[] {
         return [1];
     }
 

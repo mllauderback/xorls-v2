@@ -5,6 +5,13 @@ export enum Orientation {
     west = 'West'
 }
 
+export enum IOFormat {
+    binary = 'Binary',
+    octal = 'Octal',
+    decimal = 'Decimal',
+    hex = 'Hex'
+}
+
 export type PropertyType = number | string | boolean | bigint;
 
 /** How a property's value is edited, and which values it accepts. */
@@ -30,8 +37,10 @@ export type PropertyDefinition =
 const DEFINITIONS = {
     'Number of Inputs': { kind: 'integer', min: 2, max: 32 },
     'Orientation': { kind: 'enum', options: Object.values(Orientation) },
-    'Output Value': { kind: 'bigint' },
     'Input Value': { kind: 'bigint' },
+    'Input Format': { kind: 'enum', options: Object.values(IOFormat) },
+    'Output Value': { kind: 'bigint' },
+    'Output Format': { kind: 'enum', options: Object.values(IOFormat) },
     'Bus Width': { kind: 'integer', min: 1, max: 64 },
     'Label': { kind: 'text' },
     'Font Size': { kind: 'integer', min: 6, max: 72 },
