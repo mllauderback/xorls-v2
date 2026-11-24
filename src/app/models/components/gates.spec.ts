@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { DrawState } from '../Drawable';
 import type { Point } from '../Point';
-import type { Component, Gate } from './Component';
+import type { Component } from './Component';
 import * as gates from './gates';
 import { GRID_SPACING } from '../../components/canvas-layers/grid-canvas-layer/Grid';
 
@@ -55,7 +55,7 @@ function recordPath(component: Component): Point[] {
 }
 
 const position = { x: 5, y: 10 };
-const allGates: [string, Gate][] = [
+const allGates: [string, gates.Gate][] = [
     ['AndGate', new gates.AndGate({ ...position }, 2)],
     ['OrGate', new gates.OrGate({ ...position }, 2)],
     ['XorGate', new gates.XorGate({ ...position }, 2)],
@@ -194,7 +194,7 @@ function bodyTop(gate: Component): number {
 }
 
 describe('gates with two or more inputs', () => {
-    const extendedBacks: [string, (inputs: number) => gates.ExtendedBackGate][] = [
+    const extendedBacks: [string, (inputs: number) => gates.Gate][] = [
         ['AndGate', n => new gates.AndGate({ ...position }, n)],
         ['NandGate', n => new gates.NandGate({ ...position }, n)],
         ['OrGate', n => new gates.OrGate({ ...position }, n)],
@@ -259,7 +259,7 @@ describe('gates with two or more inputs', () => {
         it('should keep its inputs on grid points when it is placed on one', () => {
             const gate = create(16);
             const box = gate.getBoundingBox();
-            const handles = gate.getNodeHandlePositions();
+            const handles = gate.getInputHandlePositions();
 
             expect(handles.every(Number.isInteger)).toBe(true);
             expect(Number.isInteger(box.top)).toBe(true);
@@ -286,7 +286,7 @@ describe('gates with a curved back', () => {
             [15, [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
             [16, [-6, -5, -4, -3, -2, -1, 0, 1, 3, 4, 5, 6, 7, 8, 9, 10]],
         ])('should put %s inputs on %j', (inputs, handles) => {
-            expect(create(inputs).getNodeHandlePositions()).toEqual(handles);
+            expect(create(inputs).getInputHandlePositions()).toEqual(handles);
         });
 
         it.each([
@@ -315,7 +315,7 @@ describe('gates with a curved back', () => {
             const gate = create(inputs);
             const points = recordPath(gate);
 
-            for (const handle of gate.getNodeHandlePositions()) {
+            for (const handle of gate.getInputHandlePositions()) {
                 const y = bodyTop(gate) + handle;
                 const stub = points.find((p, i) => p.x === position.x && p.y === y && i > 0 && points[i - 1].y === y)!;
                 const start = points[points.indexOf(stub) - 1];
@@ -356,7 +356,7 @@ describe('gates with a straight back', () => {
             const gate = create(16);
             const points = recordPath(gate);
 
-            for (const handle of gate.getNodeHandlePositions()) {
+            for (const handle of gate.getInputHandlePositions()) {
                 const y = bodyTop(gate) + handle;
                 const stub = points.findIndex((p, i) => p.x === position.x && p.y === y && i > 0 && points[i - 1].y === y);
                 expect(points[stub - 1], `input at ${handle}`).toEqual({ x: position.x + 1, y });
@@ -365,8 +365,37 @@ describe('gates with a straight back', () => {
     });
 });
 
+describe('gates with a single input', () => {
+    const singleInputGates: [string, () => gates.StraightBackGate][] = [
+        ['NotGate', () => new gates.NotGate({ ...position })],
+        ['Buffer', () => new gates.Buffer({ ...position })],
+    ];
+
+    describe.each(singleInputGates)('%s', (_, create) => {
+        it('should be a gate with a straight back', () => {
+            expect(create()).toBeInstanceOf(gates.StraightBackGate);
+        });
+
+        it('should keep its one input in the middle of its back, which can\'t be changed', () => {
+            const gate = create();
+
+            expect(gate.getInputHandlePositions()).toEqual([1]);
+            expect(gate.getOutputHandlePositions()).toEqual([{ x: 4, y: 1 }]);
+            expect(() => gate.updateProperty('Number of Inputs', 2)).toThrow();
+            expect(gate.inodes).toHaveLength(1);
+        });
+
+        it('should draw its back from the top to the bottom of the triangle, and its input stub from there to the left edge', () => {
+            const points = recordPath(create());
+
+            expect(points.slice(0, 2)).toEqual([{ x: position.x + 1, y: position.y }, { x: position.x + 1, y: position.y + 2 }]);
+            expect(points.slice(-2)).toEqual([{ x: position.x + 1, y: position.y + 1 }, { x: position.x, y: position.y + 1 }]);
+        });
+    });
+});
+
 describe('gates facing another way', () => {
-    const facingGates: [string, () => Gate][] = [
+    const facingGates: [string, () => gates.Gate][] = [
         ['AndGate', () => new gates.AndGate({ ...position }, 2)],
         ['NandGate with 16 inputs', () => new gates.NandGate({ ...position }, 16)],
         ['OrGate with 7 inputs', () => new gates.OrGate({ ...position }, 7)],
@@ -433,7 +462,7 @@ describe('gates facing another way', () => {
 });
 
 describe('input nodes', () => {
-    const multiInputGates: [string, (inputs: number) => Gate][] = [
+    const multiInputGates: [string, (inputs: number) => gates.Gate][] = [
         ['AndGate', inputs => new gates.AndGate({ ...position }, inputs)],
         ['NandGate', inputs => new gates.NandGate({ ...position }, inputs)],
         ['OrGate', inputs => new gates.OrGate({ ...position }, inputs)],
@@ -448,7 +477,7 @@ describe('input nodes', () => {
             const gate = create(inputs);
 
             expect(gate.inodes.map(node => node.position)).toEqual(
-                gate.getNodeHandlePositions().map(handleY => ({ x: position.x, y: position.y + handleY })));
+                gate.getInputHandlePositions().map(handleY => ({ x: position.x, y: position.y + handleY })));
         });
 
         it.each(orientations)('should put the input nodes at the ends of the handles it draws, facing %s', orientation => {
@@ -544,7 +573,7 @@ describe.each([
 });
 
 describe('output nodes', () => {
-    const allGates: [string, () => Gate, Point][] = [
+    const allGates: [string, () => gates.Gate, Point][] = [
         // the end of the output stub when the gate faces east, from its position
         ['AndGate', () => new gates.AndGate({ ...position }, 2), { x: 6, y: 2 }],
         ['NandGate', () => new gates.NandGate({ ...position }, 16), { x: 6, y: 2 }],

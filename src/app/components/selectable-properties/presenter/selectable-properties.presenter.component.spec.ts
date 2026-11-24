@@ -71,7 +71,7 @@ describe('SelectablePropertiesComponent', () => {
         show(ComponentType.Input, toOrderedList(new Input({ x: 0, y: 0 }).properties.serialize()));
 
         const labels = fixture.debugElement.queryAll(By.css('.property label')).map(l => l.nativeElement.textContent.trim());
-        expect(labels).toEqual(['Orientation', 'Output Value', 'Bus Width', 'Label']);
+        expect(labels).toEqual(['Orientation', 'Output Value', 'Output Format', 'Bus Width', 'Label']);
     });
 
     it('should pick the editor that fits each kind of property', () => {

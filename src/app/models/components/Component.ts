@@ -2,7 +2,7 @@ import type { Drawable, DrawState } from "../Drawable";
 import type { Ghostable } from "../Ghostable";
 import type { Point } from "../Point";
 import { Orientation, Property, PropertyRecord, type PropertyField, type PropertyType } from "../Property";
-import { applyTransform, isIdentity, orient } from "../orientation";
+import { applyTransform, orient } from "../orientation";
 import { Selectable, BoundingBox } from "../Selectable";
 
 export class Node extends Selectable {
@@ -55,6 +55,7 @@ export abstract class Component extends Selectable implements Drawable, Ghostabl
     inodes: Node[] = [];
     onodes: Node[] = [];
     isGhost = false;
+
     /**
      * @param position The position of the component's top-left corner when it faces east, in diagram coordinates. The
      * component turns around the middle of its box, so the position stays the same whichever way it faces.
@@ -96,7 +97,7 @@ export abstract class Component extends Selectable implements Drawable, Ghostabl
 
     /**
      * Where each input node goes: the end of its handle, on the component's back, turned to face the component's
-     * orientation. In the same order as getNodeHandlePositions.
+     * orientation. In the same order as getInputHandlePositions.
      */
     abstract inputNodePositions(): Point[];
 
@@ -145,23 +146,11 @@ export abstract class Component extends Selectable implements Drawable, Ghostabl
     }
 
     /**
-     * Draws the component facing its orientation. Every component draws itself facing east, and this turns that
-     * drawing around the middle of its box. It only changes the context's transform while the component adds to the
-     * path, so the layer's stroke and line width are as they were.
+     * Draws the component facing its orientation. Each kind of component decides how: see Gate and IO.
      */
-    draw(ctx: OffscreenCanvasRenderingContext2D, state: DrawState): void {
-        const { transform } = this.oriented();
-        if (isIdentity(transform)) {
-            this.drawFacingEast(ctx, state);
-            return;
-        }
-        ctx.save();
-        ctx.transform(transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
-        this.drawFacingEast(ctx, state);
-        ctx.restore();
-    }
+    abstract draw(ctx: OffscreenCanvasRenderingContext2D, state: DrawState): void;
 
-    /** Draws the component facing east, in diagram coordinates. draw turns it to face its orientation. */
+    /** Draws the component facing east, in diagram coordinates. drawTurned turns it to face its orientation. */
     protected abstract drawFacingEast(ctx: OffscreenCanvasRenderingContext2D, state: DrawState): void;
 
     /** The component's footprint facing its orientation. */
@@ -182,7 +171,7 @@ export abstract class Component extends Selectable implements Drawable, Ghostabl
     }
 
     /** The transform from facing east to facing the component's orientation, and the box the component then covers. */
-    private oriented() {
+    protected oriented() {
         const box = this.eastBoundingBox();
         return orient(this.orientation, {
             left: this.position.x + box.left,
@@ -211,57 +200,3 @@ export abstract class Component extends Selectable implements Drawable, Ghostabl
     }
 }
 
-export abstract class Gate extends Component {
-
-    constructor(position: Point, properties: PropertyRecord) {
-        super(position, properties);
-    }
-
-    override createInputNodes(): Node[] {
-        return this.inputNodePositions().map(position => new Node(position));
-    }
-
-    override createOutputNodes(): Node[] {
-        return this.outputNodePositions().map(position => new Node(position));
-    }
-
-    override inputNodePositions(): Point[] {
-        const { x, y } = this.position;
-        return this.getInputHandlePositions().map(handleY => this.toDiagram({ x, y: y + handleY }));
-    }
-
-    override outputNodePositions(): Point[] {
-        const { x, y } = this.position;
-        return this.getOutputHandlePositions().map(handle => this.toDiagram({ x: x + handle.x, y: y + handle.y }));
-    }
-
-    override getOutputHandlePositions(): Point[] {
-        return [];
-    }
-
-    override getInputHandlePositions(): number[] {
-
-        const inputCount = this.inputCount;
-        const handleYs: number[] = [];
-        const center = 2;
-
-        const half = Math.floor(inputCount / 2);
-
-        for (let i = 0; i < half; i++) {
-            handleYs.push(center - half + i);
-        }
-        if (inputCount % 2 === 1) handleYs.push(center);
-        for (let i = 0; i < half; i++) {
-            handleYs.push(center + 1 + i);
-        }
-
-        return handleYs;
-    }
-}
-
-export abstract class IO extends Component {
-
-    constructor(position: Point, properties: PropertyRecord) {
-        super(position, properties);
-    }
-}

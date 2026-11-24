@@ -1,7 +1,32 @@
+import { DrawState } from "../Drawable";
+import { isIdentity } from "../orientation";
 import type { Point } from "../Point";
 import { Property, Orientation, PropertyRecord } from "../Property";
 import { BoundingBox } from "../Selectable";
-import { ComponentType, IO, Node } from "./Component";
+import { Component, ComponentType, Node } from "./Component";
+
+export abstract class IO extends Component {
+
+    constructor(position: Point, properties: PropertyRecord) {
+        super(position, properties);
+    }
+
+    /**
+     * Draws the component turned to face its orientation, like a gate for now. I/O components will write text, which
+     * mustn't be mirrored, so they draw themselves apart from gates.
+     */
+    override draw(ctx: OffscreenCanvasRenderingContext2D, state: DrawState): void {
+        const { transform } = this.oriented();
+        if (isIdentity(transform)) {
+            this.drawFacingEast(ctx, state);
+            return;
+        }
+        ctx.save();
+        ctx.transform(transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
+        this.drawFacingEast(ctx, state);
+        ctx.restore();
+    }
+}
 
 export class Input extends IO {
     readonly type: ComponentType = ComponentType.Input;

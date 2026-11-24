@@ -41,8 +41,10 @@ describe('PROPERTY_DEFINITIONS', () => {
         expect(ORDERED_PROPERTY_FIELDS).toEqual([
             'Number of Inputs',
             'Orientation',
-            'Output Value',
             'Input Value',
+            'Input Format',
+            'Output Value',
+            'Output Format',
             'Bus Width',
             'Label',
             'Font Size',
