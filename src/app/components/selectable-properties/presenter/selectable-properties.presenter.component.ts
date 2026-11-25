@@ -10,7 +10,7 @@ import { fitTypedValue, formatValue, fromSerializedValue, IOFormat, maxSignalVal
 
 const SIGNAL_FORMAT_FIELDS: Partial<Record<PropertyField, PropertyField>> = {
     'Output Value': 'Output Format',
-    'Input Format': 'Input Format',
+    'Input Value': 'Input Format',
 };
 /** An edit made in the panel, with the value in the form the store holds (a bigint as its decimal string). */
 export interface PropertyChange {
@@ -85,6 +85,8 @@ export class SelectablePropertiesPresenterComponent {
             input.value = fit.text;
             input.setSelectionRange(caret, caret);
         }
+        // the store holds the value, and blur shows what it holds: without this, blur puts back the old value
+        this.emit(property, fit.value.toString());
     }
 
     protected onSignalBlur(property: PropertyListItem, input: HTMLInputElement) {
