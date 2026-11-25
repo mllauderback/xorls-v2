@@ -1,7 +1,7 @@
 import type { DrawState } from "../Drawable";
 import { isIdentity } from "../orientation";
 import type { Point } from "../Point";
-import { Property, Orientation, PropertyRecord, IOFormat, type PropertyField, type PropertyType, formatValue } from "../Property";
+import { Property, Orientation, PropertyRecord, IOFormat, type PropertyField, type PropertyType, formatValue, maxSignalValue } from "../Property";
 import { BoundingBox } from "../Selectable";
 import { Component, ComponentType, Node } from "./Component";
 
@@ -11,6 +11,8 @@ const VALUE_FONT_SIZE = 1.25;
 const DIGIT_WIDTH = 0.6 * VALUE_FONT_SIZE;
 const VALUE_PADDING = 0.5;
 const HANDLE_LENGTH = 1;
+/** How far the point of an Input's box sticks out of the side its handle comes out of, in cells. */
+const ARROW_HEIGHT = 0.5;
 
 const TEXT_TURN: Readonly<Record<Orientation, number>> = {
     [Orientation.east]: 0,
@@ -87,31 +89,73 @@ export class Input extends IO {
         this.onodes = this.createOutputNodes();
     }
 
-    get displayedValue(): string {
-        const value = this.properties.get('Output Value')!.value as bigint;
-        const format = this.properties.get('Output Format')!.value as IOFormat;
-        return formatValue(value, format);
+    private get format(): IOFormat {
+        return this.properties.get('Output Format')!.value as IOFormat;
     }
 
+    /**
+     * How many digits the largest value the Bus Width has room for takes in the format: 4 for 4 bits in binary, 2 for
+     * 8 bits in hex.
+     */
+    private get digitCount(): number {
+        const busWidth = this.properties.get('Bus Width')!.value as number;
+        return formatValue(maxSignalValue(busWidth), this.format).length;
+    }
+
+    /**
+     * The value, as it is written in the box. In binary, octal and hex it is padded with zeros to as many digits as the
+     * Bus Width has room for, so it shows every bit: 0 with a Bus Width of 4 is 0000 in binary. Decimal digits don't
+     * line up with bits, so a decimal value isn't padded, but its box is still as wide as the largest value needs.
+     */
+    get displayedValue(): string {
+        const value = this.properties.get('Output Value')!.value as bigint;
+        const text = formatValue(value, this.format);
+        return this.format === IOFormat.decimal ? text : text.padStart(this.digitCount, '0');
+    }
+
+    /**
+     * How wide the box is: room for as many digits as the largest value the Bus Width has room for takes, or for the
+     * value if it is longer, so the box stays the same width as the value changes.
+     */
     private get valueBoxWidth(): number {
-        const width = this.displayedValue.length * DIGIT_WIDTH + 2 * VALUE_PADDING;
+        const digits = Math.max(this.digitCount, this.displayedValue.length);
+        const width = digits * DIGIT_WIDTH + 2 * VALUE_PADDING;
         return Math.max(MIN_VALUE_BOX_WIDTH, 2 * Math.ceil(width / 2));
     }
 
-    /** Where the output handle starts, on the middle of a side of the box, and ends, a cell out from it. */
+    /**
+     * Where the output handle starts, at the point of the box, and ends, a whole cell out from the side of the box, so the
+     * node is on a grid point.
+     */
     private outputHandle(): { start: Point, end: Point } {
         const width = this.valueBoxWidth;
         const middle = { x: width / 2, y: VALUE_BOX_HEIGHT / 2 };
         switch (this.orientation) {
             case Orientation.north:
-                return { start: { x: middle.x, y: 0 }, end: { x: middle.x, y: -HANDLE_LENGTH } };
+                return { start: { x: middle.x, y: -ARROW_HEIGHT }, end: { x: middle.x, y: -HANDLE_LENGTH } };
             case Orientation.south:
-                return { start: { x: middle.x, y: VALUE_BOX_HEIGHT }, end: { x: middle.x, y: VALUE_BOX_HEIGHT + HANDLE_LENGTH } };
+                return {
+                    start: { x: middle.x, y: VALUE_BOX_HEIGHT + ARROW_HEIGHT },
+                    end: { x: middle.x, y: VALUE_BOX_HEIGHT + HANDLE_LENGTH },
+                };
             case Orientation.west:
-                return { start: { x: 0, y: middle.y }, end: { x: -HANDLE_LENGTH, y: middle.y } };
+                return { start: { x: -ARROW_HEIGHT, y: middle.y }, end: { x: -HANDLE_LENGTH, y: middle.y } };
             default:
-                return { start: { x: width, y: middle.y }, end: { x: width + HANDLE_LENGTH, y: middle.y } };
+                return { start: { x: width + ARROW_HEIGHT, y: middle.y }, end: { x: width + HANDLE_LENGTH, y: middle.y } };
         }
+    }
+
+    /**
+     * The corners of the box, clockwise from its top-left, with the point of the arrow in the middle of the side the
+     * handle comes out of, like the Input's icon in the palette. The handle starts at the point.
+     */
+    private outline(): Point[] {
+        const width = this.valueBoxWidth;
+        const corners: Point[] = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: VALUE_BOX_HEIGHT }, { x: 0, y: VALUE_BOX_HEIGHT }];
+        // the side the point is on comes after this corner
+        const side = { [Orientation.north]: 0, [Orientation.east]: 1, [Orientation.south]: 2, [Orientation.west]: 3 }[this.orientation] ?? 1;
+        corners.splice(side + 1, 0, this.outputHandle().start);
+        return corners;
     }
 
     /** Draws the box, its handle on the side the Input faces, and its value, none of them turned. */
@@ -126,7 +170,7 @@ export class Input extends IO {
      */
     override updateProperty(field: PropertyField, value: PropertyType): void {
         super.updateProperty(field, value);
-        if (field === 'Output Value' || field === 'Output Format') this.placeNodes();
+        if (field === 'Output Value' || field === 'Output Format' || field === 'Bus Width') this.placeNodes();
     }
 
     /** The value always reads left to right. */
@@ -156,12 +200,10 @@ export class Input extends IO {
 
     protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
-        const width = this.valueBoxWidth;
 
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + width, y);
-        ctx.lineTo(x + width, y + VALUE_BOX_HEIGHT);
-        ctx.lineTo(x, y + VALUE_BOX_HEIGHT);
+        const [first, ...rest] = this.outline();
+        ctx.moveTo(x + first.x, y + first.y);
+        for (const corner of rest) ctx.lineTo(x + corner.x, y + corner.y);
         ctx.closePath();
 
         const { start, end } = this.outputHandle();
