@@ -40,6 +40,8 @@ describe('PROPERTY_DEFINITIONS', () => {
         // the panel follows this order: change it on purpose, not by moving a definition
         expect(ORDERED_PROPERTY_FIELDS).toEqual([
             'Number of Inputs',
+            'Digits',
+            'Enable',
             'Orientation',
             'Input Value',
             'Input Format',

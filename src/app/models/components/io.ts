@@ -1,7 +1,7 @@
 import type { DrawState } from "../Drawable";
 import { isIdentity } from "../orientation";
 import type { Point } from "../Point";
-import { Property, Orientation, PropertyRecord, IOFormat, type PropertyField, type PropertyType, formatValue, maxSignalValue } from "../Property";
+import { Property, Orientation, PropertyRecord, IOFormat, Enable, type PropertyField, type PropertyType, formatValue, maxSignalValue } from "../Property";
 import { BoundingBox } from "../Selectable";
 import { Component, ComponentType, Node } from "./Component";
 
@@ -424,43 +424,207 @@ export class Output extends IO {
     }
 }
 
+/** How wide the body of a seven-segment display is for each digit, in cells. */
+const DIGIT_BODY_WIDTH = 4;
+/** How tall the body of a seven-segment display is, in cells. */
+const DISPLAY_HEIGHT = 8;
+/** How many bits each digit of a seven-segment display takes: one for each segment. */
+const SEGMENT_COUNT = 7;
+/** How thick a segment is, in cells. */
+const SEGMENT_THICKNESS = 0.4;
+
+/**
+ * Where each segment of a digit is, as a rectangle in cells from the digit's top-left corner, in the order of its bits:
+ * a (top), b (top right), c (bottom right), d (bottom), e (bottom left), f (top left) and g (middle), like the seven-segment
+ * display's icon in the palette.
+ */
+const SEGMENTS: readonly { x: number, y: number, width: number, height: number }[] = (() => {
+    const t = SEGMENT_THICKNESS;
+    const left = 1, right = 3, top = 1, middle = 4, bottom = 7;
+    const across = (y: number) => ({ x: left + t / 2, y: y - t / 2, width: right - left - t, height: t });
+    const down = (x: number, from: number, to: number) => ({ x: x - t / 2, y: from + t / 2, width: t, height: to - from - t });
+    return [
+        across(top),
+        down(right, top, middle),
+        down(right, middle, bottom),
+        across(bottom),
+        down(left, middle, bottom),
+        down(left, top, middle),
+        across(middle),
+    ];
+})();
+
+/**
+ * Shows digits in the diagram, one seven-segment digit for each of its Digits, side by side in a body 4 cells wide for
+ * each digit and 8 cells tall. Like an Output, the body faces east whichever way the display faces, and its input
+ * handles come out of the side opposite the way it faces, one for each digit, with a 7 bit input node at each handle's
+ * end. Facing east, they are on its left like the display's icon in the palette. They are laid out like a gate's
+ * inputs: a cell apart and centered, with the middle cell left empty for an even number of digits.
+ *
+ * Its segments come from the Input Value: the rightmost digit takes its 7 lowest bits, and each digit takes the next 7
+ * bits to the left. In each digit the lowest bit is segment a, up to segment g. The Enable property picks which level
+ * turns a segment on: with Low, the default, a segment is on when its bit is 0, and with High, when it is 1. A segment
+ * that is on is solid, and one that is off isn't drawn. The simulation will set the value: until then it is 0, so with
+ * Low every segment is on.
+ */
 export class SevenSegmentDisplay extends IO {
     readonly type: ComponentType = ComponentType.SevenSeg;
 
     constructor(position: Point) {
         super(position, new PropertyRecord({
             'Orientation': new Property(Orientation.east),
-            'Bus Width': new Property(1, true),
+            'Digits': new Property(1),
+            'Enable': new Property(Enable.low),
+            'Bus Width': new Property(SEGMENT_COUNT, true),
             'Label': new Property(''),
             'Input Value': new Property(0n, true),
-            'Input Format': new Property('Binary')
+            'Input Format': new Property(IOFormat.binary)
         }));
-        // TODO onodes: 1 onode
+        this.inodes = this.createInputNodes();
+    }
+
+    private get digits(): number {
+        return this.properties.get('Digits')!.value as number;
+    }
+
+    private get bodyWidth(): number {
+        return this.digits * DIGIT_BODY_WIDTH;
+    }
+
+    /** The side of the body the handles come out of: the one opposite the way the display faces. */
+    private get handleSide(): Orientation {
+        switch (this.orientation) {
+            case Orientation.north: return Orientation.south;
+            case Orientation.south: return Orientation.north;
+            case Orientation.west: return Orientation.east;
+            default: return Orientation.west;
+        }
+    }
+
+    /**
+     * Where each digit's handle starts, on the body, and ends, a cell out from it, from the display's position. They are
+     * laid out like a gate's inputs: a cell apart, centered on the side, with the middle cell left empty for an even
+     * number of digits. The first digit's is at the top, or at the left on the top or bottom.
+     */
+    private inputHandles(): { start: Point, end: Point }[] {
+        const side = this.handleSide;
+        const along = side === Orientation.north || side === Orientation.south;
+        const center = (along ? this.bodyWidth : DISPLAY_HEIGHT) / 2;
+        const half = Math.floor(this.digits / 2);
+        const offsets: number[] = [];
+        for (let i = 0; i < half; i++) offsets.push(center - half + i);
+        if (this.digits % 2 === 1) offsets.push(center);
+        for (let i = 0; i < half; i++) offsets.push(center + 1 + i);
+
+        const edge = { [Orientation.north]: 0, [Orientation.south]: DISPLAY_HEIGHT, [Orientation.west]: 0, [Orientation.east]: this.bodyWidth }[side];
+        const out = side === Orientation.north || side === Orientation.west ? -HANDLE_LENGTH : HANDLE_LENGTH;
+        return offsets.map(offset => along
+            ? { start: { x: offset, y: edge }, end: { x: offset, y: edge + out } }
+            : { start: { x: edge, y: offset }, end: { x: edge + out, y: offset } });
+    }
+
+    /** Which segments of a digit are on, from the Input Value: bit 0 for segment a up to bit 6 for segment g. */
+    private segmentsOn(digit: number): boolean[] {
+        const value = this.properties.get('Input Value')!.value as bigint;
+        const onWhen = this.properties.get('Enable')!.value === Enable.high ? 1n : 0n;
+        const fromRight = this.digits - 1 - digit;
+        const bits = (value >> BigInt(fromRight * SEGMENT_COUNT)) & ((1n << BigInt(SEGMENT_COUNT)) - 1n);
+        return SEGMENTS.map((_, segment) => ((bits >> BigInt(segment)) & 1n) === onWhen);
+    }
+
+    /** Draws the body, its handles and the segments that are on, none of them turned. */
+    override draw(ctx: OffscreenCanvasRenderingContext2D): void {
+        this.drawFacingEast(ctx);
+        this.drawSegments(ctx);
+    }
+
+    /**
+     * Fills the segments that are on, in the colour the layer strokes in, so a ghost's are grey like the rest of it.
+     * Filling doesn't add to the path the layer strokes.
+     */
+    private drawSegments(ctx: OffscreenCanvasRenderingContext2D): void {
+        const { x, y } = this.position;
+        ctx.save();
+        ctx.fillStyle = ctx.strokeStyle;
+        for (let digit = 0; digit < this.digits; digit++) {
+            const left = x + digit * DIGIT_BODY_WIDTH;
+            this.segmentsOn(digit).forEach((on, segment) => {
+                if (!on) return;
+                const { x: sx, y: sy, width, height } = SEGMENTS[segment];
+                ctx.fillRect(left + sx, y + sy, width, height);
+            });
+        }
+        ctx.restore();
+    }
+
+    /** Changing the number of digits makes a handle and a node for each, and widens the body. */
+    override updateProperty(field: PropertyField, value: PropertyType): void {
+        super.updateProperty(field, value);
+        if (field === 'Digits') {
+            this.inodes = this.createInputNodes();
+            this.placeNodes();
+        }
+    }
+
+    /** The display isn't turned to face its orientation, so a point of its drawing is where it is drawn. */
+    override toDiagram(eastPoint: Point): Point {
+        return { x: eastPoint.x, y: eastPoint.y };
+    }
+
+    /** The body and its handles, on whichever side they come out of. */
+    override getBoundingBox(): BoundingBox {
+        const ends = this.inputHandles().map(handle => handle.end);
+        const left = Math.min(0, ...ends.map(p => p.x));
+        const top = Math.min(0, ...ends.map(p => p.y));
+        const right = Math.max(this.bodyWidth, ...ends.map(p => p.x));
+        const bottom = Math.max(DISPLAY_HEIGHT, ...ends.map(p => p.y));
+        return new BoundingBox(right - left, bottom - top, top, left);
     }
 
     protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
+        const { x, y } = this.position;
+
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + this.bodyWidth, y);
+        ctx.lineTo(x + this.bodyWidth, y + DISPLAY_HEIGHT);
+        ctx.lineTo(x, y + DISPLAY_HEIGHT);
+        ctx.closePath();
+
+        for (const { start, end } of this.inputHandles()) {
+            ctx.moveTo(x + start.x, y + start.y);
+            ctx.lineTo(x + end.x, y + end.y);
+        }
     }
 
+    /** The body and the handles facing east. getBoundingBox is the footprint for the way it faces. */
     protected eastBoundingBox(): BoundingBox {
-        return new BoundingBox(4, 6);
+        return new BoundingBox(this.bodyWidth + HANDLE_LENGTH, DISPLAY_HEIGHT, 0, -HANDLE_LENGTH);
     }
 
+    /** A 7 bit node for each digit, one for each segment. */
     override createInputNodes(): Node[] {
-        throw new Error("Method not implemented.");
+        return this.inputNodePositions().map(position => new Node(position, SEGMENT_COUNT));
     }
+
     override createOutputNodes(): Node[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
+
     override inputNodePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        const { x, y } = this.position;
+        return this.inputHandles().map(({ end }) => ({ x: x + end.x, y: y + end.y }));
     }
+
     override outputNodePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
+
+    /** The height of the end of each input handle, from the display's position. */
     override getInputHandlePositions(): number[] {
-        throw new Error("Method not implemented.");
+        return this.inputHandles().map(({ end }) => end.y);
     }
+
     override getOutputHandlePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
 }

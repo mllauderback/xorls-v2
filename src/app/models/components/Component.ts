@@ -9,9 +9,10 @@ export class Node extends Selectable {
     public position: Point;
     public state: bigint;
 
-    constructor(position: Point) {
+    /** @param busWidth How many bits the node carries: 7 for a digit of a seven-segment display, for example */
+    constructor(position: Point, busWidth = 1) {
         super(new PropertyRecord({
-            'Bus Width': new Property(1, true)
+            'Bus Width': new Property(busWidth, true)
         }));
         this.position = { x: position.x, y: position.y };
         this.state = 0n;

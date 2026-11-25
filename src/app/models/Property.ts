@@ -12,6 +12,11 @@ export enum IOFormat {
     hex = 'Hex'
 }
 
+export enum Enable {
+    high = 'High',
+    low = 'Low'
+}
+
 export type PropertyType = number | string | boolean | bigint;
 
 /** How a property's value is edited, and which values it accepts. */
@@ -36,6 +41,9 @@ export type PropertyDefinition =
  */
 const DEFINITIONS = {
     'Number of Inputs': { kind: 'integer', min: 2, max: 32 },
+    // a seven-segment display's handles are spread along a side 8 cells long, which has room for 8 on grid points
+    'Digits': { kind: 'integer', min: 1, max: 8 },
+    'Enable': { kind: 'enum', options: Object.values(Enable) },
     'Orientation': { kind: 'enum', options: Object.values(Orientation) },
     'Input Value': { kind: 'bigint' },
     'Input Format': { kind: 'enum', options: Object.values(IOFormat) },
