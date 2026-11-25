@@ -242,6 +242,15 @@ export class Input extends IO {
     }
 }
 
+/**
+ * Shows the value on a wire in the diagram, drawn like an Input: a box with its value written in it, facing east
+ * whichever way it faces. Its box points the way it faces, and its input handle comes out of the middle of the opposite
+ * side, with the input node at the handle's end, like the Output's icon in the palette.
+ *
+ * Its value is the Input Value property, written in the Input Format, binary by default, and padded to its Bus Width
+ * like an Input's. The value and the Bus Width are readonly: the simulation will set the value, and the wire connected
+ * to the input node the Bus Width, which is 1 until then.
+ */
 export class Output extends IO {
     readonly type: ComponentType = ComponentType.Output;
 
@@ -251,41 +260,167 @@ export class Output extends IO {
             'Bus Width': new Property(1, true),
             'Label': new Property(''),
             'Input Value': new Property(0n, true),
-            'Input Format': new Property('Binary')
+            'Input Format': new Property(IOFormat.binary)
         }));
-        // TODO inodes: 1 inode;
+        this.inodes = this.createInputNodes();
+    }
+
+    private get format(): IOFormat {
+        return this.properties.get('Input Format')!.value as IOFormat;
+    }
+
+    /** How many bits the value has. It is 1 until the wire connected to the input node sets it. */
+    private get busWidth(): number {
+        return this.properties.get('Bus Width')!.value as number;
+    }
+
+    /** How many digits the largest value the Bus Width has room for takes in the format. */
+    private get digitCount(): number {
+        return formatValue(maxSignalValue(this.busWidth), this.format).length;
+    }
+
+    /**
+     * The value, as it is written in the box: padded with zeros to the Bus Width in binary, octal and hex, and not
+     * padded in decimal, like an Input's.
+     */
+    get displayedValue(): string {
+        const value = this.properties.get('Input Value')!.value as bigint;
+        const text = formatValue(value, this.format);
+        return this.format === IOFormat.decimal ? text : text.padStart(this.digitCount, '0');
+    }
+
+    /** How wide the box is: room for the largest value the Bus Width has room for, two cells at a time. */
+    private get valueBoxWidth(): number {
+        const digits = Math.max(this.digitCount, this.displayedValue.length);
+        const width = digits * DIGIT_WIDTH + 2 * VALUE_PADDING;
+        return Math.max(MIN_VALUE_BOX_WIDTH, 2 * Math.ceil(width / 2));
+    }
+
+    /** The point of the box, half a cell out from the middle of the side the Output faces. */
+    private arrowPoint(): Point {
+        const width = this.valueBoxWidth;
+        const middle = { x: width / 2, y: VALUE_BOX_HEIGHT / 2 };
+        switch (this.orientation) {
+            case Orientation.north:
+                return { x: middle.x, y: -ARROW_HEIGHT };
+            case Orientation.south:
+                return { x: middle.x, y: VALUE_BOX_HEIGHT + ARROW_HEIGHT };
+            case Orientation.west:
+                return { x: -ARROW_HEIGHT, y: middle.y };
+            default:
+                return { x: width + ARROW_HEIGHT, y: middle.y };
+        }
+    }
+
+    /**
+     * Where the input handle starts, on the middle of the side opposite the point, and ends, a whole cell out from it,
+     * so the node is on a grid point.
+     */
+    private inputHandle(): { start: Point, end: Point } {
+        const width = this.valueBoxWidth;
+        const middle = { x: width / 2, y: VALUE_BOX_HEIGHT / 2 };
+        switch (this.orientation) {
+            case Orientation.north:
+                return { start: { x: middle.x, y: VALUE_BOX_HEIGHT }, end: { x: middle.x, y: VALUE_BOX_HEIGHT + HANDLE_LENGTH } };
+            case Orientation.south:
+                return { start: { x: middle.x, y: 0 }, end: { x: middle.x, y: -HANDLE_LENGTH } };
+            case Orientation.west:
+                return { start: { x: width, y: middle.y }, end: { x: width + HANDLE_LENGTH, y: middle.y } };
+            default:
+                return { start: { x: 0, y: middle.y }, end: { x: -HANDLE_LENGTH, y: middle.y } };
+        }
+    }
+
+    /** The corners of the box, clockwise from its top-left, with its point in the middle of the side it faces. */
+    private outline(): Point[] {
+        const width = this.valueBoxWidth;
+        const corners: Point[] = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: VALUE_BOX_HEIGHT }, { x: 0, y: VALUE_BOX_HEIGHT }];
+        // the side the point is on comes after this corner
+        const side = { [Orientation.north]: 0, [Orientation.east]: 1, [Orientation.south]: 2, [Orientation.west]: 3 }[this.orientation] ?? 1;
+        corners.splice(side + 1, 0, this.arrowPoint());
+        return corners;
+    }
+
+    /** Draws the box, its point, its handle and its value, none of them turned. */
+    override draw(ctx: OffscreenCanvasRenderingContext2D): void {
+        this.drawFacingEast(ctx);
+        this.drawText(ctx);
+    }
+
+    /** A format with a different number of digits changes the width of the box, so the node moves with it. */
+    override updateProperty(field: PropertyField, value: PropertyType): void {
+        super.updateProperty(field, value);
+        if (field === 'Input Format') this.placeNodes();
+    }
+
+    /** The value always reads left to right. */
+    protected override get textTurn(): number {
+        return 0;
+    }
+
+    /** The Output isn't turned to face its orientation, so a point of its drawing is where it is drawn. */
+    override toDiagram(eastPoint: Point): Point {
+        return { x: eastPoint.x, y: eastPoint.y };
+    }
+
+    /** The box, its point and its handle, out to whole cells, since the point is half a cell out from the box. */
+    override getBoundingBox(): BoundingBox {
+        const points = [{ x: 0, y: 0 }, { x: this.valueBoxWidth, y: VALUE_BOX_HEIGHT }, this.arrowPoint(), this.inputHandle().end];
+        const left = Math.floor(Math.min(...points.map(p => p.x)));
+        const top = Math.floor(Math.min(...points.map(p => p.y)));
+        const right = Math.ceil(Math.max(...points.map(p => p.x)));
+        const bottom = Math.ceil(Math.max(...points.map(p => p.y)));
+        return new BoundingBox(right - left, bottom - top, top, left);
+    }
+
+    protected override drawText(ctx: OffscreenCanvasRenderingContext2D): void {
+        const { x, y } = this.position;
+        this.writeText(ctx, this.displayedValue, { x: x + this.valueBoxWidth / 2, y: y + VALUE_BOX_HEIGHT / 2 }, VALUE_FONT_SIZE);
     }
 
     protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
         const { x, y } = this.position;
 
-        ctx.moveTo(x + 1, y);
-        ctx.lineTo(x + 3, y);
-        ctx.arc(x + 3, y + 2, 2, 1.5 * Math.PI, 0.5 * Math.PI);
-        ctx.lineTo(x + 1, y + 4);
+        const [first, ...rest] = this.outline();
+        ctx.moveTo(x + first.x, y + first.y);
+        for (const corner of rest) ctx.lineTo(x + corner.x, y + corner.y);
+        ctx.closePath();
+
+        const { start, end } = this.inputHandle();
+        ctx.moveTo(x + start.x, y + start.y);
+        ctx.lineTo(x + end.x, y + end.y);
     }
 
+    /** The box, its point and its handle facing east. getBoundingBox is the footprint for the way it faces. */
     protected eastBoundingBox(): BoundingBox {
-        return new BoundingBox(3, 2);
+        return new BoundingBox(this.valueBoxWidth + 2 * HANDLE_LENGTH, VALUE_BOX_HEIGHT, 0, -HANDLE_LENGTH);
     }
 
     override createInputNodes(): Node[] {
-        throw new Error("Method not implemented.");
+        return this.inputNodePositions().map(position => new Node(position));
     }
+
     override createOutputNodes(): Node[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
+
     override inputNodePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        const { x, y } = this.position;
+        const { end } = this.inputHandle();
+        return [{ x: x + end.x, y: y + end.y }];
     }
+
     override outputNodePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
+
+    /** The height of the end of the one input handle, from the Output's position. */
     override getInputHandlePositions(): number[] {
-        throw new Error("Method not implemented.");
+        return [this.inputHandle().end.y];
     }
+
     override getOutputHandlePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
 }
 
