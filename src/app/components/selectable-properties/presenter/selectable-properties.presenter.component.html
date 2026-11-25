@@ -28,8 +28,14 @@
                 [ngModel]="property.value" (ngModelChange)="onValueChange(property, $event)"
                 [disabled]="property.readonly" />
             }
+            @case ('bigint') {
+            <input pInputText type="text" class="w-full font-mono" [id]="inputId(property.field)" autocomplete="off"
+                spellcheck="false" [value]="signalText(property)" [disabled]="property.readonly"
+                (input)="onSignalInput(property, $any($event.target))"
+                (blur)="onSignalBlur(property, $any($event.target))">
+            }
             @default {
-            <!-- integer and bigint -->
+            <!-- integer -->
             <p-inputnumber class="w-full" [inputId]="inputId(property.field)" [showButtons]="true" [useGrouping]="false"
                 [min]="min(property)" [max]="max(property)" [ngModel]="numberValue(property)"
                 (ngModelChange)="onNumberChange(property, $event)" [disabled]="property.readonly" />

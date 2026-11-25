@@ -1,9 +1,23 @@
-import { DrawState } from "../Drawable";
+import type { DrawState } from "../Drawable";
 import { isIdentity } from "../orientation";
 import type { Point } from "../Point";
-import { Property, Orientation, PropertyRecord } from "../Property";
+import { Property, Orientation, PropertyRecord, IOFormat, type PropertyField, type PropertyType, formatValue } from "../Property";
 import { BoundingBox } from "../Selectable";
 import { Component, ComponentType, Node } from "./Component";
+
+const VALUE_BOX_HEIGHT = 2;
+const MIN_VALUE_BOX_WIDTH = 2;
+const VALUE_FONT_SIZE = 1.25;
+const DIGIT_WIDTH = 0.6 * VALUE_FONT_SIZE;
+const VALUE_PADDING = 0.5;
+const HANDLE_LENGTH = 1;
+
+const TEXT_TURN: Readonly<Record<Orientation, number>> = {
+    [Orientation.east]: 0,
+    [Orientation.west]: 0,
+    [Orientation.south]: Math.PI / 2,
+    [Orientation.north]: -Math.PI / 2,
+};
 
 export abstract class IO extends Component {
 
@@ -12,22 +26,46 @@ export abstract class IO extends Component {
     }
 
     /**
-     * Draws the component turned to face its orientation, like a gate for now. I/O components will write text, which
-     * mustn't be mirrored, so they draw themselves apart from gates.
+     * Draws the component lines turned to face its orientation and the IO text
+     * ignores direct mirroring to read left to right.
      */
     override draw(ctx: OffscreenCanvasRenderingContext2D, state: DrawState): void {
         const { transform } = this.oriented();
         if (isIdentity(transform)) {
             this.drawFacingEast(ctx, state);
-            return;
+        } else {
+            ctx.save();
+            ctx.transform(transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
+            this.drawFacingEast(ctx, state);
+            ctx.restore();
         }
+        this.drawText?.(ctx);
+    }
+
+    protected drawText?(ctx: OffscreenCanvasRenderingContext2D): void;
+
+    protected writeText(ctx: OffscreenCanvasRenderingContext2D, text: string, eastPoint: Point, fontSize: number): void {
+        const at = this.toDiagram(eastPoint);
         ctx.save();
-        ctx.transform(transform.a, transform.b, transform.c, transform.d, transform.e, transform.f);
-        this.drawFacingEast(ctx, state);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.font = `${fontSize}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.translate(at.x, at.y);
+        ctx.rotate(TEXT_TURN[this.orientation] ?? 0);
+        ctx.fillText(text, 0, 0);
         ctx.restore();
     }
 }
 
+/**
+ * Sets the value of an input in the diagram. It is a box with its value written in it, and one output handle out of
+ * the middle of its right side, with the output node at the handle's end. The box is 2 x 2 cells for one digit and
+ * grows to the right, a whole cell at a time, to hold a value with more digits, so the node stays on a grid point.
+ *
+ * Its value is the Output Value property, written in the Output Format, binary by default. It holds only what its Bus
+ * Width has room for: 0 or 1 for the default single bit.
+ */
 export class Input extends IO {
     readonly type: ComponentType = ComponentType.Input;
 
@@ -37,35 +75,68 @@ export class Input extends IO {
             'Bus Width': new Property(1),
             'Label': new Property(''),
             'Output Value': new Property(0n),
-            'Output Format': new Property('Binary')
+            'Output Format': new Property(IOFormat.binary)
         }));
-        // TODO onodes: 1 onode;
+        this.onodes = this.createOutputNodes();
+    }
+
+    get displayedValue(): string {
+        const value = this.properties.get('Output Value')!.value as bigint;
+        const format = this.properties.get('Output Format')!.value as IOFormat;
+        return formatValue(value, format);
+    }
+
+    private get valueBoxWidth(): number {
+        const width = this.displayedValue.length * DIGIT_WIDTH + 2 * VALUE_PADDING;
+        return Math.max(MIN_VALUE_BOX_WIDTH, Math.ceil(width));
+    }
+
+    protected override drawText(ctx: OffscreenCanvasRenderingContext2D): void {
+        const { x, y } = this.position;
+        this.writeText(ctx, this.displayedValue, { x: x + this.valueBoxWidth / 2, y: y + VALUE_BOX_HEIGHT / 2 }, VALUE_FONT_SIZE);
     }
 
     protected drawFacingEast(ctx: OffscreenCanvasRenderingContext2D) {
+        const { x, y } = this.position;
+        const width = this.valueBoxWidth;
+
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + width, y);
+        ctx.lineTo(x + width, y + VALUE_BOX_HEIGHT);
+        ctx.lineTo(x, y + VALUE_BOX_HEIGHT);
+        ctx.closePath();
+
+        const [handle] = this.getOutputHandlePositions();
+        ctx.moveTo(x + width, y + handle.y);
+        ctx.lineTo(x + handle.x, y + handle.y);
     }
 
     protected eastBoundingBox(): BoundingBox {
-        return new BoundingBox(3, 2);
+        return new BoundingBox(this.valueBoxWidth + HANDLE_LENGTH, VALUE_BOX_HEIGHT);
     }
 
     override createInputNodes(): Node[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
+
     override createOutputNodes(): Node[] {
-        throw new Error("Method not implemented.");
+        return this.outputNodePositions().map(position => new Node(position));
     }
+
     override inputNodePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
+
     override outputNodePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        const { x, y } = this.position;
+        return this.getOutputHandlePositions().map(handle => this.toDiagram({ x: x + handle.x, y: y + handle.y }));
     }
+
     override getInputHandlePositions(): number[] {
-        throw new Error("Method not implemented.");
+        return [];
     }
     override getOutputHandlePositions(): Point[] {
-        throw new Error("Method not implemented.");
+        return [{ x: this.valueBoxWidth + HANDLE_LENGTH, y: VALUE_BOX_HEIGHT / 2 }];
     }
 }
 

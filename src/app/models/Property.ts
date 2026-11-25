@@ -70,6 +70,44 @@ export function validatePropertyValue(field: PropertyField, value: PropertyType)
     }
 }
 
+export function maxSignalValue(busWidth: number): bigint {
+    return (1n << BigInt(busWidth)) - 1n;
+}
+
+export function fitsBusWidth(value: bigint, busWidth: number): boolean {
+    return value >= 0n && value <= maxSignalValue(busWidth);
+}
+
+const RADIX: Readonly<Record<IOFormat, number>> = {
+    [IOFormat.binary]: 2,
+    [IOFormat.octal]: 8,
+    [IOFormat.decimal]: 10,
+    [IOFormat.hex]: 16,
+};
+
+const BIGINT_PREFIX: Readonly<Record<IOFormat, string>> = {
+    [IOFormat.binary]: '0b',
+    [IOFormat.octal]: '0o',
+    [IOFormat.decimal]: '',
+    [IOFormat.hex]: '0x',
+};
+
+export function formatValue(value: bigint, format: IOFormat): string {
+    return value.toString(RADIX[format] ?? 10).toUpperCase();
+}
+
+export function fitTypedValue(typed: string, format: IOFormat, max: bigint | null): { value: bigint, text: string } | null {
+    const radix = RADIX[format] ?? 10;
+    const digits = '0123456789ABCDEF'.slice(0, radix);
+    const text = [...typed.toUpperCase()]
+        .filter(c => /[0-9A-Z]/.test(c))
+        .map(c => digits.includes(c) ? c : digits[radix - 1])
+        .join('');
+    if (text === '') return null;
+    const value = BigInt((BIGINT_PREFIX[format] ?? '') + text);
+    return max !== null && value > max ? { value: max, text: formatValue(max, format) } : { value, text };
+}
+
 /** Says which values a field accepts, for error messages, e.g. "a whole number from 2 to 32". */
 export function describeAcceptedValues(field: PropertyField): string {
     const definition = PROPERTY_DEFINITIONS[field];

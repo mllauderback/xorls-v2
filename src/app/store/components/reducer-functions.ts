@@ -1,7 +1,7 @@
 import type { PaletteComponent } from "../../models/components/PaletteComponent";
 import type { PaletteComponentsState, PaletteComponentRecord, SelectableProperties, SelectedSelectable } from "./state";
 import type { PropertyField, SerializedPropertyRecord, SerializedPropertyValue } from "../../models/Property";
-import { fromSerializedValue, validatePropertyValue } from "../../models/Property";
+import { fitsBusWidth, fromSerializedValue, validatePropertyValue } from "../../models/Property";
 
 export function setSelectedPaletteComponentList(state: PaletteComponentsState, paletteComponents: PaletteComponentRecord): PaletteComponentsState {
     // console.log("componentsFeature: ", paletteComponentMap);
@@ -88,7 +88,8 @@ export function setSelectableProperties(state: PaletteComponentsState, selectabl
 export function updateSelectableProperty(state: PaletteComponentsState, field: PropertyField, value: SerializedPropertyValue): PaletteComponentsState {
     const shown = state.selectableProperties;
     const property = shown?.values[field];
-    if (!shown || !property || property.readonly || !acceptsValue(field, value)) return state;
+    // if (!shown || !property || property.readonly || !acceptsValue(field, value)) return state;
+    if (!shown || !property || property.readonly || !acceptsValue(field, value, shown.values)) return state;
     if (property.value === value) return state;
     return {
         ...state,
@@ -99,9 +100,11 @@ export function updateSelectableProperty(state: PaletteComponentsState, field: P
     };
 }
 
-function acceptsValue(field: PropertyField, value: SerializedPropertyValue): boolean {
+function acceptsValue(field: PropertyField, value: SerializedPropertyValue, values: SerializedPropertyRecord): boolean {
     const converted = fromSerializedValue(field, value);
-    return converted !== null && validatePropertyValue(field, converted);
+    if (converted === null || !validatePropertyValue(field, converted)) return false;
+    const busWidth = values['Bus Width']?.value;
+    return typeof converted !== 'bigint' || typeof busWidth !== 'number' || fitsBusWidth(converted, busWidth)
 }
 
 function clearPaletteHighlights(record: PaletteComponentRecord): PaletteComponentRecord {

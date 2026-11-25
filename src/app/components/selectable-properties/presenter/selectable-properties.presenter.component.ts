@@ -6,8 +6,12 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { ScrollPanelModule } from 'primeng/scrollpanel';
 import { SelectModule } from 'primeng/select';
-import type { PropertyField, PropertyListItem, SerializedPropertyValue } from '../../../models/Property';
+import { fitTypedValue, formatValue, fromSerializedValue, IOFormat, maxSignalValue, type PropertyField, type PropertyListItem, type SerializedPropertyValue } from '../../../models/Property';
 
+const SIGNAL_FORMAT_FIELDS: Partial<Record<PropertyField, PropertyField>> = {
+    'Output Value': 'Output Format',
+    'Input Format': 'Input Format',
+};
 /** An edit made in the panel, with the value in the form the store holds (a bigint as its decimal string). */
 export interface PropertyChange {
     field: PropertyField;
@@ -57,6 +61,36 @@ export class SelectablePropertiesPresenterComponent {
         return property.definition.kind === 'integer' ? property.definition.max : undefined;
     }
 
+    private signalFormat(property: PropertyListItem): IOFormat {
+        const formatField = SIGNAL_FORMAT_FIELDS[property.field];
+        const format = this.properties.find(p => p.field === formatField)?.value;
+        return Object.values(IOFormat).includes(format as IOFormat) ? format as IOFormat : IOFormat.decimal;
+    }
+
+    private signalMax(): bigint | null {
+        const busWidth = this.properties.find(p => p.field === 'Bus Width')?.value;
+        return typeof busWidth === 'number' ? maxSignalValue(busWidth) : null;
+    }
+
+    protected signalText(property: PropertyListItem): string {
+        const value = fromSerializedValue(property.field, property.value);
+        return typeof value === 'bigint' ? formatValue(value, this.signalFormat(property)) : String(property.value);
+    }
+
+    protected onSignalInput(property: PropertyListItem, input: HTMLInputElement) {
+        const fit = fitTypedValue(input.value, this.signalFormat(property), this.signalMax());
+        if (!fit) return;
+        if (fit.text !== input.value) {
+            const caret = Math.min(input.selectionStart ?? fit.text.length, fit.text.length);
+            input.value = fit.text;
+            input.setSelectionRange(caret, caret);
+        }
+    }
+
+    protected onSignalBlur(property: PropertyListItem, input: HTMLInputElement) {
+        input.value = this.signalText(property);
+    }
+
     protected options(property: PropertyListItem): string[] {
         return property.definition.kind === 'enum' ? property.definition.options : [];
     }
@@ -70,7 +104,7 @@ export class SelectablePropertiesPresenterComponent {
     /** A number field, for a number or a bigint, changed. A cleared field changes nothing. */
     protected onNumberChange(property: PropertyListItem, value: number | null) {
         if (value === null || !Number.isFinite(value)) return;
-        this.emit(property, property.definition.kind === 'bigint' ? BigInt(Math.trunc(value)).toString() : value);
+        this.emit(property, value);
     }
 
     /** A text field lost focus or Enter was pressed in it. */

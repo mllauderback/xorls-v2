@@ -47,10 +47,10 @@ describe('componentsFeature in a store with the runtime checks on', () => {
         const values = new Input({ x: 0, y: 0 }).properties.serialize();
         store.dispatch(actions.loadSelectableProperties({ properties: { target: { kind: 'preview', workspaceId: 'w', type: ComponentType.Input }, values } }));
 
-        store.dispatch(actions.updateSelectableProperty({ field: 'Output Value', value: '7' }));
+        store.dispatch(actions.updateSelectableProperty({ field: 'Output Value', value: '1' }));
         const properties = (await firstValueFrom(store.select(selectSelectableProperties)))!;
 
-        expect(properties.values['Output Value']).toEqual({ value: '7', readonly: false });
+        expect(properties.values['Output Value']).toEqual({ value: '1', readonly: false });
         expect(Object.isFrozen(properties.values['Output Value'])).toBe(true);
         expect(JSON.parse(JSON.stringify(properties))).toEqual(properties);
     });

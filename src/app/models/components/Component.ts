@@ -131,7 +131,7 @@ export abstract class Component extends Selectable implements Drawable, Ghostabl
      * Moves the input and output nodes to the ends of their handles, after the component moves, turns, or its box
      * changes size.
      */
-    private placeNodes(): void {
+    protected placeNodes(): void {
         this.inputNodePositions().forEach((position, i) => {
             if (this.inodes[i]) this.inodes[i].position = position;
         });

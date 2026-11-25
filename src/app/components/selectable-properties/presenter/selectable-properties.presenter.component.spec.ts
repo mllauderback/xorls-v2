@@ -81,7 +81,7 @@ describe('SelectablePropertiesComponent', () => {
         ]);
 
         expect(row('property-orientation').query(By.css('p-select'))).toBeTruthy();
-        expect(row('property-output-value').query(By.css('p-inputnumber'))).toBeTruthy();
+        expect(row('property-output-value').query(By.css('input[pInputText]'))).toBeTruthy();
         expect(row('property-bus-width').query(By.css('p-inputnumber'))).toBeTruthy();
         expect(row('property-label').query(By.css('input[pInputText]'))).toBeTruthy();
         expect(row('property-number-of-inputs').query(By.css('p-checkbox'))).toBeTruthy();
@@ -135,9 +135,12 @@ describe('SelectablePropertiesComponent', () => {
         });
 
         it('should report a bigint as its decimal string', () => {
-            show(ComponentType.Input, toOrderedList(new Input({ x: 0, y: 0 }).properties.serialize()));
+            const properties = toOrderedList(new Input({ x: 0, y: 0 }).properties.serialize());
+            show(ComponentType.Input, properties.map(p => p.field === 'Bus Width' ? { ...p, value: 8 } : p));
+            const input = row('property-output-value').query(By.css('input')).nativeElement as HTMLInputElement;
 
-            row('property-output-value').query(By.css('p-inputnumber')).triggerEventHandler('ngModelChange', 255);
+            input.value = '11111111';
+            input.dispatchEvent(new Event('input'));
 
             expect(changes).toEqual([{ field: 'Output Value', value: '255' }]);
         });
@@ -169,7 +172,10 @@ describe('SelectablePropertiesComponent', () => {
         it('should never report a readonly property', () => {
             show(ComponentType.AndGate, toOrderedList(new AndGate({ x: 0, y: 0 }, 2).properties.serialize()));
 
-            row('property-output-value').query(By.css('p-inputnumber')).triggerEventHandler('ngModelChange', 1);
+            // row('property-output-value').query(By.css('p-inputnumber')).triggerEventHandler('ngModelChange', 1);
+            const input = row('property-output-value').query(By.css('input')).nativeElement as HTMLInputElement;
+            input.value = '1';
+            input.dispatchEvent(new Event('input'));
 
             expect(changes).toEqual([]);
         });
